@@ -1,0 +1,19 @@
+%{
+#include <string.h>
+#include "token.h"
+%}
+struct token;
+%%
+:input,   MOXI_TOK_KW_INPUT
+:output,  MOXI_TOK_KW_OUTPUT
+:local,   MOXI_TOK_KW_LOCAL
+:init,    MOXI_TOK_KW_INIT
+:trans,   MOXI_TOK_KW_TRANS
+:inv,     MOXI_TOK_KW_INV
+:subsys,  MOXI_TOK_KW_SUBSYS
+:assume,  MOXI_TOK_KW_ASSUME
+:reach,   MOXI_TOK_KW_REACH
+:fair,    MOXI_TOK_KW_FAIR
+:current, MOXI_TOK_KW_CURRENT
+:query,   MOXI_TOK_KW_QUERY
+:queries, MOXI_TOK_KW_QUERIES
