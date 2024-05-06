@@ -6,7 +6,7 @@
 void init_parse_error_stack(parse_error_stack_t *stack)
 {
     stack->size = PARSE_ERROR_STACK_MIN;
-    stack->idx = 0;
+    stack->num_errors = 0;
     stack->data = malloc(sizeof(parse_error_t) * PARSE_ERROR_STACK_MIN);
 }
 
@@ -28,7 +28,7 @@ void extend_parse_error_stack(parse_error_stack_t *stack, size_t size)
 void push_parse_error(parse_error_stack_t *stack, parse_error_code_t code, 
     uint64_t lineno, uint64_t col, const char *format, ...)
 {
-    if (stack->idx == stack->size) {
+    if (stack->num_errors == stack->size) {
         extend_parse_error_stack(stack, (int) stack->size / 2);
     }
 
@@ -44,7 +44,7 @@ void push_parse_error(parse_error_stack_t *stack, parse_error_code_t code,
     vsnprintf(msg, sizeof(msg), format, actual_args);
     va_end(actual_args);
 
-    stack->data[stack->idx] = (parse_error_t) { 
+    stack->data[stack->num_errors] = (parse_error_t) { 
         .code = code,
         .lineno = lineno,
         .col = col,
@@ -55,7 +55,7 @@ void push_parse_error(parse_error_stack_t *stack, parse_error_code_t code,
 
 parse_error_t pop_parse_error(parse_error_stack_t *stack)
 {
-    parse_error_t error = stack->data[stack->idx];
-    stack->idx--;
+    parse_error_t error = stack->data[stack->num_errors];
+    stack->num_errors--;
     return error;
 }

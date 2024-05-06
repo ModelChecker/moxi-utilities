@@ -18,7 +18,7 @@ extern int debug_level;
 void set_debug_level(int level);
 
 
-void print_error(module_code_t code, int level, const char *format, ...);
+void print_error(module_code_t code, const char *format, ...);
 void print_debug(module_code_t code, int level, const char *format, ...);
 
 

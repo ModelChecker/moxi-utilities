@@ -16,16 +16,14 @@ void set_debug_level(int level)
 }
 
 
-void print_error(module_code_t code, int level, const char *format, ...)
+void print_error(module_code_t code, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
 
-    if (level <= debug_level) {
-        fprintf(stderr, "[ERR-%s] ", module_code_str[code]);
-        vfprintf(stderr, format, args);
-        fprintf(stderr, "\n");
-    }
+    fprintf(stderr, "[ERR-%s] ", module_code_str[code]);
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
 }
 
 

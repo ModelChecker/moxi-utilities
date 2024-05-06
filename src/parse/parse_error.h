@@ -7,6 +7,8 @@
 #define PARSE_ERROR_STACK_MIN 16
 
 typedef enum parse_error_code {
+    PARSE_ERROR_EXPECTED_LP,
+    PARSE_ERROR_EXPECTED_RP,
     PARSE_ERROR_SYMBOL_ALREADY_IN_USE,
     PARSE_ERROR_EXPECTED_SYMBOL,
     PARSE_ERROR_NONE
@@ -22,11 +24,13 @@ typedef struct parse_error {
 
 #define EMPTY_PARSE_ERROR (parse_error_t) { PARSE_ERROR_NONE, 0, 0, "" }
 
+
 typedef struct parse_error_stack {
     size_t size;
-    size_t idx;
+    size_t num_errors;
     parse_error_t *data;
 } parse_error_stack_t;
+
 
 void init_parse_error_stack(parse_error_stack_t *stack);
 void delete_parse_error_stack(parse_error_stack_t *stack);

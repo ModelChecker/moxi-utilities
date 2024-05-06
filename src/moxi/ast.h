@@ -65,10 +65,10 @@ typedef struct moxi_node {
 } moxi_node_t;
 
 
-typedef struct moxi_ast {
+typedef struct moxi_term {
     moxi_node_t *tree;
     uint64_t size;
-} moxi_ast_t;  
+} moxi_term_t;
 
 
 
