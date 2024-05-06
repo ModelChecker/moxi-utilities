@@ -4,6 +4,14 @@
 
 
 
+/**
+ * 
+*/
+void init_parser(parser_t *parser, const char *filename)
+{
+    init_lexer(&parser->lex, filename);
+    init_parse_error_stack(&parser->error_stack);
+}
 
 
 /**
@@ -36,6 +44,8 @@ void parse_moxi(parser_t *parser)
             // error
         }
 
+        token_type = lexer_next_token(lex);
+
         switch (token_type)
         {
         case MOXI_TOK_RW_DEFINE_SYS:
@@ -57,12 +67,5 @@ void parse_moxi(parser_t *parser)
             break;
         }
     } while(token_type != MOXI_TOK_EOF);
-}
-
-
-void init_parser(parser_t *parser, const char *filename)
-{
-    init_lexer(&parser->lex, filename);
-    init_parse_error_stack(&parser->error_stack);
 }
 
