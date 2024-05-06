@@ -3,6 +3,8 @@
 */
 #include <stdio.h>
 
+#include "io/print.h"
+#include "parse/token.h"
 #include "parse/lexer.h"
 
 const char *usage = "Usage: moxi filename\n";
@@ -25,17 +27,15 @@ int main(int argc, char *argv[])
 
     fprintf(stdout, "initialized lexer\n");
 
+    int status = 0;
     do {
         token_type = lexer_next_token(&lex);
+        print_debug(MOD_LEX, 0, "%-13s \"%s\"", token_type_str[token_type], lex.buffer.data);
 
-        if (token_type == MOXI_TOK_ERROR) {
-            fprintf(stderr, "error\n");
-            return 1;
+        if (token_type >= MOXI_TOK_ERROR) {
+            status = 1;
         }
-
-        fprintf(stdout, "%s\n", lex.buffer.data);
-
     } while (token_type != MOXI_TOK_EOF);
 
-    return 0;
+    return status;
 }

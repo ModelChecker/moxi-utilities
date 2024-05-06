@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "parse/hash_reserved.h"
-#include "parse/hash_symbol.h"
 #include "parse/hash_keyword.h"
 #include "parse/token.h"
 #include "parse/lexer.h"
@@ -97,9 +97,135 @@ void delete_lexer(lexer_t *lex)
 /**
  * 
 */
+token_type_t read_decimal(lexer_t *lex)
+{
+    string_buffer_t *buffer;
+    file_reader_t *reader;
+    char ch;
+
+    buffer = &lex->buffer;
+    reader = &lex->reader;
+    ch = reader->cur;
+
+    assert(ch == '.');
+
+    string_buffer_append_char(buffer, ch);
+    ch = file_reader_next_char(&lex->reader);
+
+    // Cannot allow the token `123.`
+    if (!isdigit(ch)) {
+        return MOXI_TOK_INVALID_NUMERAL_ZERO;
+    }
+
+    do {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+    } while(isdigit(ch));
+
+    return MOXI_TOK_DECIMAL;
+}
+
+
+/**
+ * Returns token type corresponding to the numeral in `lex`'s reader. 
+ * 
+ * When called, the first char in `lex`'s buffer must be a digit.
+*/
+token_type_t read_numeral(lexer_t *lex)
+{
+    string_buffer_t *buffer;
+    file_reader_t *reader;
+    char ch;
+
+    buffer = &lex->buffer;
+    reader = &lex->reader;
+    ch = reader->cur;
+
+    assert(isdigit(ch));
+
+    // Numerals that start with `0` must be either:
+    //   - only `0` or 
+    //   - `0.<numeral>`
+    if (ch == '0') {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+
+        // Any numeral that starts with `0` and followed by another digit is an error.
+        // We consume all the digits for better error messaging.
+        if (isdigit(ch)) {
+            do {
+                string_buffer_append_char(buffer, ch);
+                ch = file_reader_next_char(&lex->reader);
+            } while(isdigit(ch));
+
+            return MOXI_TOK_INVALID_NUMERAL_ZERO;
+        }
+
+        if (ch != '.') {
+            return MOXI_TOK_NUMERAL;
+        }
+
+        return read_decimal(lex);
+    }
+
+    do {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+    } while(isdigit(ch));
+
+    if (ch == '.') {
+        return read_decimal(lex);
+    }
+    
+    return MOXI_TOK_NUMERAL;
+}
+
+
+/**
+ * Returns token type corresponding to the constant symbol in `lex`'s reader. 
+ * 
+ * When called, the first char in `lex`'s buffer must be `#`.
+*/
 token_type_t read_constant(lexer_t *lex)
 {
+    string_buffer_t *buffer;
+    file_reader_t *reader;
+    char ch;
 
+    buffer = &lex->buffer;
+    reader = &lex->reader;
+    ch = reader->cur; // must be `#`
+
+    assert(ch == '#');
+
+    string_buffer_append_char(buffer, ch);
+    ch = file_reader_next_char(&lex->reader);
+
+    switch (ch)
+    {
+    case 'b':
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+
+        while(ch == '0' || ch == '1') {
+            string_buffer_append_char(buffer, ch);
+            ch = file_reader_next_char(&lex->reader);
+        }
+
+        return MOXI_TOK_BINARY;
+    case 'x':
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+
+        while(isxdigit(ch)) {
+            string_buffer_append_char(buffer, ch);
+            ch = file_reader_next_char(&lex->reader);
+        }
+
+        return MOXI_TOK_HEX;
+    default:
+        return MOXI_TOK_INVALID_CONSTANT;
+    }
 }
 
 
@@ -108,43 +234,96 @@ token_type_t read_constant(lexer_t *lex)
 */
 token_type_t read_string(lexer_t *lex)
 {
-
+    return MOXI_TOK_ERROR;
 }
 
 
 /**
+ * Returns `MOXI_TOK_SYMBOL` if `lex`'s reader currently has a valid quoted symbol. 
  * 
+ * A valid quoted symbol is a sequence of printable chars that are not `\` encased by `|`. The `|`
+ * chars are not appended to the final symbol in 'lex`'s buffer. 
+ * 
+ * When called, the first char in `lex`'s buffer must be `|`.
 */
 token_type_t read_quoted_symbol(lexer_t *lex)
 {
+    string_buffer_t *buffer;
+    file_reader_t *reader;
+    char ch;
 
+    buffer = &lex->buffer;
+    reader = &lex->reader;
+    ch = reader->cur;
+
+    assert(ch == '|');
+    ch = file_reader_next_char(&lex->reader);
+
+    while(ch != '|' && isprint(ch) && ch != '\\') {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+    }
+
+    if (ch == '|') {
+        // Then this is a valid symbol, consume `|` but don't append to buffer
+        ch = file_reader_next_char(&lex->reader);
+
+        // Could also be primed symbol
+        if (ch == '\'') {
+            string_buffer_append_char(buffer, ch);
+            file_reader_next_char(&lex->reader);
+        }
+
+        return MOXI_TOK_SYMBOL;
+    }
+
+    // In error state, so consume until we find another `|` or EOF
+    while(ch != '|' && ch != EOF) {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+    }
+
+    if (ch == EOF) {
+        return MOXI_TOK_INVALID_QUOTED_SYMBOL_EOF;
+    }
+
+    file_reader_next_char(&lex->reader);
+    return MOXI_TOK_INVALID_QUOTED_SYMBOL_CHAR;
 }
 
 
 /**
- * Returns token corresponding to symbol in `lex`'s reader. When called, the first char of the
- * symbol is in `lex`'s buffer and is the current char of `lex`'s reader.
+ * Returns token corresponding to symbol in `lex`'s reader. 
+ * 
+ * When called, the first char of the symbol is in `lex`'s buffer and is the current char of `lex`'s
+ * reader.
 */
 token_type_t read_symbol(lexer_t *lex)
 {
-    file_reader_t *reader;
     string_buffer_t *buffer;
-    token_t *tok;
-    token_type_t tok_type;
+    file_reader_t *reader;
+    const token_t *tok;
     char ch;
 
-    reader = &lex->reader;
     buffer = &lex->buffer;
+    reader = &lex->reader;
+    ch = reader->cur;
 
-    while(is_simple_char(ch)) {
-        ch = file_reader_next_char(&lex->reader);
+    do {
         string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
+    } while(is_simple_char(ch));
+
+    // Prime symbol (') allowed at the end of a non-zero length symbol
+    if (ch == '\'') {
+        string_buffer_append_char(buffer, ch);
+        ch = file_reader_next_char(&lex->reader);
     }
 
     tok = in_moxi_kw(buffer->data, buffer->idx);
     if (tok != NULL) {
         return tok->type;
-    }
+    } 
 
     tok = in_moxi_rw(buffer->data, buffer->idx);
     if (tok != NULL) {
@@ -162,7 +341,7 @@ token_type_t lexer_next_token(lexer_t *lex)
 {
     int ch;
     file_reader_t *reader = &lex->reader;
-    ch = file_reader_next_char(reader);
+    ch = reader->cur;
 
     string_buffer_t *buffer = &lex->buffer;
     string_buffer_reset(buffer);
@@ -198,28 +377,38 @@ token_type_t lexer_next_token(lexer_t *lex)
         break;
 
     case '#':
-        string_buffer_append_char(buffer, ch);
         tok_type = read_constant(lex);
         break;
 
     case '"':
-        string_buffer_append_char(buffer, ch);
         tok_type = read_string(lex);
         break;
 
     case '|':
-        string_buffer_append_char(buffer, ch);
         tok_type = read_quoted_symbol(lex);
         break;
 
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+        tok_type = read_numeral(lex);
+        break;
+
     default:
-        if (is_simple_char(ch)) {
-            string_buffer_append_char(buffer, ch);
+        if (is_simple_char(ch) || ch == ':') {
             tok_type = read_symbol(lex);
             break;
         } 
-        
-        tok_type = MOXI_TOK_ERROR;
+
+        ch = file_reader_next_char(reader);
+        tok_type = MOXI_TOK_INVALID_SYMBOL;
     }
 
     return tok_type;

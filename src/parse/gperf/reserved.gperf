@@ -14,7 +14,6 @@ as,                MOXI_TOK_RW_AS
 let,               MOXI_TOK_RW_LET
 exists,            MOXI_TOK_RW_EXISTS
 forall,            MOXI_TOK_RW_FORALL
-assert,            MOXI_TOK_RW_ASSERT
 define-system,     MOXI_TOK_RW_DEFINE_SYS
 check-system,      MOXI_TOK_RW_CHECK_SYS
 declare-sort,      MOXI_TOK_RW_DECLARE_SORT

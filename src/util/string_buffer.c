@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "io/print.h"
 #include "util/string_buffer.h"
@@ -58,7 +59,8 @@ void string_buffer_extend(string_buffer_t *str, size_t size)
 */
 void string_buffer_reset(string_buffer_t *str)
 {
-
+    str->idx = 0;
+    str->data[0] = '\0';
 }
 
 
@@ -84,4 +86,13 @@ void string_buffer_append_char(string_buffer_t *str, char c)
 void string_buffer_append_string(string_buffer_t *str, char *s)
 {
 
+}
+
+
+/**
+ *
+*/
+size_t string_buffer_get_length(string_buffer_t *str)
+{
+    return str->idx;
 }

@@ -6,16 +6,20 @@
 
 
 typedef enum module_code {
-    PARSE
+    MOD_LEX,
+    MOD_PARSE,
 } module_code_t;
 
+extern const char *module_code_str[MOD_PARSE+1];
 
-static int debug_level;
+extern int debug_level;
 
 
-void print_error(module_code_t code, char *msg);
-void print_debug(module_code_t code, int level, char *msg);
-void print_log(module_code_t code, char *msg);
+void set_debug_level(int level);
+
+
+void print_error(module_code_t code, int level, const char *format, ...);
+void print_debug(module_code_t code, int level, const char *format, ...);
 
 
 #endif

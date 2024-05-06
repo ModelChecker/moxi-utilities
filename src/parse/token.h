@@ -6,10 +6,17 @@
 
 
 typedef enum token_type {
-    MOXI_TOK_ERROR,
     MOXI_TOK_EOF,
     MOXI_TOK_LP,
     MOXI_TOK_RP,
+
+    // constants
+    MOXI_TOK_NUMERAL,
+    MOXI_TOK_DECIMAL,
+    MOXI_TOK_BINARY,
+    MOXI_TOK_HEX,
+
+    // reserved words
     MOXI_TOK_RW_PAR,
     MOXI_TOK_RW_NUM,
     MOXI_TOK_RW_DEC,
@@ -21,7 +28,6 @@ typedef enum token_type {
     MOXI_TOK_RW_LET,
     MOXI_TOK_RW_EXISTS,
     MOXI_TOK_RW_FORALL,
-    MOXI_TOK_RW_ASSERT,
     MOXI_TOK_RW_DEFINE_SYS,
     MOXI_TOK_RW_CHECK_SYS,
     MOXI_TOK_RW_DECLARE_SORT,
@@ -34,6 +40,8 @@ typedef enum token_type {
     MOXI_TOK_RW_EXIT,
     MOXI_TOK_RW_SET_LOGIC,
     MOXI_TOK_RW_ECHO,
+
+    // keywords
     MOXI_TOK_KW_INPUT,
     MOXI_TOK_KW_OUTPUT,
     MOXI_TOK_KW_LOCAL,
@@ -47,11 +55,25 @@ typedef enum token_type {
     MOXI_TOK_KW_CURRENT,
     MOXI_TOK_KW_QUERY,
     MOXI_TOK_KW_QUERIES,
-    MOXI_TOK_SYMBOL
+
+    // all other symbols
+    MOXI_TOK_SYMBOL,
+
+    // error tokens
+    MOXI_TOK_ERROR,
+    MOXI_TOK_INVALID_CONSTANT,
+    MOXI_TOK_INVALID_NUMERAL_ZERO,
+    MOXI_TOK_INVALID_QUOTED_SYMBOL_EOF,
+    MOXI_TOK_INVALID_QUOTED_SYMBOL_CHAR,
+    MOXI_TOK_INVALID_SYMBOL
 } token_type_t;
+
+// Lookup table for string representations of tokens
+extern const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1];
 
 
 typedef enum symbol_type {
+    MOXI_SYM,
     MOXI_SYM_BOOL,
     MOXI_SYM_TRUE,
     MOXI_SYM_FALSE,

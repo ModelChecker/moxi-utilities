@@ -3,9 +3,9 @@ GPERF := gperf
 
 SRC_DIR := src
 OBJ_DIR := obj
-BIN := moxi
+BIN := moximc
 
-CFLAGS += -I$(SRC_DIR)
+CFLAGS += -Wall -I$(SRC_DIR) 
 
 SRC_DIRS := \
 	$(SRC_DIR) \

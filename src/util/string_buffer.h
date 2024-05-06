@@ -46,5 +46,10 @@ void string_buffer_append_char(string_buffer_t *str, char c);
 */
 void string_buffer_append_string(string_buffer_t *str, char *s);
 
+/**
+ *
+*/
+size_t string_buffer_get_length(string_buffer_t *str);
+
 
 #endif
