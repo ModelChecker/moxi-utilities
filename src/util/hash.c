@@ -6,9 +6,9 @@
  * 
  * Adapted from: http://www.cse.yorku.ca/~oz/hash.html
 */
-uint64_t djb2_hash_string(unsigned char *str)
+uint32_t djb2_hash_string(unsigned char *str)
 {
-    uint64_t hash = 5381;
+    uint32_t hash = 5381;
     int c;
 
     while ((c = *str++)) {
