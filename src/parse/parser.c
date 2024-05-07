@@ -14,11 +14,26 @@ void init_parser(parser_t *parser, const char *filename)
     init_lexer(&parser->lex, filename);
     init_parse_error_stack(&parser->error_stack);
     init_symbol_table(&parser->symbol_table, 0);
+
+    parser->num_open_parens = 0;
+    parser->depth = 0;
 }
 
 
 /**
  * 
+*/
+void delete_parser(parser_t *parser)
+{
+    delete_lexer(&parser->lex);
+    delete_parse_error_stack(&parser->error_stack);
+    delete_symbol_table(&parser->symbol_table);
+}
+
+
+/**
+ * Returns the contents of the next token's string buffer if the next token is both a symbol and is
+ * not present in the symbol table. Otherwise returns NULL.
 */
 char *parse_fresh_symbol(parser_t *parser)
 {
@@ -38,9 +53,11 @@ char *parse_fresh_symbol(parser_t *parser)
     if (token_type != MOXI_TOK_SYMBOL) {
         push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_SYMBOL, 
             lex->tok_lineno, lex->tok_col, "expected symbol");
+        return NULL;
     } else if(symbol_table_find(symbol_table, buffer->data) >= 0) {
         push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_ALREADY_IN_USE, 
-            lex->tok_lineno, lex->tok_col, "symbol in use");
+            lex->tok_lineno, lex->tok_col, "symbol already in use");
+        return NULL;
     } 
 
     return buffer->data;
@@ -49,10 +66,56 @@ char *parse_fresh_symbol(parser_t *parser)
 
 /**
  * 
+*/
+token_type_t parse_left_paren(parser_t *parser)
+{
+    lexer_t *lex;
+    parse_error_stack_t *error_stack;
+    token_type_t token_type;
+
+    lex = &parser->lex;
+    error_stack = &parser->error_stack;
+
+    token_type = lexer_next_token(lex);
+
+    if (token_type != MOXI_TOK_LP) {
+        push_parse_error(error_stack, PARSE_ERROR_EXPECTED_RP, 
+            lex->tok_lineno, lex->tok_col, "expected '('");
+    }
+
+    return token_type;
+}
+
+
+/**
+ * 
+*/
+token_type_t parse_right_paren(parser_t *parser)
+{
+    lexer_t *lex;
+    parse_error_stack_t *error_stack;
+    token_type_t token_type;
+
+    lex = &parser->lex;
+    error_stack = &parser->error_stack;
+
+    token_type = lexer_next_token(lex);
+
+    if (token_type != MOXI_TOK_RP) {
+        push_parse_error(error_stack, PARSE_ERROR_EXPECTED_RP, 
+            lex->tok_lineno, lex->tok_col, "expected ')'");
+    }
+
+    return token_type;
+}
+
+
+/**
+ * 
  * `<symbol>`
  * `(_ <symbol> <symbol-or-int-list>)`
 */
-void parse_identifier(parser_t *parser)
+char *parse_identifier(parser_t *parser)
 {
 
 }
@@ -65,43 +128,44 @@ void parse_identifier(parser_t *parser)
 void parse_sort(parser_t *parser)
 {
     lexer_t *lex;
-    string_buffer_t *buffer;
     parse_error_stack_t *error_stack;
     symbol_table_t *symbol_table;
-    token_type_t token_type;
+    char *sort_symbol;
 
     lex = &parser->lex;
-    buffer = &parser->lex.buffer;
     error_stack = &parser->error_stack;
     symbol_table = &parser->symbol_table;
 
-    token_type = lexer_next_token(lex);
+    sort_symbol = parse_identifier(parser);
 
+    if(symbol_table_find(symbol_table, sort_symbol) < 0) {
+        push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_NOT_SORT, 
+            lex->tok_lineno, lex->tok_col, "expected a sort symbol");
+    } 
 }
 
 
 /**
  * 
- * `(<fresh-symbol> <sort-symbol>)`
+ * `<fresh-symbol> <sort-symbol>`
 */
 void parse_sorted_var(parser_t *parser)
 {
-    lexer_t *lex;
     string_buffer_t *buffer;
     parse_error_stack_t *error_stack;
     symbol_table_t *symbol_table;
-    token_type_t token_type;
+    char *fresh_symbol;
 
-    lex = &parser->lex;
     buffer = &parser->lex.buffer;
     error_stack = &parser->error_stack;
     symbol_table = &parser->symbol_table;
 
+    fresh_symbol = parse_fresh_symbol(parser);
     parse_sort(parser);
 
-    if (error_stack->num_errors == 0) {
-        symbol_table_add(symbol_table, buffer->data);
-        // add to variable table?
+    if (fresh_symbol != NULL && error_stack->num_errors == 0) {
+        symbol_table_add(symbol_table, fresh_symbol);
+        // add to variable table
     }
 }
 
@@ -113,38 +177,20 @@ void parse_sorted_var(parser_t *parser)
 void parse_sorted_var_list(parser_t *parser)
 {
     lexer_t *lex;
-    string_buffer_t *buffer;
-    parse_error_stack_t *error_stack;
-    symbol_table_t *symbol_table;
     token_type_t token_type;
 
     lex = &parser->lex;
-    buffer = &parser->lex.buffer;
-    error_stack = &parser->error_stack;
-    symbol_table = &parser->symbol_table;
 
+    token_type = parse_left_paren(parser);
     token_type = lexer_next_token(lex);
-    if (token_type != MOXI_TOK_LP) {
-        push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_RP, 
-            lex->tok_lineno, lex->tok_col, "expected '('");
-    }
 
-    token_type = lexer_next_token(lex);
     while(token_type == MOXI_TOK_LP) {  
         parse_sorted_var(parser);
-
+        parse_right_paren(parser);
         token_type = lexer_next_token(lex);
-        if (token_type != MOXI_TOK_RP) {
-            push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_RP, 
-                lex->tok_lineno, lex->tok_col, "expected ')'");
-        }
     }
 
-    token_type = lexer_next_token(lex);
-    if (token_type != MOXI_TOK_RP) {
-        push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_RP, 
-            lex->tok_lineno, lex->tok_col, "expected ')'");
-    }
+    parse_right_paren(parser);
 }
 
 
@@ -158,8 +204,9 @@ void parse_term(parser_t *parser)
 
 
 /**
- * Parse a `define-fun` MoXI command. The current token should be `define-fun`.
- * 
+ * Parse a `define-fun` MoXI command. The current token should be `define-fun`. We associate a new
+ * context starting at <term> and close it once we're done.
+ *
  * `define-fun <fresh-symbol> <sorted-var-list> <sort-symbol> <term>`
 */
 void parse_define_fun(parser_t *parser) 
@@ -176,9 +223,12 @@ void parse_define_fun(parser_t *parser)
     symbol_table = &parser->symbol_table;
 
     parse_fresh_symbol(parser);
-
     parse_sorted_var_list(parser);
     parse_sort(parser);
+
+    // open context
+
+
     parse_term(parser);
 
     if (error_stack->num_errors == 0) {
@@ -199,11 +249,7 @@ int parse_moxi(parser_t *parser)
     error_stack = &parser->error_stack;
 
     do {
-        token_type = lexer_next_token(lex);
-        if (token_type != MOXI_TOK_LP) {
-            push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_RP, 
-                lex->tok_lineno, lex->tok_col, "expected '('");
-        }
+        parse_left_paren(parser);
 
         token_type = lexer_next_token(lex);
 
@@ -228,11 +274,7 @@ int parse_moxi(parser_t *parser)
             break;
         }
 
-        token_type = lexer_next_token(lex);
-        if (token_type != MOXI_TOK_RP) {
-            push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_RP, 
-                lex->tok_lineno, lex->tok_col, "expected ')'");
-        }
+        parse_right_paren(parser);
 
     } while(token_type != MOXI_TOK_EOF);
 

@@ -8,18 +8,10 @@
 #include <stdlib.h>
 
 
-typedef enum symbol_type {
-    MOXI_SYM_VARIABLE,
-    MOXI_SYM_SORT,
-    MOXI_SYM_FUNCTION
-} symbol_type_t;
-
-
 typedef struct symbol_table_entry symbol_table_entry_t;
 
-typedef struct symbol_table_entry {
+struct symbol_table_entry {
     char *value;
-    symbol_type_t type;
     symbol_table_entry_t *next;
 };
 
@@ -37,13 +29,14 @@ typedef struct symbol_table {
     uint32_t size; 
 } symbol_table_t;
 
-#define DEFAULT_SYMBOL_TABLE_SIZE 64
+#define DEFAULT_SYMBOL_TABLE_SIZE 1024
 
 
 void init_symbol_table(symbol_table_t *table, uint32_t size);
 void delete_symbol_table(symbol_table_t *table);
 int64_t symbol_table_find(symbol_table_t *table, char *symbol);
 void symbol_table_add(symbol_table_t *table, char *symbol);
+int64_t symbol_table_remove(symbol_table_t *table, char *symbol);
 
 
 #endif
