@@ -5,13 +5,13 @@
 
 
 /**
- * Compute the hash value for `symbol` relative to the size of `table`. Since `table`'s size is a
+ * Compute the hash symbol for `symbol` relative to the size of `table`. Since `table`'s size is a
  * power of 2, we just return the lowest `log2(table->size)-1` bits of `symbol`'s hash.
 */
 uint32_t compute_symbol_table_entry_hash(symbol_table_t *table, char *symbol)
 {
     uint32_t mask = table->size - 1;
-    return mask & djb2_hash_string(symbol);
+    return mask & djb2_hash_symbol(symbol);
 }
 
 
@@ -62,8 +62,7 @@ void delete_symbol_table(symbol_table_t *table)
 
 
 /**
- * Returns the bucket index in `table` for `symbol` if `symbol` is present in `table`. Otherwise,
- * returns -1.
+ * Returns the value for `symbol` if `symbol` is present in `table`. Otherwise, returns -1.
 */
 int64_t symbol_table_find(symbol_table_t *table, char *symbol)
 {
@@ -77,8 +76,8 @@ int64_t symbol_table_find(symbol_table_t *table, char *symbol)
 
     symbol_table_entry_t *cur;
     for(cur = table->data[hash]; cur != NULL; cur = cur->next) {
-        if (!strcmp(cur->value, symbol)) {
-            return (int64_t) hash;
+        if (!strcmp(cur->symbol, symbol)) {
+            return (int64_t) cur->value;
         }
     }
 
@@ -89,13 +88,14 @@ int64_t symbol_table_find(symbol_table_t *table, char *symbol)
 /**
  * 
 */
-void symbol_table_add(symbol_table_t *table, char *symbol)
+void symbol_table_add(symbol_table_t *table, char *symbol, uint32_t value)
 {
     symbol_table_entry_t *entry;
     uint32_t hash;
 
     entry = malloc(sizeof(symbol_table_entry_t));
-    entry->value = symbol;
+    entry->symbol = symbol;
+    entry->value = value;
     entry->next = NULL;
 
     hash = compute_symbol_table_entry_hash(table, symbol);
@@ -112,7 +112,7 @@ void symbol_table_add(symbol_table_t *table, char *symbol)
 
 
 /**
- * Returns the hash of `symbol` on success, -1 on failure.
+ * Returns the value of `symbol` on success, -1 on failure.
 */
 int64_t symbol_table_remove(symbol_table_t *table, char *symbol)
 {
@@ -130,7 +130,7 @@ int64_t symbol_table_remove(symbol_table_t *table, char *symbol)
     prev = NULL;
 
     for(cur = &table->data[hash]; *cur != NULL; prev = *cur, cur = &(*cur)->next) {
-        if(strcmp((*cur)->value, symbol)) {
+        if(strcmp((*cur)->symbol, symbol)) {
             continue;
         }
 
@@ -141,7 +141,7 @@ int64_t symbol_table_remove(symbol_table_t *table, char *symbol)
             free(*cur);
         }
 
-        return (int64_t) hash;
+        return (int64_t) (*cur)->value;
     }
 
     return -1;

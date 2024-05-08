@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "util/hash.h"
-#include "util/string_set.h"
+#include "util/string_hash_set.h"
 
 
 /**

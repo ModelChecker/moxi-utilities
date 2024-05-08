@@ -10,8 +10,12 @@
 
 typedef struct symbol_table_entry symbol_table_entry_t;
 
+/**
+ * 
+*/
 struct symbol_table_entry {
-    char *value;
+    char *symbol;
+    uint32_t value; // Useful for enums
     symbol_table_entry_t *next;
 };
 
@@ -20,9 +24,9 @@ struct symbol_table_entry {
  * A symbol table is a hash map of symbol table entries. Each bucket (uniquely hashed entry) in the
  * symbol table is a linked list, where the symbol table entry stores the next entry in the list.
  *
- * table[0]    = entry("A") -> entry("B") -> ...
+ * table[0]    = <"A",0> -> <"B",1> -> ...
  * ...
- * table[size] = entry("C") -> entry("D") -> ...
+ * table[size] = <"C",2> -> <"D",1> -> ...
 */
 typedef struct symbol_table {
     symbol_table_entry_t **data;
@@ -35,7 +39,7 @@ typedef struct symbol_table {
 void init_symbol_table(symbol_table_t *table, uint32_t size);
 void delete_symbol_table(symbol_table_t *table);
 int64_t symbol_table_find(symbol_table_t *table, char *symbol);
-void symbol_table_add(symbol_table_t *table, char *symbol);
+void symbol_table_add(symbol_table_t *table, char *symbol, uint32_t value);
 int64_t symbol_table_remove(symbol_table_t *table, char *symbol);
 
 

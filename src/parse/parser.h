@@ -4,36 +4,41 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include "util/string_hash_set.h"
+#include "util/symbol_table.h"
+
+#include "moxi/context.h"
+
 #include "parse/token.h"
 #include "parse/parse_error.h"
 #include "parse/lexer.h"
-#include "util/string_set.h"
-#include "util/symbol_table.h"
+
 
 /**
  * Each parser uses a lexer to iteratively parse an input file. 
  *
- * The error_stack is used to store errors: if it's non-empty then we know that some error occurred
+ * `error_stack` is used to store errors: if it's non-empty then we know that some error occurred
  * since we last emptied the stack. In practice we empty the stack after parsing a single command.
  *
- * The symbol table stores all the 
+ * `context` 
  *
- * ctx_symbols acts as a stack to track context-sensitive symbols. For example, a sorted variable
+ * `ctx_symbols` acts as a stack to track context-sensitive symbols. For example, a sorted variable
  * that's an argument to a define-fun command or a quantified variable. 
 */
-
 typedef struct parser {
     lexer_t lex;
+    
     parse_error_stack_t error_stack;
-    symbol_table_t symbol_table;
-    symbol_table_t sort_table;
-    symbol_table_t function_table;
+    
+    context_t context;
 
     uint32_t num_open_parens;
 
     // Context-sensitive symbols
-    string_set_t *ctx_symbols;
+    string_set_t ctx_symbols;
     uint32_t depth;
+    char *top_context_symbol;
+
 } parser_t;
 
 

@@ -4,10 +4,7 @@
 #ifndef __SYSTEM_H__
 #define __SYSTEM_H__
 
-
-typedef struct term {
-
-} term_t;
+#include "moxi/terms.h"
 
 
 typedef struct moxi_system {

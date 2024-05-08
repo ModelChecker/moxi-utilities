@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #include "io/print.h"
 #include "parse/parser.h"
@@ -13,7 +14,6 @@ void init_parser(parser_t *parser, const char *filename)
 {
     init_lexer(&parser->lex, filename);
     init_parse_error_stack(&parser->error_stack);
-    init_symbol_table(&parser->symbol_table, 0);
 
     parser->num_open_parens = 0;
     parser->depth = 0;
@@ -27,7 +27,6 @@ void delete_parser(parser_t *parser)
 {
     delete_lexer(&parser->lex);
     delete_parse_error_stack(&parser->error_stack);
-    delete_symbol_table(&parser->symbol_table);
 }
 
 
@@ -46,7 +45,6 @@ char *parse_fresh_symbol(parser_t *parser)
     lex = &parser->lex;
     buffer = &parser->lex.buffer;
     error_stack = &parser->error_stack;
-    symbol_table = &parser->symbol_table;
 
     token_type = lexer_next_token(lex);
 
@@ -125,46 +123,50 @@ char *parse_identifier(parser_t *parser)
  * 
  * `<sort-symbol>`
 */
-void parse_sort(parser_t *parser)
+char *parse_sort(parser_t *parser)
 {
     lexer_t *lex;
     parse_error_stack_t *error_stack;
-    symbol_table_t *symbol_table;
     char *sort_symbol;
 
     lex = &parser->lex;
     error_stack = &parser->error_stack;
-    symbol_table = &parser->symbol_table;
 
     sort_symbol = parse_identifier(parser);
 
     if(symbol_table_find(symbol_table, sort_symbol) < 0) {
         push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_NOT_SORT, 
             lex->tok_lineno, lex->tok_col, "expected a sort symbol");
+        return NULL;
     } 
+
+    return sort_symbol;
 }
 
 
 /**
  * 
- * `<fresh-symbol> <sort-symbol>`
+ * `<var-symbol> <sort-symbol>`
 */
 void parse_sorted_var(parser_t *parser)
 {
     string_buffer_t *buffer;
     parse_error_stack_t *error_stack;
     symbol_table_t *symbol_table;
-    char *fresh_symbol;
+    char *var_symbol;
+    char *sort_symbol;
 
     buffer = &parser->lex.buffer;
     error_stack = &parser->error_stack;
-    symbol_table = &parser->symbol_table;
 
-    fresh_symbol = parse_fresh_symbol(parser);
-    parse_sort(parser);
+    var_symbol = parse_fresh_symbol(parser);
+    sort_symbol = parse_sort(parser);
 
-    if (fresh_symbol != NULL && error_stack->num_errors == 0) {
-        symbol_table_add(symbol_table, fresh_symbol);
+    if (error_stack->num_errors == 0) {
+        assert(var_symbol != NULL);
+        assert(sort_symbol != NULL);
+
+        symbol_table_add(symbol_table, var_symbol);
         // add to variable table
     }
 }
@@ -174,7 +176,7 @@ void parse_sorted_var(parser_t *parser)
  * 
  * `( <sorted-var>* )`
 */
-void parse_sorted_var_list(parser_t *parser)
+string_pair_list_t *parse_sorted_var_list(parser_t *parser)
 {
     lexer_t *lex;
     token_type_t token_type;
@@ -197,7 +199,7 @@ void parse_sorted_var_list(parser_t *parser)
 /**
  * 
 */
-void parse_term(parser_t *parser)
+term_t *parse_term(parser_t *parser)
 {
 
 }
@@ -214,27 +216,49 @@ void parse_define_fun(parser_t *parser)
     lexer_t *lex;
     string_buffer_t *buffer;
     parse_error_stack_t *error_stack;
-    symbol_table_t *symbol_table;
+    context_t *context;
     token_type_t token_type;
+
+    char *function_symbol;
+    string_pair_list_t *rank;
+    term_t *term;
 
     lex = &parser->lex;
     buffer = &parser->lex.buffer;
     error_stack = &parser->error_stack;
-    symbol_table = &parser->symbol_table;
+    context = &parser->context;
 
-    parse_fresh_symbol(parser);
-    parse_sorted_var_list(parser);
+    function_symbol = parse_fresh_symbol(parser);
+    rank = parse_sorted_var_list(parser);
     parse_sort(parser);
 
     // open context
 
 
-    parse_term(parser);
+    term = parse_term(parser);
 
     if (error_stack->num_errors == 0) {
-        symbol_table_add(symbol_table, buffer->data);
+        context_add_function_symbol(context, buffer->data);
         // add to function table
     }
+} 
+
+
+/**
+ * Parse a `define-sort` MoXI command. The current token should be `define-sort`. 
+ * 
+ * FIXME: Consider adding some "alias" table, since that's what these really are -- but how does
+ * this relate to defined functions?
+ * 
+ * Examples: 
+ * - `(define-sort BV8 () (_ BitVec 8))`
+ * - `(define-sort BV8IdxArray (ElemSort) (Array BV8 ElemSort))`
+ *
+ * `define-sort <fresh-symbol> <sort-symbol-list> <sort-symbol>`
+*/
+void parse_define_sort(parser_t *parser) 
+{
+    
 } 
 
 
