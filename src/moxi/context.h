@@ -28,7 +28,7 @@ typedef enum symbol_kind {
  * - variables
  * - systems
  * 
- * Note: we don't allow shadowing of symbols.
+ * Note: we don't allow shadowing of sort/function/system symbols.
 */
 typedef struct context {
 
@@ -64,6 +64,9 @@ typedef struct context {
      * "sys-id" -> <system-definition>
     */
     symbol_table_t system_table;
+
+
+    
 } context_t;
 
 

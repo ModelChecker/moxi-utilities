@@ -7,6 +7,7 @@
 #include "util/string_hash_set.h"
 #include "util/symbol_table.h"
 
+#include "moxi/commands.h"
 #include "moxi/context.h"
 
 #include "parse/token.h"
@@ -31,6 +32,8 @@ typedef struct parser {
     parse_error_stack_t error_stack;
     
     context_t context;
+
+    moxi_command_t command;
 
     uint32_t num_open_parens;
 

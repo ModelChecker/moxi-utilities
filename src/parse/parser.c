@@ -3,8 +3,8 @@
 #include <assert.h>
 
 #include "io/print.h"
+#include "moxi/commands.h"
 #include "parse/parser.h"
-
 
 
 /**
@@ -127,14 +127,16 @@ char *parse_sort(parser_t *parser)
 {
     lexer_t *lex;
     parse_error_stack_t *error_stack;
+    symbol_table_t *symbol_table;
     char *sort_symbol;
 
     lex = &parser->lex;
     error_stack = &parser->error_stack;
+    symbol_table = &parser->context.symbol_table;
 
     sort_symbol = parse_identifier(parser);
 
-    if(symbol_table_find(symbol_table, sort_symbol) < 0) {
+    if(symbol_table_find(symbol_table, sort_symbol) != MOXI_SYM_KIND_SORT) {
         push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_NOT_SORT, 
             lex->tok_lineno, lex->tok_col, "expected a sort symbol");
         return NULL;
@@ -166,7 +168,7 @@ void parse_sorted_var(parser_t *parser)
         assert(var_symbol != NULL);
         assert(sort_symbol != NULL);
 
-        symbol_table_add(symbol_table, var_symbol);
+        symbol_table_add(symbol_table, var_symbol, MOXI_SYM_KIND_VARIABLE);
         // add to variable table
     }
 }
@@ -207,7 +209,7 @@ term_t *parse_term(parser_t *parser)
 
 /**
  * Parse a `define-fun` MoXI command. The current token should be `define-fun`. We associate a new
- * context starting at <term> and close it once we're done.
+ * scope starting at <term> and close it once we're done.
  *
  * `define-fun <fresh-symbol> <sorted-var-list> <sort-symbol> <term>`
 */
@@ -232,13 +234,13 @@ void parse_define_fun(parser_t *parser)
     rank = parse_sorted_var_list(parser);
     parse_sort(parser);
 
-    // open context
+    // open scope
 
 
     term = parse_term(parser);
 
     if (error_stack->num_errors == 0) {
-        context_add_function_symbol(context, buffer->data);
+        // context_add_function_symbol(context, buffer->data, );
         // add to function table
     }
 } 
@@ -258,7 +260,7 @@ void parse_define_fun(parser_t *parser)
 */
 void parse_define_sort(parser_t *parser) 
 {
-    
+
 } 
 
 
@@ -268,6 +270,7 @@ int parse_moxi(parser_t *parser)
     lexer_t *lex;
     parse_error_stack_t *error_stack;
     token_type_t token_type;
+    parse_error_t error;
 
     lex = &parser->lex;
     error_stack = &parser->error_stack;
@@ -300,17 +303,17 @@ int parse_moxi(parser_t *parser)
 
         parse_right_paren(parser);
 
+        if (parse_error_stack_is_empty(error_stack)) {
+            moxi_check_fun[parser->command.type]();
+            moxi_execute_fun[parser->command.type]();
+        }
+
+        while (error_stack->num_errors > 0) {
+            error = pop_parse_error(error_stack);
+            print_error(MOD_PARSE, "%d:%d: %s", error.lineno, error.col, error.msg);
+        }
+
     } while(token_type != MOXI_TOK_EOF);
-
-    if (error_stack->num_errors == 0) {
-        return 0;
-    }
-
-    parse_error_t error;
-    while (error_stack->num_errors > 0) {
-        error = pop_parse_error(error_stack);
-        print_error(MOD_PARSE, "%d:%d: %s", error.lineno, error.col, error.msg);
-    }
 
     return -1;
 }

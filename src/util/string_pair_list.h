@@ -24,8 +24,7 @@ typedef struct string_pair_list {
 
 void init_string_pair_list(string_pair_list_t *list);
 void delete_string_pair_list(string_pair_list_t *list);
-void string_pair_list_remove(string_pair_list_t *list, char *str);
-void string_pair_list_append(string_pair_list_t *list, char *str);
+void string_pair_list_append(string_pair_list_t *list, char *s1, char *s2);
 
 
 #endif

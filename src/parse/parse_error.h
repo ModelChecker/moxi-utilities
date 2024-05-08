@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define PARSE_ERROR_STACK_MIN 16
 
@@ -39,5 +40,6 @@ void extend_parse_error_stack(parse_error_stack_t *stack, size_t size);
 void push_parse_error(parse_error_stack_t *stack, parse_error_code_t code, 
     uint64_t lineno, uint64_t col, const char *format, ...);
 parse_error_t pop_parse_error(parse_error_stack_t *stack);
+static inline bool parse_error_stack_is_empty(parse_error_stack_t *stack) { return stack->num_errors == 0; }; 
 
 #endif
