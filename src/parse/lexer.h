@@ -14,12 +14,16 @@
 // Starting size of lexer string buffer
 #define BUFFER_MIN 1024
 
+typedef struct loc {
+    uint32_t lineno;
+    uint32_t col;
+} loc_t;
+
 
 typedef struct lexer {
     file_reader_t reader;
     uint64_t tok_pos;
-    uint64_t tok_lineno;
-    uint64_t tok_col;
+    loc_t loc;
     token_type_t tok_type;
     string_buffer_t buffer;
 } lexer_t;

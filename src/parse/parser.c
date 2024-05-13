@@ -4,6 +4,7 @@
 
 #include "io/print.h"
 #include "moxi/commands.h"
+#include "parse/parse_error.h"
 #include "parse/parser.h"
 
 
@@ -13,9 +14,6 @@
 void init_parser(parser_t *parser, const char *filename)
 {
     init_lexer(&parser->lex, filename);
-    init_parse_error_stack(&parser->error_stack);
-
-    parser->num_open_parens = 0;
     parser->depth = 0;
 }
 
@@ -26,198 +24,284 @@ void init_parser(parser_t *parser, const char *filename)
 void delete_parser(parser_t *parser)
 {
     delete_lexer(&parser->lex);
-    delete_parse_error_stack(&parser->error_stack);
 }
 
 
 /**
- * Returns the contents of the next token's string buffer if the next token is both a symbol and is
- * not present in the symbol table. Otherwise returns NULL.
+ * 
 */
-char *parse_fresh_symbol(parser_t *parser)
+
+
+
+/**
+ * Pushes a sort, variable, or function onto the stack depending on the parser's context. The
+ * current token should be a symbol.
+*/
+token_type_t parse_symbol(parser_t *parser)
 {
     lexer_t *lex;
     string_buffer_t *buffer;
-    parse_error_stack_t *error_stack;
     symbol_table_t *symbol_table;
+    context_t *context;
+    parse_stack_t *stack;
     token_type_t token_type;
+    char *symbol;
 
     lex = &parser->lex;
     buffer = &parser->lex.buffer;
-    error_stack = &parser->error_stack;
+    stack = &parser->stack;
+    symbol_table = &context->symbol_table;
+    symbol = lex->buffer.data;
 
-    token_type = lexer_next_token(lex);
+    symbol_kind_t symbol_kind;
+    symbol_kind = symbol_table_find(symbol_table, symbol);
 
-    if (token_type != MOXI_TOK_SYMBOL) {
-        push_parse_error(&parser->error_stack, PARSE_ERROR_EXPECTED_SYMBOL, 
-            lex->tok_lineno, lex->tok_col, "expected symbol");
-        return NULL;
-    } else if(symbol_table_find(symbol_table, buffer->data) >= 0) {
-        push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_ALREADY_IN_USE, 
-            lex->tok_lineno, lex->tok_col, "symbol already in use");
-        return NULL;
-    } 
+    parse_stack_push_symbol(stack, symbol);
+    parse_stack_new_frame(stack);
+    
+    switch (symbol_kind)
+    {
+    case MOXI_SYM_KIND_SORT:
+        parse_stack_process_sort(stack, context);
+        break;
 
-    return buffer->data;
+    case MOXI_SYM_KIND_FUNCTION:
+        parse_stack_process_function(stack, context);
+        break;
+    
+    case MOXI_SYM_KIND_VARIABLE:
+        parse_stack_process_variable(stack, context);
+        break;
+    
+    case MOXI_SYM_KIND_SYSTEM:
+        // parse_stack_process_system(stack, context);
+        break;
+    
+    default:
+        parse_stack_process_error(stack, PARSE_ERROR_EXPECTED_SYMBOL, 
+            lex->loc.lineno, lex->loc.col, "unrecognized symbol '%s'", symbol);
+        break;
+    }
 }
 
 
 /**
- * 
+ * Iterates the lexer to the next token, pushing an error onto the stack if the token type is not
+ * `expect`.
 */
-token_type_t parse_left_paren(parser_t *parser)
+void parse_token(parser_t *parser, token_type_t expect)
 {
     lexer_t *lex;
-    parse_error_stack_t *error_stack;
     token_type_t token_type;
+    error_stack_t *error;
 
     lex = &parser->lex;
-    error_stack = &parser->error_stack;
+    error = &parser->error_stack;
 
     token_type = lexer_next_token(lex);
 
-    if (token_type != MOXI_TOK_LP) {
-        push_parse_error(error_stack, PARSE_ERROR_EXPECTED_RP, 
-            lex->tok_lineno, lex->tok_col, "expected '('");
+    if (token_type != expect) {
+        push_error(error, PARSE_ERROR_EXPECTED_RP, 
+            lex->loc.lineno, lex->loc.col, "expected '%s'", token_type_str[expect]);
     }
-
-    return token_type;
 }
 
 
 /**
+ * The current token should be a symbol or `(`. Pushes a sort, variable, or function onto the stack
+ * depending on the parser's context and indices. Pushes an error onto the stack otherwise and
+ * consumes until `)` or EOF.
  * 
-*/
-token_type_t parse_right_paren(parser_t *parser)
-{
-    lexer_t *lex;
-    parse_error_stack_t *error_stack;
-    token_type_t token_type;
-
-    lex = &parser->lex;
-    error_stack = &parser->error_stack;
-
-    token_type = lexer_next_token(lex);
-
-    if (token_type != MOXI_TOK_RP) {
-        push_parse_error(error_stack, PARSE_ERROR_EXPECTED_RP, 
-            lex->tok_lineno, lex->tok_col, "expected ')'");
-    }
-
-    return token_type;
-}
-
-
-/**
- * 
- * `<symbol>`
+ * `symbol`
  * `(_ <symbol> <symbol-or-int-list>)`
 */
-char *parse_identifier(parser_t *parser)
-{
-
-}
-
-
-/**
- * 
- * `<sort-symbol>`
-*/
-char *parse_sort(parser_t *parser)
+void parse_identifier(parser_t *parser)
 {
     lexer_t *lex;
-    parse_error_stack_t *error_stack;
     symbol_table_t *symbol_table;
-    char *sort_symbol;
-
-    lex = &parser->lex;
-    error_stack = &parser->error_stack;
-    symbol_table = &parser->context.symbol_table;
-
-    sort_symbol = parse_identifier(parser);
-
-    if(symbol_table_find(symbol_table, sort_symbol) != MOXI_SYM_KIND_SORT) {
-        push_parse_error(&parser->error_stack, PARSE_ERROR_SYMBOL_NOT_SORT, 
-            lex->tok_lineno, lex->tok_col, "expected a sort symbol");
-        return NULL;
-    } 
-
-    return sort_symbol;
-}
-
-
-/**
- * 
- * `<var-symbol> <sort-symbol>`
-*/
-void parse_sorted_var(parser_t *parser)
-{
-    string_buffer_t *buffer;
-    parse_error_stack_t *error_stack;
-    symbol_table_t *symbol_table;
-    char *var_symbol;
-    char *sort_symbol;
-
-    buffer = &parser->lex.buffer;
-    error_stack = &parser->error_stack;
-
-    var_symbol = parse_fresh_symbol(parser);
-    sort_symbol = parse_sort(parser);
-
-    if (error_stack->num_errors == 0) {
-        assert(var_symbol != NULL);
-        assert(sort_symbol != NULL);
-
-        symbol_table_add(symbol_table, var_symbol, MOXI_SYM_KIND_VARIABLE);
-        // add to variable table
-    }
-}
-
-
-/**
- * 
- * `( <sorted-var>* )`
-*/
-string_pair_list_t *parse_sorted_var_list(parser_t *parser)
-{
-    lexer_t *lex;
+    parse_stack_t *stack;
+    context_t *context;
     token_type_t token_type;
+    char *symbol;
+    uint64_t value;
 
     lex = &parser->lex;
+    stack = &parser->stack;
+    context = &parser->context;
+    token_type = lex->tok_type;
 
-    token_type = parse_left_paren(parser);
+    if (token_type == MOXI_TOK_SYMBOL) {
+        parse_symbol(parser);
+        return;
+    }
+
+    parse_token(parser, MOXI_TOK_LP);
+    parse_stack_new_frame(stack);
+    parse_token(parser, MOXI_TOK_RW_UNDERSCORE);
+    parse_symbol(parser);
+
     token_type = lexer_next_token(lex);
+    while(token_type != MOXI_TOK_RP) {
+        switch (token_type)
+        {
+        case MOXI_TOK_SYMBOL:
+            symbol = lex->buffer.data;
+            parse_stack_push_symbol(stack, symbol);
+            break;
 
-    while(token_type == MOXI_TOK_LP) {  
-        parse_sorted_var(parser);
-        parse_right_paren(parser);
+        case MOXI_TOK_NUMERAL:
+            symbol = lex->buffer.data;
+            value = strtol(symbol, NULL, 10); // FIXME: This only goes up to 64 bits
+            parse_stack_push_numeral(stack, value);
+            break;
+
+        default:
+            push_parse_error(stack, PARSE_ERROR_EXPECTED_SYMBOL, 
+                lex->loc.lineno, lex->loc.col, "expected symbol, numeral, or ')'");
+            break;
+        }
+
         token_type = lexer_next_token(lex);
     }
 
-    parse_right_paren(parser);
+    // Check indexed identifier and push onto stack
+
+    /**
+     * Indexed identifiers:
+     * (_ BitVec <numeral>)
+     * (_ extract <numeral> <numeral>)
+     * (_ repeat <numeral>)
+     * (_ zero_extend <numeral>)
+     * (_ sign_extend <numeral>)
+     * (_ rotate_right <numeral>)
+     * (_ rotate_left <numeral>)
+    */
+
+    parse_stack_pop_frame(stack);
+
+    // Consume trailing ')'
+    parse_token(parser, MOXI_TOK_RP);   
 }
 
 
 /**
+ * Parses a (potentially empty) list of sort binders, pushing each binder to the parse stack.
  * 
+ * `( (<var-symbol> <sort-symbol>)* )`
+*/
+void parse_sort_binder_list(parser_t *parser)
+{
+    lexer_t *lex;
+    token_type_t token_type;
+    parse_stack_t *stack;
+    context_t *context;
+    uint32_t lineno, col;
+    parse_stack_elem_t elem;
+
+    lex = &parser->lex;
+    stack = &parser->stack;
+    context = &parser->context;
+
+    parse_token(parser, MOXI_TOK_LP);
+    token_type = lexer_next_token(lex);
+
+    while(token_type == MOXI_TOK_LP) {
+        // Current state:
+        // `( <var-symbol> <sort-symbol> )`
+        //  ^
+        parse_token(parser, MOXI_TOK_LP);
+        parse_symbol(parser);
+        parse_identifier(parser);
+        parse_token(parser, MOXI_TOK_RP);
+
+        // Check the validity of the var and sort
+
+
+
+        token_type = lexer_next_token(lex);
+    }
+
+    parse_token(parser, MOXI_TOK_RP);
+}
+
+
+/**
+ * When we see an open parentheses, we push the following identifier onto the parse stack as the
+ * beginning of a new scope. When we see a close parentheses, we pop the top frame from the stack
+ * and perform a sort check.
+ * 
+ * `<symbol>`
+ * `(_ <symbol> <symbol-or-int-list>)` (identifier)
+ * `(<identifier> <term>*)`
 */
 term_t *parse_term(parser_t *parser)
 {
+    lexer_t *lex;
+    token_type_t token_type;
+    parse_stack_t *stack;
+    context_t *context;
+    uint32_t depth; // Number of nested parens -- stop parsing once this reaches 0 after a `)` token
+
+    depth = 0;
+    token_type = lexer_next_token(lex);
+
+    do {
+        switch (token_type)
+        {
+        case MOXI_TOK_BINARY:
+            // parse_binary(parser);
+
+        case MOXI_TOK_HEX:
+            // parse_hex(parser);
+
+        case MOXI_TOK_DECIMAL:
+            // parse_decimal(parser);
+        
+        case MOXI_TOK_SYMBOL:
+            parse_symbol(parser);
+            break;
+
+        case MOXI_TOK_LP:
+            parse_stack_new_frame(stack);
+            token_type = lexer_next_token(lex);
+
+            if (token_type == MOXI_TOK_LP) {
+                // `((_ ...) ...)`
+                //   ^
+                // Iterate since `parse_identifier` expects current token to be `_` or symbol
+                lexer_next_token(lex);
+            }
+
+            parse_identifier(parser);
+            depth++;
+
+            break;
+        
+        case MOXI_TOK_RP:
+            // check and pop top frame, push result back onto stack
+            process_table[stack->data[stack->top_frame].tag](stack, context);
+            parse_stack_pop_frame(stack);
+            depth--;
+            break;
+
+        default:
+            push_error(stack, 0, 0, 0, "expected symbol, '(', or ')'");
+            break;
+        }
+    } while(depth > 0);
 
 }
 
 
 /**
- * Parse a `define-fun` MoXI command. The current token should be `define-fun`. We associate a new
- * scope starting at <term> and close it once we're done.
+ * Parse a `define-fun` MoXI command. The current token should be `define-fun`.
  *
- * `define-fun <fresh-symbol> <sorted-var-list> <sort-symbol> <term>`
+ * `(define-fun <fresh-symbol> <binder-list> <sort-symbol> <term>)`
 */
 void parse_define_fun(parser_t *parser) 
 {
     lexer_t *lex;
     string_buffer_t *buffer;
-    parse_error_stack_t *error_stack;
     context_t *context;
     token_type_t token_type;
 
@@ -227,22 +311,16 @@ void parse_define_fun(parser_t *parser)
 
     lex = &parser->lex;
     buffer = &parser->lex.buffer;
-    error_stack = &parser->error_stack;
     context = &parser->context;
 
-    function_symbol = parse_fresh_symbol(parser);
-    rank = parse_sorted_var_list(parser);
+    function_symbol = parse_symbol(parser);
+    parse_sort_binder_list(parser);
     parse_sort(parser);
 
     // open scope
 
 
     term = parse_term(parser);
-
-    if (error_stack->num_errors == 0) {
-        // context_add_function_symbol(context, buffer->data, );
-        // add to function table
-    }
 } 
 
 
@@ -256,7 +334,7 @@ void parse_define_fun(parser_t *parser)
  * - `(define-sort BV8 () (_ BitVec 8))`
  * - `(define-sort BV8IdxArray (ElemSort) (Array BV8 ElemSort))`
  *
- * `define-sort <fresh-symbol> <sort-symbol-list> <sort-symbol>`
+ * `define-sort <fresh-symbol> <sort-symbol-list> <sort>`
 */
 void parse_define_sort(parser_t *parser) 
 {
@@ -268,12 +346,12 @@ void parse_define_sort(parser_t *parser)
 int parse_moxi(parser_t *parser)
 {
     lexer_t *lex;
-    parse_error_stack_t *error_stack;
+    parse_stack_t *stack;
+    error_stack_t *errors;
     token_type_t token_type;
-    parse_error_t error;
 
     lex = &parser->lex;
-    error_stack = &parser->error_stack;
+    stack = &parser->stack;
 
     do {
         parse_left_paren(parser);
@@ -303,14 +381,9 @@ int parse_moxi(parser_t *parser)
 
         parse_right_paren(parser);
 
-        if (parse_error_stack_is_empty(error_stack)) {
+        if (errors->num_errors == 0) {
             moxi_check_fun[parser->command.type]();
             moxi_execute_fun[parser->command.type]();
-        }
-
-        while (error_stack->num_errors > 0) {
-            error = pop_parse_error(error_stack);
-            print_error(MOD_PARSE, "%d:%d: %s", error.lineno, error.col, error.msg);
         }
 
     } while(token_type != MOXI_TOK_EOF);

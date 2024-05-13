@@ -30,7 +30,7 @@ typedef struct sort_table {
 void init_sort_table(sort_table_t *table, uint32_t size);
 void delete_sort_table(sort_table_t *table);
 string_pair_list_t *sort_table_find(sort_table_t *table, char *symbol);
-void sort_table_add(sort_table_t *table, char *symbol);
+void sort_table_add(sort_table_t *table, char *symbol, uint32_t arity);
 void sort_table_remove(sort_table_t *table, char *symbol);
 
 

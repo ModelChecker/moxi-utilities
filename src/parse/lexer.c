@@ -74,8 +74,7 @@ void init_lexer(lexer_t *lex, const char *filename)
     init_file_reader(reader, filename);
 
     lex->tok_pos = 0;
-    lex->tok_col = 0;
-    lex->tok_lineno = 0;
+    lex->loc = (loc_t) { 0, 0 };
 
     lex->tok_type = MOXI_TOK_ERROR;
     

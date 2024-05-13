@@ -1,1 +1,1 @@
-(define-fun f () Bool true)
+(define-fun f () Bool (and true true))

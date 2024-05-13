@@ -12,6 +12,7 @@
 
 #include "parse/token.h"
 #include "parse/parse_error.h"
+#include "parse/parse_stack.h"
 #include "parse/lexer.h"
 
 
@@ -19,7 +20,7 @@
  * Each parser uses a lexer to iteratively parse an input file. 
  *
  * `error_stack` is used to store errors: if it's non-empty then we know that some error occurred
- * since we last emptied the stack. In practice we empty the stack after parsing a single command.
+ * since we last emptied the stack. In practice we empty the stack after parsing each command.
  *
  * `context` 
  *
@@ -29,13 +30,11 @@
 typedef struct parser {
     lexer_t lex;
     
-    parse_error_stack_t error_stack;
-    
     context_t context;
-
     moxi_command_t command;
 
-    uint32_t num_open_parens;
+    parse_stack_t stack;
+    error_stack_t error_stack;
 
     // Context-sensitive symbols
     string_set_t ctx_symbols;

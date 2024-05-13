@@ -4,6 +4,8 @@
 #ifndef __TOKEN_H__
 #define __TOKEN_H__
 
+#include <stdbool.h>
+
 
 typedef enum token_type {
     MOXI_TOK_EOF,
@@ -73,7 +75,7 @@ extern const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1];
 
 
 typedef enum symbol_type {
-    MOXI_SYM,
+    MOXI_SYM_UNKNOWN,
     MOXI_SYM_BOOL,
     MOXI_SYM_TRUE,
     MOXI_SYM_FALSE,
@@ -140,6 +142,9 @@ typedef enum symbol_type {
     MOXI_SYM_BVSGT,
     MOXI_SYM_BVSGE
 } symbol_type_t;
+
+
+extern bool is_indexed_symbol[MOXI_SYM_BVSGE+1];
 
 
 typedef struct token {
