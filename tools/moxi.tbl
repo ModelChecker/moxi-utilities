@@ -73,19 +73,19 @@ CMD3        TOK_SYMBOL      R0      consume     _
 CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0
 
 // declare-fun
-CMD5        TOK_SYMBOL      CMD3a       consume     _
-CMD5a       TOK_LP          CMD3b       consume     _
+CMD5        TOK_SYMBOL      CMD5a       consume     _
+CMD5a       TOK_LP          CMD5b       consume     _
 CMD5b       TOK_RP          SRT0        consume     R0
-CMD5b       *               SRT0        pass        CMD3b
+CMD5b       *               SRT0        pass        CMD5b
 
 // define-sort
-CMD6        TOK_SYMBOL      CMD4a       consume     _
-CMD6a       TOK_LP          CMD4b       consume     _
+CMD6        TOK_SYMBOL      CMD6a       consume     _
+CMD6a       TOK_LP          CMD6b       consume     _
 CMD6b       TOK_RP          SRT0        consume     R0
-CMD6b       TOK_SYMBOL      CMD4b       consume     _
+CMD6b       TOK_SYMBOL      CMD6b       consume     _
 
 // declare-sort
-CMD7        TOK_SYMBOL      CMD5a       consume     _
+CMD7        TOK_SYMBOL      CMD7a       consume     _
 CMD7a       TOK_NUMERAL     R0          consume     _
 
 // declare-enum-sort

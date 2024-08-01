@@ -1,4 +1,4 @@
-CC := clang
+CC := gcc
 GPERF := gperf
 PYTHON := python3
 
@@ -7,7 +7,7 @@ SRC_DIR := src
 OBJ_DIR := obj
 BIN := moxisc
 
-CFLAGS += -Wall -I$(SRC_DIR) -DEXECUTABLE_NAME=\"$(BIN)\"
+CFLAGS := -Wall -I$(SRC_DIR)
 
 # Token hashing
 gperf_generated := $(SRC_DIR)/parse/hash_token.h \

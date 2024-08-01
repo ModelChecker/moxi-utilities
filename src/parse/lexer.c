@@ -526,5 +526,9 @@ void lexer_next_token(lexer_t *lex)
         tok_type = TOK_INVALID_SYMBOL;
     }
 
+#ifdef DEBUG_LEXER
+    fprintf(stderr, "%s:%ld:%ld\n", token_type_str[tok_type], lex->lineno, lex->col);
+#endif
+
     lex->tok_type = tok_type;
 }

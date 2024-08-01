@@ -18,8 +18,6 @@ The parser uses multiple automata to parse input and uses a stack of states to d
 Implementing the parse tables:
 For a lazy lookup table, we could allocate an array `lookup` of size NUM_STATES * NUM_TOKENS and do a lookup in a single check such as in `lookup[state][token]`. But in our case we have ~100 states and ~100 tokens, which results in an array of size ~10,000, which is a bit too big for my liking. The fact that we know our full set of states/tokens ahead of time and most state/token pairs are invalid means we can afford to do some stupid computation ahead of time when building the parse tables.
 
-
-
 """
 
 State = NewType("State", str)
@@ -123,7 +121,7 @@ consume:
 
 skip:
     if (state == """ + str(DEFAULT_ERROR_STATE) + """) {
-        print_error_with_loc(filename, MOD_PARSE, lineno, col, "syntax error");
+        print_error_with_loc(filename, lineno, col, "syntax error");
         return 1;
     } 
     
