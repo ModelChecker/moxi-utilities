@@ -67,18 +67,36 @@ bool is_simple_char(char c)
 /**
  * 
 */
-void init_lexer(lexer_t *lex, const char *filename)
+void init_lexer(lexer_t *lex)
 {
-    file_reader_t *reader = &lex->reader;
-    init_file_reader(reader, filename);
-
     lex->tok_pos = 0;
-    lex->loc = (loc_t) { 0, 0 };
+    lex->lineno = 0;
+    lex->col = 0;
 
     lex->tok_type = TOK_ERROR;
     
     string_buffer_t *buffer = &lex->buffer;
     init_string_buffer(buffer, BUFFER_MIN);
+}
+
+
+/**
+ * Initialize `lex` to use `filename` as input. 
+ * 
+ * Returns 0 on success, the result of `init_file_reader` otherwise.
+*/
+int init_file_lexer(lexer_t *lex, const char *filename)
+{
+    int status;
+    file_reader_t *reader = &lex->reader;
+    status = init_file_reader(reader, filename);
+
+    if (status) {
+        return status;
+    }
+
+    init_lexer(lex);
+    return 0;
 }
 
 
@@ -453,6 +471,10 @@ void lexer_next_token(lexer_t *lex)
             ch = file_reader_next_char(reader);
         } while(ch != '\n' && ch != '\r' && ch != EOF);
     }
+
+    lex->tok_pos = reader->pos;
+    lex->lineno = reader->lineno;
+    lex->col = reader->col;
 
     switch (ch) {
     case EOF:

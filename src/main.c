@@ -18,13 +18,18 @@ int main(int argc, char *argv[])
     }
 
     char *filename = argv[1];
+    int status;
 
     parser_t parser;
-    init_parser(&parser, filename);
+    status = init_parser(&parser, filename);
 
-    int status = 0;
+    if (status) {
+        fprintf(stderr, "error: failed to open file %s\n", filename);
+        return status;
+    }
+
     token_type_t last_token = TOK_ERROR;
-    while(!status && last_token != TOK_EOF) {
+    while (!status && last_token != TOK_EOF) {
         status = parse_moxi(&parser);
         last_token = parser.lex.tok_type;
     }

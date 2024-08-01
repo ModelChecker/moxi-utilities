@@ -3,13 +3,14 @@
 #include <stdio.h>
 
 
+/**
+ * Initialize the file reader `reader`, settings its stream and initial position.
+ * 
+ * Returns -1 if `filename` failed to open, 0 otherwise.
+ */
 int init_file_reader(file_reader_t *reader, const char *filename)
 {
     FILE *f = fopen(filename, "r");
-
-#ifdef _POSIX_C_SOURCE
-    flockfile(f); // blocking file lock, let's us use getc_unlocked safely
-#endif
 
     reader->file = f;
     reader->pos = 0;
@@ -20,6 +21,10 @@ int init_file_reader(file_reader_t *reader, const char *filename)
         reader->cur = EOF;
         return -1;
     }
+
+#ifdef _POSIX_C_SOURCE
+    flockfile(f); // blocking file lock, let's us use getc_unlocked safely
+#endif
 
     reader->cur = '\n';
     return 0;

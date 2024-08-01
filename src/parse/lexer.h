@@ -14,22 +14,21 @@
 #define BUFFER_MIN 1024
 
 
-typedef struct loc {
-    uint32_t lineno;
-    uint32_t col;
-} loc_t;
-
-
 typedef struct lexer {
     file_reader_t reader;
+
+    // Position of current token's first char
     uint64_t tok_pos;
-    loc_t loc;
+    uint64_t lineno;
+    uint64_t col;
+
     token_type_t tok_type;
     string_buffer_t buffer;
 } lexer_t;
 
 
-void init_lexer(lexer_t *lex, const char *filename);
+void init_lexer(lexer_t *lex);
+int init_file_lexer(lexer_t *lex, const char *filename);
 void delete_lexer(lexer_t *lex);
 void lexer_next_token(lexer_t *lex);
 

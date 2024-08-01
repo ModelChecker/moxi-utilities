@@ -41,7 +41,7 @@ def get_action(state: State, token: Token, next: State) -> Action:
 
 DEFAULT_ERROR_ACTION = get_action(State("PS_ANY"), WILDCARD_TOKEN, DEFAULT_ERROR_STATE)
 
-PARSE_STACK_PUSH_FN = "int_stack_push(pstack, {state})"
+PARSE_STACK_PUSH_FN = "int_stack_push(state_stack, {state})"
 
 C_PREAMBLE = """
 #include <stdlib.h>
@@ -49,17 +49,26 @@ C_PREAMBLE = """
 #include <assert.h>
 
 #include "io/print.h"
-#include "parse/parse_error.h"
 #include "parse/parser.h"
 
 /**
+ * Initializes `parser` to use `filename` as input.
  * 
+ * Returns 0 on success, the result of `init_file_lexer` otherwise.
 */
-void init_parser(parser_t *parser, const char *filename)
+int init_parser(parser_t *parser, const char *filename)
 {
-    init_lexer(&parser->lex, filename);
-	init_int_stack(&parser->pstack);
+	int status;
+    status = init_file_lexer(&parser->lex, filename);
+
+	if (status) {
+		return status;
+	}
+
+	init_int_stack(&parser->state_stack);
     parser->depth = 0;
+	parser->filename = filename;
+	return 0;
 }
 
 /**
@@ -68,7 +77,7 @@ void init_parser(parser_t *parser, const char *filename)
 void delete_parser(parser_t *parser)
 {
     delete_lexer(&parser->lex);
-    delete_int_stack(&parser->pstack);
+    delete_int_stack(&parser->state_stack);
 }
 
 """
@@ -88,45 +97,49 @@ parse_action_t get_action(parse_state_t state, token_type_t token)
 int parse_moxi(parser_t *parser) 
 {
     lexer_t *lex;
-    //loc_t loc;
+    const char *filename;
     token_type_t token;
-    int_stack_t *pstack;
+    int_stack_t *state_stack;
     parse_state_t state;
     parse_action_t action;
+    uint64_t lineno;
+    uint64_t col;
 
+    filename = parser->filename;
     lex = &parser->lex;
-    pstack = &parser->pstack;
+    state_stack = &parser->state_stack;
     state = PS_CMD0;
 
 consume:
-    if (state == PS_DONE && pstack->top == 0) {
-		fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
+    if (state ==""" + str(DONE_STATE) + """ && state_stack->top == 0) {
+		//fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
 		return 0;
 	}
 
     lexer_next_token(lex);
 	token = lex->tok_type;
-    //loc = lex->loc;
+    lineno = lex->lineno;
+    col = lex->col;
 
 skip:
-    if (state == PS_ERR) {
-        fprintf(stderr, "syntax error\\n");
+    if (state == """ + str(DEFAULT_ERROR_STATE) + """) {
+        print_error_with_loc(filename, MOD_PARSE, lineno, col, "syntax error");
         return 1;
     } 
     
-    if (state == PS_DONE) {
-        if (pstack->top == 0) {
-            fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
+    if (state == """ + str(DONE_STATE) + """) {
+        if (state_stack->top == 0) {
+            //fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
             return 0;
         }
-        state = int_stack_pop(pstack);
-        fprintf(stderr, "popping %d\\n", state);
+        state = int_stack_pop(state_stack);
+        //fprintf(stderr, "popping %d\\n", state);
     }
 
     action = get_action(state, token);
-    fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", state, token_type_str[token], token, action);
+    //fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", state, token_type_str[token], token, action);
     switch(action) {
-"""[1:]  # removes leading '\n'
+"""
 
 
 def parse_tokens(token_h: str) -> list[Token]:
@@ -377,7 +390,7 @@ def gen_table(content: str, tokens: list[Token]) -> str:
             push = cast(list[str], push)
             for p in push:
                 code += f"\t\t\t{PARSE_STACK_PUSH_FN.format(state=p)};\n"
-                code += f'\t\t\tfprintf(stderr, "pushing %d\\n", {p});\n'
+                code += f'\t\t\t//fprintf(stderr, "pushing %d\\n", {p});\n'
         code += f"\t\t\tstate = {next};\n"
         if consume:
             code += "\t\t\tgoto consume;\n"

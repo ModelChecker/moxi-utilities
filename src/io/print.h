@@ -1,25 +1,34 @@
 /**
  * 
 */
-#ifndef __ERROR_H__
-#define __ERROR_H__
+#ifndef __PRINT_H__
+#define __PRINT_H__
 
+#include <stdint.h>
+
+#ifndef EXECUTABLE_NAME 
+#define EXECUTABLE_NAME ""
+#endif
 
 typedef enum module_code {
     MOD_LEX,
     MOD_PARSE,
+    MOD_TYPE_CHECK,
 } module_code_t;
 
-extern const char *module_code_str[MOD_PARSE+1];
+#define NUM_MODULES (MOD_TYPE_CHECK+1)
 
-extern int debug_level;
+extern const char *module_code_str[NUM_MODULES];
 
-
-void set_debug_level(int level);
-
-
+void print_error_with_loc(
+    const char *filename,
+    module_code_t code, 
+    uint64_t lineno, 
+    uint64_t col, 
+    const char *format, 
+    ...
+);
 void print_error(module_code_t code, const char *format, ...);
-void print_debug(module_code_t code, int level, const char *format, ...);
 
 
 #endif

@@ -5,9 +5,9 @@ PYTHON := python3
 TOOLS_DIR := tools
 SRC_DIR := src
 OBJ_DIR := obj
-BIN := moximc
+BIN := moxisc
 
-CFLAGS += -Wall -I$(SRC_DIR) 
+CFLAGS += -Wall -I$(SRC_DIR) -DEXECUTABLE_NAME=\"$(BIN)\"
 
 # Token hashing
 gperf_generated := $(SRC_DIR)/parse/hash_token.h \

@@ -1,0 +1,1 @@
+(check-system Sys :fairness (f (or true false)))

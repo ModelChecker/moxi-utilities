@@ -9,8 +9,6 @@
 #include "util/int_stack.h"
 
 #include "parse/token.h"
-#include "parse/parse_error.h"
-// #include "parse/term_stack.h"
 #include "parse/lexer.h"
 
 
@@ -26,14 +24,14 @@
  * that's an argument to a define-fun command or a quantified variable. 
 */
 typedef struct parser {
+    const char *filename;
     lexer_t lex;
     
     // context_t context;
     // moxi_command_t command;
 
-    // term_stack_t tstack;
-    int_stack_t pstack;
-    error_stack_t error_stack;
+    // parse_stack_t parse_stack;
+    int_stack_t state_stack;
 
     // Context-sensitive symbols
     string_set_t ctx_symbols;
@@ -43,7 +41,7 @@ typedef struct parser {
 } parser_t;
 
 
-void init_parser(parser_t *parser, const char *filename);
+int init_parser(parser_t *parser, const char *filename);
 void delete_parser(parser_t *parser);
 int parse_moxi(parser_t *parser);
 

@@ -130,38 +130,42 @@ CMD11e      TOK_RP          R0         consume     _
 //              :input  <sorted-var-list> <check-sys-attr>
 //            | :output <sorted-var-list> <check-sys-attr>
 //            | :local  <sorted-var-list> <check-sys-attr>
-//            | :assumption ( <symbol> <term> ) <check-sys-attr>
+//            | :assume ( <symbol> <term> ) <check-sys-attr>
 //            | :current ( <symbol> <term> ) <check-sys-attr>
-//            | :reachable ( <symbol> <term> ) <check-sys-attr>
-//            | :fairness ( <symbol> <term> ) <check-sys-attr>
+//            | :reach ( <symbol> <term> ) <check-sys-attr>
+//            | :fair ( <symbol> <term> ) <check-sys-attr>
 //            | :query ( <symbol> ( <symbol>+ ) ) <check-sys-attr>
 //            | :queries ( ( <symbol> ( <symbol>+ ) )+ ) <check-sys-attr>
 //            | )
 //
-CMD12       TOK_KW_INPUT        SVL0        consume     CMD12
-CMD12       TOK_KW_OUTPUT       SVL0        consume     CMD12
-CMD12       TOK_KW_LOCAL        SVL0        consume     CMD12
-CMD12       TOK_KW_ASSUME       CMD12a      consume     CMD12
-CMD12       TOK_KW_CURRENT      CMD12a      consume     CMD12
-CMD12       TOK_KW_REACH        CMD12a      consume     CMD12
-CMD12       TOK_KW_FAIR         CMD12a      consume     CMD12
-CMD12       TOK_KW_QUERY        CMD12b      consume     CMD12
-CMD12       TOK_KW_QUERIES      CMD12c      consume     CMD12
-CMD12       TOK_RP              DONE        consume     _
+CMD12       TOK_SYMBOL          CMD12a      consume     _
+CMD12a      TOK_KW_INPUT        SVL0        consume     CMD12a
+CMD12a      TOK_KW_OUTPUT       SVL0        consume     CMD12a
+CMD12a      TOK_KW_LOCAL        SVL0        consume     CMD12a
+CMD12a      TOK_KW_ASSUME       CMD12b      consume     CMD12a
+CMD12a      TOK_KW_CURRENT      CMD12b      consume     CMD12a
+CMD12a      TOK_KW_REACH        CMD12b      consume     CMD12a
+CMD12a      TOK_KW_FAIR         CMD12b      consume     CMD12a
+CMD12a      TOK_KW_QUERY        CMD12c      consume     CMD12a
+CMD12a      TOK_KW_QUERIES      CMD12d      consume     CMD12a
+CMD12a      TOK_RP              DONE        consume     _
 
 // After ':assumption', ':current', ':reachable', or ':fairness'
-CMD12a      TOK_LP              CMD12a0     consume     _
-CMD12a0     TOK_SYMBOL          TRM0        consume     R0
+CMD12b      TOK_LP              CMD12b0     consume     _
+CMD12b0     TOK_SYMBOL          TRM0        consume     R0
 
 // After ':query'
-CMD12b      TOK_LP              CMD12b0     consume     _
-CMD12b0     TOK_SYMBOL          CMD12b1     consume     _
-CMD12b1     TOK_LP              CMD12b2     consume     _
-CMD12b2     TOK_SYMBOL          CMD12b3     consume     _
-CMD12b3     TOK_SYMBOL          CMD12b3     consume     _
-CMD12b3     TOK_RP              R0          consume     _
+CMD12c      TOK_LP              CMD12c0     consume     _
+CMD12c0     TOK_SYMBOL          CMD12c1     consume     _
+CMD12c1     TOK_LP              CMD12c2     consume     _
+CMD12c2     TOK_SYMBOL          CMD12c3     consume     _
+CMD12c3     TOK_SYMBOL          CMD12c3     consume     _
+CMD12c3     TOK_RP              R0          consume     _
 
 // After ':queries'
+CMD12d      TOK_LP      CMD12c     consume      CMD12d0
+CMD12d0     TOK_LP      CMD12c     pass         CMD12d0
+CMD12d0     TOK_RP      DONE       consume      _
 
 
 // Terms

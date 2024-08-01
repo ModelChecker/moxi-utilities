@@ -35,9 +35,9 @@ reset,             TOK_RW_RESET
 :trans,            TOK_KW_TRANS
 :inv,              TOK_KW_INV
 :subsys,           TOK_KW_SUBSYS
-:assume,           TOK_KW_ASSUME
-:reach,            TOK_KW_REACH
-:fair,             TOK_KW_FAIR
+:assumption,       TOK_KW_ASSUME
+:reachable,        TOK_KW_REACH
+:fairness,         TOK_KW_FAIR
 :current,          TOK_KW_CURRENT
 :query,            TOK_KW_QUERY
 :queries,          TOK_KW_QUERIES
