@@ -1,3 +1,4 @@
 obj/
 src/parse/hash_*
-moximc
+src/parse/parser.c
+moxisc
