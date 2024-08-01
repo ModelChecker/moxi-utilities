@@ -1,4 +1,4 @@
-CC := gcc
+CC := clang
 GPERF := gperf
 PYTHON := python3
 
@@ -7,7 +7,9 @@ SRC_DIR := src
 OBJ_DIR := obj
 BIN := moxisc
 
-CFLAGS := -Wall -I$(SRC_DIR)
+DBGFLAGS := -g -O0 -fdata-sections -ffunction-sections -fno-common -fsanitize=undefined -fsanitize=address -pedantic -Waggregate-return -Wall -Wbad-function-cast -Wcast-align -Wcast-qual -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat-truncation -Wformat-y2k -Wformat=2 -Wimplicit -Wimport -Winit-self -Winline -Winvalid-pch -Wlogical-op -Wlong-long -Wmisleading-indentation -Wmissing-declarations -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-noreturn -Wmissing-prototypes -Wnested-externs -Wnull-dereference -Wodr -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstack-protector -Wstrict-aliasing=2 -Wstrict-overflow=5 -Wstrict-prototypes -Wswitch-default -Wundef -Wundef -Wunreachable-code -Wunused -Wunused-parameter -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wno-switch-enum -Wno-unknown-warning-option -Wno-gnu-binary-literal --coverage
+
+CFLAGS := -Wall -I$(SRC_DIR) -I/usr/local/include
 
 # Token hashing
 gperf_generated := $(SRC_DIR)/parse/hash_token.h \

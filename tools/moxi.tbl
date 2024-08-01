@@ -111,7 +111,7 @@ CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0
 //            | :subsys ( <symbol> ( <symbol>* ) ) <define-sys-attr>
 //            | )
 //
-CMD11       TOK_SYMBOL      CMD11a      consume     _
+CMD11       TOK_SYMBOL      CMD11a     consume     _
 CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a
 CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a
 CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a
@@ -130,10 +130,10 @@ CMD11e      TOK_RP          R0         consume     _
 //              :input  <sorted-var-list> <check-sys-attr>
 //            | :output <sorted-var-list> <check-sys-attr>
 //            | :local  <sorted-var-list> <check-sys-attr>
-//            | :assume ( <symbol> <term> ) <check-sys-attr>
+//            | :assumption ( <symbol> <term> ) <check-sys-attr>
 //            | :current ( <symbol> <term> ) <check-sys-attr>
-//            | :reach ( <symbol> <term> ) <check-sys-attr>
-//            | :fair ( <symbol> <term> ) <check-sys-attr>
+//            | :reachable ( <symbol> <term> ) <check-sys-attr>
+//            | :fairness ( <symbol> <term> ) <check-sys-attr>
 //            | :query ( <symbol> ( <symbol>+ ) ) <check-sys-attr>
 //            | :queries ( ( <symbol> ( <symbol>+ ) )+ ) <check-sys-attr>
 //            | )
@@ -290,47 +290,3 @@ SRT4        TOK_SYMBOL          SRT4a        consume     _
 SRT4a       TOK_NUMERAL         SRT4b        consume     _
 SRT4b       TOK_NUMERAL         SRT4b        consume     _
 SRT4b       TOK_RP              SRT0         consume     SRT2
-
-
-
-// THINGS FOR ANNOTATED TERMS
-
-//   <attribute-value> ::=
-//              <numeral>
-//            | <decimal>
-//            | <hexadecimal>
-//            | <binary>
-//            | <string>
-//            | <symbol>
-//            | ( <s-expr>+ )
-//ATV0        TOK_NUMERAL     DONE        consume     _
-//ATV0        TOK_DECIMAL     DONE        consume     _
-//ATV0        TOK_HEX         DONE        consume     _
-//ATV0        TOK_BINARY      DONE        consume     _
-//ATV0        TOK_STRING      DONE        consume     _
-//ATV0        TOK_SYMBOL      DONE        consume     _
-//ATV0        TOK_KEYWORD     DONE        consume     _
-//ATV0        TOK_LP          SXP0        consume     ATV1
-//ATV1        TOK_RP          DONE        consume     _
-//ATV1        *               SXP0        pass        ATV1
-
-
-//   <s-expr> ::=
-//              <numeral>
-//            | <decimal>
-//            | <hexadecimal>
-//            | <binary>
-//            | <string>
-//            | <symbol>
-//            | <keyword>
-//            | ( <s-expr>+ )
-//SXP0        TOK_NUMERAL     DONE        consume     _
-//SXP0        TOK_DECIMAL     DONE        consume     _
-//SXP0        TOK_HEX         DONE        consume     _
-//SXP0        TOK_BINARY      DONE        consume     _
-//SXP0        TOK_STRING      DONE        consume     _
-//SXP0        TOK_SYMBOL      DONE        consume     _
-//SXP0        TOK_KEYWORD     DONE        consume     _
-//SXP0        TOK_LP          SXP0        consume     SXP1
-//SXP1        TOK_RP          DONE        consume     _
-//SXP1        *               SXP0        pass        SXP1

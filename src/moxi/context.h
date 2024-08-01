@@ -6,7 +6,7 @@
 
 #include <stdbool.h>
 
-#include "mathsat.h"
+#include "yices.h"
 
 #include "util/string_pair_list.h"
 #include "util/symbol_table.h"

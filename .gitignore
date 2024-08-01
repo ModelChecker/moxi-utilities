@@ -1,3 +1,4 @@
+.venv/*
 obj/
 src/parse/hash_*
 src/parse/parser.c

@@ -2,11 +2,11 @@
 
 A reference sort checker for MoXI. The following programs are required:
 
-- gcc
+- C compiler (tested using clang)
 - gperf
-- python 3.10 or newer
+- Python 3.10 or newer
 
-To build `moxisc`, run
+To build, run
 
     make
 

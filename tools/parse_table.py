@@ -110,7 +110,6 @@ int parse_moxi(parser_t *parser)
 
 consume:
     if (state ==""" + str(DONE_STATE) + """ && state_stack->top == 0) {
-		//fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
 		return 0;
 	}
 
@@ -127,15 +126,18 @@ skip:
     
     if (state == """ + str(DONE_STATE) + """) {
         if (state_stack->top == 0) {
-            //fprintf(stderr, "state=PS_DONE and stack is empty, exiting\\n");
             return 0;
         }
         state = int_stack_pop(state_stack);
-        //fprintf(stderr, "popping %d\\n", state);
+        // Then we handle the top frame of the parse stack
     }
 
     action = get_action(state, token);
-    //fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", state, token_type_str[token], token, action);
+
+#ifdef DEBUG_PARSER
+    fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", state, token_type_str[token], token, action);
+#endif
+
     switch(action) {
 """
 
@@ -388,7 +390,6 @@ def gen_table(content: str, tokens: list[Token]) -> str:
             push = cast(list[str], push)
             for p in push:
                 code += f"\t\t\t{PARSE_STACK_PUSH_FN.format(state=p)};\n"
-                code += f'\t\t\t//fprintf(stderr, "pushing %d\\n", {p});\n'
         code += f"\t\t\tstate = {next};\n"
         if consume:
             code += "\t\t\tgoto consume;\n"
@@ -399,7 +400,7 @@ def gen_table(content: str, tokens: list[Token]) -> str:
 
     error_case = (
         f"\t\tcase {DEFAULT_ERROR_ACTION}:\n"
-        + "\t\t\tstate = PS_ERR;\n"
+        + f"\t\t\tstate = {DEFAULT_ERROR_STATE};\n"
         + "\t\t\tgoto skip;\n\n"
     )
     cases.append(error_case)
