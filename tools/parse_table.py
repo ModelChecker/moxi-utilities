@@ -7,6 +7,8 @@ import re
 
 from typing import Optional, NewType, cast
 
+FILE_DIR = pathlib.Path(__file__).parent
+
 """
 We have state/token/state triples. We call a state/token pair an "action". 
 The parser includes a stack of states.
@@ -401,7 +403,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("input", help="path to parse table file")
     arg_parser.add_argument(
         "--token_h",
-        default="/home/chris/Git/moximc/src/parse/token.h",
+        default=f"{FILE_DIR.parent}/src/parse/token.h",
         help="path to token.h",
     )
     args = arg_parser.parse_args()
