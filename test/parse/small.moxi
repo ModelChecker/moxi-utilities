@@ -1,0 +1,2 @@
+(assert (true (abc xyz) def))
+(exit)

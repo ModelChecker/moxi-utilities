@@ -5,6 +5,9 @@
 #ifndef __FILE_READER_H__
 #define __FILE_READER_H__
 
+#if (__STDC_VERSION__ >= 199409L)
+    #define _POSIX_C_SOURCE 199409L
+#endif
 
 #include <stdio.h>
 #include <stdint.h>

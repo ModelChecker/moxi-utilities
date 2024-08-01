@@ -10,9 +10,9 @@
 #include "io/file_reader.h"
 #include "parse/token.h"
 
-
 // Starting size of lexer string buffer
 #define BUFFER_MIN 1024
+
 
 typedef struct loc {
     uint32_t lineno;
@@ -31,7 +31,7 @@ typedef struct lexer {
 
 void init_lexer(lexer_t *lex, const char *filename);
 void delete_lexer(lexer_t *lex);
-token_type_t lexer_next_token(lexer_t *lex);
+void lexer_next_token(lexer_t *lex);
 
 
 #endif

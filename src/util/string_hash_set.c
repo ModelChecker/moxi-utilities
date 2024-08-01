@@ -2,6 +2,7 @@
  * 
 */
 #include <stdlib.h>
+#include <string.h>
 
 #include "util/hash.h"
 #include "util/string_hash_set.h"
@@ -20,7 +21,7 @@ uint32_t compute_string_set_entry_hash(string_set_t *set, char *symbol)
 
 void init_string_set(string_set_t *set, uint32_t size)
 {
-    if (size <= 0) {
+    if (size == 0) {
         set->size = DEFAULT_STRING_SET_SIZE;
     } else {
         set->size = size;
@@ -93,7 +94,6 @@ bool string_set_remove(string_set_t *set, char *str)
 
     string_set_entry_t **cur, *prev;
 
-    cur = &set->data[hash];
     prev = NULL;
 
     for(cur = &set->data[hash]; *cur != NULL; prev = *cur, cur = &(*cur)->next) {
@@ -108,10 +108,9 @@ bool string_set_remove(string_set_t *set, char *str)
             free(*cur);
         }
 
-        return (int64_t) hash;
+        return true;
     }
 
-    return -1;
-
+    return false;
 }
 

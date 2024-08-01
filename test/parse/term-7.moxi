@@ -1,0 +1,1 @@
+(define-fun f () (Array bv8 bv8) ((as const (Array bv8 bv8)) #b0000))

@@ -5,6 +5,7 @@
 #define __IDENTIFIERS_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * Indexed identifiers:

@@ -1,0 +1,1 @@
+(define-system Sys :inv (and true false))

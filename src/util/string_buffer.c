@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "io/print.h"
 #include "util/string_buffer.h"
@@ -15,10 +16,7 @@
 */
 void init_string_buffer(string_buffer_t *str, size_t size)
 {
-    if (size > SIZE_MAX) {
-        fprintf(stderr, "error");
-    }
-
+    assert (size <= MAX_STRING_BUFFER_SIZE);
     str->size = size;
     str->idx = 0;
     str->data = malloc(sizeof(char) * size);
@@ -43,12 +41,8 @@ void delete_string_buffer(string_buffer_t *str)
 */
 void string_buffer_extend(string_buffer_t *str, size_t size)
 {
-    if(str->size == SIZE_MAX) {
-        fprintf(stderr, "error");
-    }
-
+    assert(str->size < MAX_STRING_BUFFER_SIZE);
     size_t new_size = str->size + size;
-    
     str->size = new_size;
     str->data = realloc(str->data, sizeof(char) * new_size);
 }
@@ -73,7 +67,6 @@ void string_buffer_append_char(string_buffer_t *str, char c)
     if (str->idx == str->size-1) {
         string_buffer_extend(str, str->size/2);
     }
-
     str->data[str->idx] = c;
     str->idx++;
     str->data[str->idx] = '\0';
@@ -85,7 +78,7 @@ void string_buffer_append_char(string_buffer_t *str, char c)
 */
 void string_buffer_append_string(string_buffer_t *str, char *s)
 {
-
+    assert(0);
 }
 
 

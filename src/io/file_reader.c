@@ -6,7 +6,10 @@
 int init_file_reader(file_reader_t *reader, const char *filename)
 {
     FILE *f = fopen(filename, "r");
+
+#ifdef _POSIX_C_SOURCE
     flockfile(f); // blocking file lock, let's us use getc_unlocked safely
+#endif
 
     reader->file = f;
     reader->pos = 0;
@@ -25,7 +28,9 @@ int init_file_reader(file_reader_t *reader, const char *filename)
 
 int close_file_reader(file_reader_t *reader)
 {
+#ifdef _POSIX_C_SOURCE
     funlockfile(reader->file);
+#endif
     return fclose(reader->file);
 }
 
@@ -41,7 +46,11 @@ int file_reader_next_char(file_reader_t *reader)
         reader->col = 0;
     }
 
+#ifdef _POSIX_C_SOURCE
     reader->cur = getc_unlocked(reader->file);
+#else
+    reader->cur = getc(reader->file);
+#endif
 
     reader->pos++;
     reader->col++;

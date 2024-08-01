@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#define MAX_STRING_BUFFER_SIZE 4098
+
 /**
  * Maintains a printable string buffer, i.e., the last char of `data` is always `\0`.
 */

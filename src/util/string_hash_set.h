@@ -21,7 +21,7 @@ struct string_set_entry {
 
 
 typedef struct string_set {
-    char ***data;
+    string_set_entry_t **data;
     uint32_t size;
 } string_set_t;
 

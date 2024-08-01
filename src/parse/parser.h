@@ -6,13 +6,11 @@
 
 #include "util/string_hash_set.h"
 #include "util/symbol_table.h"
-
-#include "moxi/commands.h"
-#include "moxi/context.h"
+#include "util/int_stack.h"
 
 #include "parse/token.h"
 #include "parse/parse_error.h"
-#include "parse/parse_stack.h"
+// #include "parse/term_stack.h"
 #include "parse/lexer.h"
 
 
@@ -30,10 +28,11 @@
 typedef struct parser {
     lexer_t lex;
     
-    context_t context;
-    moxi_command_t command;
+    // context_t context;
+    // moxi_command_t command;
 
-    parse_stack_t stack;
+    // term_stack_t tstack;
+    int_stack_t pstack;
     error_stack_t error_stack;
 
     // Context-sensitive symbols

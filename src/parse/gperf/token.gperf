@@ -1,0 +1,43 @@
+%{
+#include <string.h>
+#include "token.h"
+%}
+struct token;
+%%
+par,               TOK_RW_PAR
+NUMERAL,           TOK_RW_NUM
+DECIMAL,           TOK_RW_DEC
+STRING,            TOK_RW_STR
+_,                 TOK_RW_UNDERSCORE
+!,                 TOK_RW_BANG
+as,                TOK_RW_AS
+let,               TOK_RW_LET
+exists,            TOK_RW_EXISTS
+forall,            TOK_RW_FORALL
+define-system,     TOK_RW_DEFINE_SYS
+check-system,      TOK_RW_CHECK_SYS
+declare-sort,      TOK_RW_DECLARE_SORT
+declare-enum-sort, TOK_RW_DECLARE_ENUM_SORT
+declare-const,     TOK_RW_DECLARE_CONST
+declare-fun,       TOK_RW_DECLARE_FUN
+define-sort,       TOK_RW_DEFINE_SORT
+define-const,      TOK_RW_DEFINE_CONST
+define-fun,        TOK_RW_DEFINE_FUN
+exit,              TOK_RW_EXIT
+set-logic,         TOK_RW_SET_LOGIC
+echo,              TOK_RW_ECHO
+assert,            TOK_RW_ASSERT
+reset,             TOK_RW_RESET
+:input,            TOK_KW_INPUT
+:output,           TOK_KW_OUTPUT
+:local,            TOK_KW_LOCAL
+:init,             TOK_KW_INIT
+:trans,            TOK_KW_TRANS
+:inv,              TOK_KW_INV
+:subsys,           TOK_KW_SUBSYS
+:assume,           TOK_KW_ASSUME
+:reach,            TOK_KW_REACH
+:fair,             TOK_KW_FAIR
+:current,          TOK_KW_CURRENT
+:query,            TOK_KW_QUERY
+:queries,          TOK_KW_QUERIES

@@ -1,12 +1,11 @@
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
 #include "io/print.h"
-#include "moxi/commands.h"
 #include "parse/parse_error.h"
 #include "parse/parser.h"
-
 
 /**
  * 
@@ -14,9 +13,9 @@
 void init_parser(parser_t *parser, const char *filename)
 {
     init_lexer(&parser->lex, filename);
+	init_int_stack(&parser->pstack);
     parser->depth = 0;
 }
-
 
 /**
  * 
@@ -24,370 +23,924 @@ void init_parser(parser_t *parser, const char *filename)
 void delete_parser(parser_t *parser)
 {
     delete_lexer(&parser->lex);
+    delete_int_stack(&parser->pstack);
 }
 
+typedef enum parse_state {
+	PS_CMD0,          PS_CMD1,          PS_CMD10,         PS_CMD11,        
+	PS_CMD11a,        PS_CMD11b,        PS_CMD11c,        PS_CMD11d,       
+	PS_CMD11e,        PS_CMD12,         PS_CMD12a,        PS_CMD12a0,      
+	PS_CMD12b,        PS_CMD12b0,       PS_CMD12b1,       PS_CMD12b2,      
+	PS_CMD12b3,       PS_CMD12c,        PS_CMD2,          PS_CMD3,         
+	PS_CMD3a,         PS_CMD3b,         PS_CMD4,          PS_CMD4a,        
+	PS_CMD4b,         PS_CMD5,          PS_CMD5a,         PS_CMD5b,        
+	PS_CMD6,          PS_CMD6a,         PS_CMD6b,         PS_CMD7,         
+	PS_CMD7a,         PS_CMD8,          PS_CMD8a,         PS_CMD8b,        
+	PS_CMD8c,         PS_CMD9,          PS_DONE,          PS_ERR,          
+	PS_ERR_EXP_LP_EOF, PS_ERR_EXP_RP,    PS_R0,            PS_SRT0,         
+	PS_SRT1,          PS_SRT2,          PS_SRT3,          PS_SRT3a,        
+	PS_SRT3b,         PS_SRT4,          PS_SRT4a,         PS_SRT4b,        
+	PS_SVL0,          PS_SVL0a,         PS_SVL0b,         PS_SVL1,         
+	PS_SVL2,          PS_SVL3,          PS_TRM0,          PS_TRM1,         
+	PS_TRM2,          PS_TRM3,          PS_TRM3a,         PS_TRM3b,        
+	PS_TRM4,          PS_TRM4a,         PS_TRM4b,         PS_TRM4c,        
+	PS_TRM4d,         PS_TRM5,          PS_TRM5a,         PS_TRM5b,        
+	PS_TRM5c,         PS_TRM5d,         PS_TRM6,          PS_TRM7,         
+	PS_TRM7a
+} parse_state_t;
 
-/**
- * 
-*/
+typedef enum parse_action {
+	PA_ANY_WC_ERR,                       
+	PA_CMD0_TOK_EOF_DONE,                
+	PA_CMD0_TOK_LP_CMD1,                 
+	PA_CMD0_WC_ERR_EXP_LP_EOF,           
+	PA_CMD10_TOK_SYMBOL_SRT0,            
+	PA_CMD11_TOK_SYMBOL_CMD11a,          
+	PA_CMD11a_TOK_KW_INIT_TRM0,          
+	PA_CMD11a_TOK_KW_INPUT_SVL0,         
+	PA_CMD11a_TOK_KW_INV_TRM0,           
+	PA_CMD11a_TOK_KW_LOCAL_SVL0,         
+	PA_CMD11a_TOK_KW_OUTPUT_SVL0,        
+	PA_CMD11a_TOK_KW_SUBSYS_CMD11b,      
+	PA_CMD11a_TOK_KW_TRANS_TRM0,         
+	PA_CMD11a_TOK_RP_DONE,               
+	PA_CMD11b_TOK_LP_CMD11c,             
+	PA_CMD11c_TOK_SYMBOL_CMD11d,         
+	PA_CMD11d_TOK_LP_CMD11e,             
+	PA_CMD11e_TOK_RP_R0,                 
+	PA_CMD11e_TOK_SYMBOL_CMD11e,         
+	PA_CMD12_TOK_KW_ASSUME_CMD12a,       
+	PA_CMD12_TOK_KW_CURRENT_CMD12a,      
+	PA_CMD12_TOK_KW_FAIR_CMD12a,         
+	PA_CMD12_TOK_KW_INPUT_SVL0,          
+	PA_CMD12_TOK_KW_LOCAL_SVL0,          
+	PA_CMD12_TOK_KW_OUTPUT_SVL0,         
+	PA_CMD12_TOK_KW_QUERIES_CMD12c,      
+	PA_CMD12_TOK_KW_QUERY_CMD12b,        
+	PA_CMD12_TOK_KW_REACH_CMD12a,        
+	PA_CMD12_TOK_RP_DONE,                
+	PA_CMD12a0_TOK_SYMBOL_TRM0,          
+	PA_CMD12a_TOK_LP_CMD12a0,            
+	PA_CMD12b0_TOK_SYMBOL_CMD12b1,       
+	PA_CMD12b1_TOK_LP_CMD12b2,           
+	PA_CMD12b2_TOK_SYMBOL_CMD12b3,       
+	PA_CMD12b3_TOK_RP_R0,                
+	PA_CMD12b3_TOK_SYMBOL_CMD12b3,       
+	PA_CMD12b_TOK_LP_CMD12b0,            
+	PA_CMD1_TOK_RW_ASSERT_TRM0,          
+	PA_CMD1_TOK_RW_CHECK_SYS_CMD12,      
+	PA_CMD1_TOK_RW_DECLARE_CONST_CMD9,   
+	PA_CMD1_TOK_RW_DECLARE_ENUM_SORT_CMD8,
+	PA_CMD1_TOK_RW_DECLARE_FUN_CMD5,     
+	PA_CMD1_TOK_RW_DECLARE_SORT_CMD7,    
+	PA_CMD1_TOK_RW_DEFINE_CONST_CMD10,   
+	PA_CMD1_TOK_RW_DEFINE_FUN_CMD4,      
+	PA_CMD1_TOK_RW_DEFINE_SORT_CMD6,     
+	PA_CMD1_TOK_RW_DEFINE_SYS_CMD11,     
+	PA_CMD1_TOK_RW_ECHO_CMD2,            
+	PA_CMD1_TOK_RW_EXIT_R0,              
+	PA_CMD1_TOK_RW_RESET_R0,             
+	PA_CMD1_TOK_RW_SET_LOGIC_CMD3,       
+	PA_CMD2_TOK_STRING_R0,               
+	PA_CMD3_TOK_SYMBOL_R0,               
+	PA_CMD4_TOK_SYMBOL_SVL0,             
+	PA_CMD5_TOK_SYMBOL_CMD3a,            
+	PA_CMD5a_TOK_LP_CMD3b,               
+	PA_CMD5b_TOK_RP_SRT0,                
+	PA_CMD5b_WC_SRT0,                    
+	PA_CMD6_TOK_SYMBOL_CMD4a,            
+	PA_CMD6a_TOK_LP_CMD4b,               
+	PA_CMD6b_TOK_RP_SRT0,                
+	PA_CMD6b_TOK_SYMBOL_CMD4b,           
+	PA_CMD7_TOK_SYMBOL_CMD5a,            
+	PA_CMD7a_TOK_NUMERAL_R0,             
+	PA_CMD8_TOK_SYMBOL_CMD8a,            
+	PA_CMD8a_TOK_LP_CMD8b,               
+	PA_CMD8b_TOK_SYMBOL_CMD8c,           
+	PA_CMD8c_TOK_RP_R0,                  
+	PA_CMD8c_TOK_SYMBOL_CMD8c,           
+	PA_CMD9_TOK_SYMBOL_SRT0,             
+	PA_ERR_EXP_LP_EOF_WC_ERR,            
+	PA_ERR_EXP_RP_WC_ERR,                
+	PA_R0_TOK_RP_DONE,                   
+	PA_R0_WC_ERR_EXP_RP,                 
+	PA_SRT0_TOK_LP_SRT1,                 
+	PA_SRT0_TOK_SYMBOL_DONE,             
+	PA_SRT1_TOK_LP_SRT4,                 
+	PA_SRT1_TOK_RW_UNDERSCORE_SRT3,      
+	PA_SRT1_TOK_SYMBOL_SRT0,             
+	PA_SRT2_TOK_RP_DONE,                 
+	PA_SRT2_WC_SRT0,                     
+	PA_SRT3_TOK_SYMBOL_SRT3a,            
+	PA_SRT3a_TOK_NUMERAL_SRT3b,          
+	PA_SRT3b_TOK_NUMERAL_SRT3b,          
+	PA_SRT3b_TOK_RP_DONE,                
+	PA_SRT4_TOK_SYMBOL_SRT4a,            
+	PA_SRT4a_TOK_NUMERAL_SRT4b,          
+	PA_SRT4b_TOK_NUMERAL_SRT4b,          
+	PA_SRT4b_TOK_RP_SRT0,                
+	PA_SVL0_TOK_LP_SVL1,                 
+	PA_SVL0a_TOK_LP_SVL0b,               
+	PA_SVL0b_TOK_LP_SVL2,                
+	PA_SVL1_TOK_LP_SVL2,                 
+	PA_SVL1_TOK_RP_DONE,                 
+	PA_SVL2_TOK_SYMBOL_SRT0,             
+	PA_SVL3_TOK_RP_SVL1,                 
+	PA_TRM0_TOK_BINARY_DONE,             
+	PA_TRM0_TOK_DECIMAL_DONE,            
+	PA_TRM0_TOK_HEX_DONE,                
+	PA_TRM0_TOK_LP_TRM1,                 
+	PA_TRM0_TOK_NUMERAL_DONE,            
+	PA_TRM0_TOK_STRING_DONE,             
+	PA_TRM0_TOK_SYMBOL_DONE,             
+	PA_TRM1_TOK_LP_TRM7,                 
+	PA_TRM1_TOK_RW_AS_TRM4,              
+	PA_TRM1_TOK_RW_EXISTS_TRM6,          
+	PA_TRM1_TOK_RW_FORALL_TRM6,          
+	PA_TRM1_TOK_RW_LET_TRM5,             
+	PA_TRM1_TOK_RW_UNDERSCORE_TRM3,      
+	PA_TRM1_TOK_SYMBOL_TRM0,             
+	PA_TRM2_TOK_RP_DONE,                 
+	PA_TRM2_WC_TRM0,                     
+	PA_TRM3_TOK_SYMBOL_TRM3a,            
+	PA_TRM3a_TOK_NUMERAL_TRM3b,          
+	PA_TRM3b_TOK_NUMERAL_TRM3b,          
+	PA_TRM3b_TOK_RP_DONE,                
+	PA_TRM4_TOK_LP_TRM4a,                
+	PA_TRM4_TOK_SYMBOL_SRT0,             
+	PA_TRM4a_TOK_RW_UNDERSCORE_TRM4b,    
+	PA_TRM4b_TOK_SYMBOL_TRM4c,           
+	PA_TRM4c_TOK_NUMERAL_TRM4d,          
+	PA_TRM4d_TOK_NUMERAL_TRM4d,          
+	PA_TRM4d_TOK_RP_SRT0,                
+	PA_TRM5_TOK_LP_TRM5a,                
+	PA_TRM5a_TOK_LP_TRM5b,               
+	PA_TRM5b_TOK_SYMBOL_TRM0,            
+	PA_TRM5c_TOK_RP_TRM5d,               
+	PA_TRM5d_TOK_LP_TRM5b,               
+	PA_TRM5d_TOK_RP_TRM0,                
+	PA_TRM6_TOK_LP_SVL0a,                
+	PA_TRM7_TOK_RW_AS_TRM4,              
+	PA_TRM7_TOK_RW_UNDERSCORE_TRM3,      
+	PA_TRM7a_TOK_RP_DONE,                
+	PA_TRM7a_WC_TRM0
+} parse_action_t;
 
+const int def[77] = {
+	PA_CMD0_WC_ERR_EXP_LP_EOF, PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_CMD5b_WC_SRT0,        
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ERR_EXP_LP_EOF_WC_ERR, PA_ERR_EXP_RP_WC_ERR,    
+	PA_R0_WC_ERR_EXP_RP,      PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_SRT2_WC_SRT0,         
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_TRM2_WC_TRM0,          PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_ANY_WC_ERR,            PA_ANY_WC_ERR,           
+	PA_TRM7a_WC_TRM0
+};
 
+const int base[77] = {
+	0,  0,  0,  1,  0,  2,  2,  3,  3,  11, 5,  10, 6,  11, 7, 
+	12, 13, 0,  2,  14, 0,  0,  15, 0,  0,  16, 9,  9,  17, 11,
+	38, 18, 11, 19, 15, 20, 39, 21, 0,  0,  0,  0,  15, 41, 68,
+	16, 23, 40, 69, 26, 71, 73, 76, 77, 78, 80, 36, 82, 86, 93,
+	93, 49, 94, 96, 99, 89, 55, 100, 104, 103, 111, 66, 112, 115, 117,
+	107, 118
+};
 
-/**
- * Pushes a sort, variable, or function onto the stack depending on the parser's context. The
- * current token should be a symbol.
-*/
-token_type_t parse_symbol(parser_t *parser)
+const int check[175] = {
+	0, 0, 4, 5, 7, 8, 10, 12, 14, 18, 26, 27, 29, 9, 32, 16, 34, 42, 45,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4,
+	4, 4, 30, 36, 43, 47, 9, 9, 9, 2, 3, 6, 8, 9, 9, 9, 9, 9, 9,
+	11, 13, 15, 16, 19, 22, 25, 28, 31, 33, 35, 37, 44, 46, 48, 48, 49, 50, 51,
+	51, 52, 53, 54, 44, 55, 55, 56, 57, 30, 36, 58, 43, 58, 58, 58, 58, 58, 59,
+	60, 61, 62, 63, 63, 64, 65, 66, 67, 69, 59, 68, 68, 59, 59, 59, 59, 70, 71,
+	72, 44, 73, 73, 74, 75, 76, 77, 75, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77,
+	58, 77, 77, 77, 77, 77, 77, 59, 77, 77, 77, 77, 77, 64, 77, 77, 77, 77, 77,
+	77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77, 77,
+	77, 77, 77, 77
+};
+
+const int value[175] = {
+	1,  2,  13, 14, 16, 17, 30, 36, 32, 51, 55, 56, 59, 28, 63,
+	34, 65, 72, 79, 46, 38, 42, 40, 39, 41, 45, 43, 44, 48, 50,
+	47, 49, 37, 7,  10, 9,  6,  12, 8,  11, 60, 67, 74, 82, 22,
+	24, 23, 4,  5,  15, 18, 19, 27, 21, 20, 26, 25, 29, 31, 33,
+	35, 52, 53, 54, 58, 62, 64, 66, 69, 76, 81, 84, 83, 85, 86,
+	88, 87, 89, 90, 91, 77, 92, 93, 94, 95, 61, 68, 99, 75, 100,
+	97, 96, 98, 101, 103, 110, 112, 113, 115, 114, 116, 118, 119, 120, 123,
+	108, 122, 121, 104, 107, 105, 106, 124, 125, 126, 78, 127, 128, 129, 131,
+	132, 39, 130, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 102, 39,
+	39, 39, 39, 39, 39, 109, 39, 39, 39, 39, 39, 117, 39, 39, 39,
+	39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
+	39, 39, 39, 39, 39, 39, 39, 39, 39, 39
+};
+
+parse_action_t get_action(parse_state_t state, token_type_t token) 
+{
+    int i;
+    i = base[state] + token;
+    if (check[i] == state) {
+        return value[i];
+    } else {
+        return def[state];
+    }
+}
+
+int parse_moxi(parser_t *parser) 
 {
     lexer_t *lex;
-    string_buffer_t *buffer;
-    symbol_table_t *symbol_table;
-    context_t *context;
-    parse_stack_t *stack;
-    token_type_t token_type;
-    char *symbol;
+    //loc_t loc;
+    token_type_t token;
+    int_stack_t *pstack;
+    parse_state_t state;
+    parse_action_t action;
 
     lex = &parser->lex;
-    buffer = &parser->lex.buffer;
-    stack = &parser->stack;
-    symbol_table = &context->symbol_table;
-    symbol = lex->buffer.data;
+    pstack = &parser->pstack;
+    state = PS_CMD0;
 
-    symbol_kind_t symbol_kind;
-    symbol_kind = symbol_table_find(symbol_table, symbol);
+consume:
+    if (state == PS_DONE && pstack->top == 0) {
+		fprintf(stderr, "state=PS_DONE and stack is empty, exiting\n");
+		return 0;
+	}
 
-    parse_stack_push_symbol(stack, symbol);
-    parse_stack_new_frame(stack);
+    lexer_next_token(lex);
+	token = lex->tok_type;
+    //loc = lex->loc;
+
+skip:
+    if (state == PS_ERR) {
+        fprintf(stderr, "syntax error\n");
+        return 1;
+    } 
     
-    switch (symbol_kind)
-    {
-    case MOXI_SYM_KIND_SORT:
-        parse_stack_process_sort(stack, context);
-        break;
-
-    case MOXI_SYM_KIND_FUNCTION:
-        parse_stack_process_function(stack, context);
-        break;
-    
-    case MOXI_SYM_KIND_VARIABLE:
-        parse_stack_process_variable(stack, context);
-        break;
-    
-    case MOXI_SYM_KIND_SYSTEM:
-        // parse_stack_process_system(stack, context);
-        break;
-    
-    default:
-        parse_stack_process_error(stack, PARSE_ERROR_EXPECTED_SYMBOL, 
-            lex->loc.lineno, lex->loc.col, "unrecognized symbol '%s'", symbol);
-        break;
-    }
-}
-
-
-/**
- * Iterates the lexer to the next token, pushing an error onto the stack if the token type is not
- * `expect`.
-*/
-void parse_token(parser_t *parser, token_type_t expect)
-{
-    lexer_t *lex;
-    token_type_t token_type;
-    error_stack_t *error;
-
-    lex = &parser->lex;
-    error = &parser->error_stack;
-
-    token_type = lexer_next_token(lex);
-
-    if (token_type != expect) {
-        push_error(error, PARSE_ERROR_EXPECTED_RP, 
-            lex->loc.lineno, lex->loc.col, "expected '%s'", token_type_str[expect]);
-    }
-}
-
-
-/**
- * The current token should be a symbol or `(`. Pushes a sort, variable, or function onto the stack
- * depending on the parser's context and indices. Pushes an error onto the stack otherwise and
- * consumes until `)` or EOF.
- * 
- * `symbol`
- * `(_ <symbol> <symbol-or-int-list>)`
-*/
-void parse_identifier(parser_t *parser)
-{
-    lexer_t *lex;
-    symbol_table_t *symbol_table;
-    parse_stack_t *stack;
-    context_t *context;
-    token_type_t token_type;
-    char *symbol;
-    uint64_t value;
-
-    lex = &parser->lex;
-    stack = &parser->stack;
-    context = &parser->context;
-    token_type = lex->tok_type;
-
-    if (token_type == MOXI_TOK_SYMBOL) {
-        parse_symbol(parser);
-        return;
-    }
-
-    parse_token(parser, MOXI_TOK_LP);
-    parse_stack_new_frame(stack);
-    parse_token(parser, MOXI_TOK_RW_UNDERSCORE);
-    parse_symbol(parser);
-
-    token_type = lexer_next_token(lex);
-    while(token_type != MOXI_TOK_RP) {
-        switch (token_type)
-        {
-        case MOXI_TOK_SYMBOL:
-            symbol = lex->buffer.data;
-            parse_stack_push_symbol(stack, symbol);
-            break;
-
-        case MOXI_TOK_NUMERAL:
-            symbol = lex->buffer.data;
-            value = strtol(symbol, NULL, 10); // FIXME: This only goes up to 64 bits
-            parse_stack_push_numeral(stack, value);
-            break;
-
-        default:
-            push_parse_error(stack, PARSE_ERROR_EXPECTED_SYMBOL, 
-                lex->loc.lineno, lex->loc.col, "expected symbol, numeral, or ')'");
-            break;
+    if (state == PS_DONE) {
+        if (pstack->top == 0) {
+            fprintf(stderr, "state=PS_DONE and stack is empty, exiting\n");
+            return 0;
         }
-
-        token_type = lexer_next_token(lex);
+        state = int_stack_pop(pstack);
+        fprintf(stderr, "popping %d\n", state);
     }
 
-    // Check indexed identifier and push onto stack
+    action = get_action(state, token);
+    fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\n", state, token_type_str[token], token, action);
+    switch(action) {
+		case PA_ERR_EXP_RP_WC_ERR:
+			state = PS_ERR;
+			goto skip;
 
-    /**
-     * Indexed identifiers:
-     * (_ BitVec <numeral>)
-     * (_ extract <numeral> <numeral>)
-     * (_ repeat <numeral>)
-     * (_ zero_extend <numeral>)
-     * (_ sign_extend <numeral>)
-     * (_ rotate_right <numeral>)
-     * (_ rotate_left <numeral>)
-    */
+ 		case PA_ERR_EXP_LP_EOF_WC_ERR:
+			state = PS_ERR;
+			goto skip;
 
-    parse_stack_pop_frame(stack);
+ 		case PA_R0_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
 
-    // Consume trailing ')'
-    parse_token(parser, MOXI_TOK_RP);   
-}
+ 		case PA_R0_WC_ERR_EXP_RP:
+			state = PS_ERR_EXP_RP;
+			goto consume;
 
+ 		case PA_CMD0_TOK_LP_CMD1:
+			state = PS_CMD1;
+			goto consume;
 
-/**
- * Parses a (potentially empty) list of sort binders, pushing each binder to the parse stack.
- * 
- * `( (<var-symbol> <sort-symbol>)* )`
-*/
-void parse_sort_binder_list(parser_t *parser)
-{
-    lexer_t *lex;
-    token_type_t token_type;
-    parse_stack_t *stack;
-    context_t *context;
-    uint32_t lineno, col;
-    parse_stack_elem_t elem;
+ 		case PA_CMD0_TOK_EOF_DONE:
+			state = PS_DONE;
+			goto skip;
 
-    lex = &parser->lex;
-    stack = &parser->stack;
-    context = &parser->context;
+ 		case PA_CMD0_WC_ERR_EXP_LP_EOF:
+			state = PS_ERR_EXP_LP_EOF;
+			goto skip;
 
-    parse_token(parser, MOXI_TOK_LP);
-    token_type = lexer_next_token(lex);
+ 		case PA_CMD1_TOK_RW_EXIT_R0:
+			state = PS_R0;
+			goto consume;
 
-    while(token_type == MOXI_TOK_LP) {
-        // Current state:
-        // `( <var-symbol> <sort-symbol> )`
-        //  ^
-        parse_token(parser, MOXI_TOK_LP);
-        parse_symbol(parser);
-        parse_identifier(parser);
-        parse_token(parser, MOXI_TOK_RP);
+ 		case PA_CMD1_TOK_RW_RESET_R0:
+			state = PS_R0;
+			goto consume;
 
-        // Check the validity of the var and sort
+ 		case PA_CMD1_TOK_RW_ASSERT_TRM0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_TRM0;
+			goto consume;
 
+ 		case PA_CMD1_TOK_RW_ECHO_CMD2:
+			state = PS_CMD2;
+			goto consume;
 
+ 		case PA_CMD1_TOK_RW_SET_LOGIC_CMD3:
+			state = PS_CMD3;
+			goto consume;
 
-        token_type = lexer_next_token(lex);
-    }
+ 		case PA_CMD1_TOK_RW_DEFINE_FUN_CMD4:
+			state = PS_CMD4;
+			goto consume;
 
-    parse_token(parser, MOXI_TOK_RP);
-}
+ 		case PA_CMD1_TOK_RW_DECLARE_FUN_CMD5:
+			state = PS_CMD5;
+			goto consume;
 
+ 		case PA_CMD1_TOK_RW_DEFINE_SORT_CMD6:
+			state = PS_CMD6;
+			goto consume;
 
-/**
- * When we see an open parentheses, we push the following identifier onto the parse stack as the
- * beginning of a new scope. When we see a close parentheses, we pop the top frame from the stack
- * and perform a sort check.
- * 
- * `<symbol>`
- * `(_ <symbol> <symbol-or-int-list>)` (identifier)
- * `(<identifier> <term>*)`
-*/
-term_t *parse_term(parser_t *parser)
-{
-    lexer_t *lex;
-    token_type_t token_type;
-    parse_stack_t *stack;
-    context_t *context;
-    uint32_t depth; // Number of nested parens -- stop parsing once this reaches 0 after a `)` token
+ 		case PA_CMD1_TOK_RW_DECLARE_SORT_CMD7:
+			state = PS_CMD7;
+			goto consume;
 
-    depth = 0;
-    token_type = lexer_next_token(lex);
+ 		case PA_CMD1_TOK_RW_DECLARE_ENUM_SORT_CMD8:
+			state = PS_CMD8;
+			goto consume;
 
-    do {
-        switch (token_type)
-        {
-        case MOXI_TOK_BINARY:
-            // parse_binary(parser);
+ 		case PA_CMD1_TOK_RW_DECLARE_CONST_CMD9:
+			state = PS_CMD9;
+			goto consume;
 
-        case MOXI_TOK_HEX:
-            // parse_hex(parser);
+ 		case PA_CMD1_TOK_RW_DEFINE_CONST_CMD10:
+			state = PS_CMD10;
+			goto consume;
 
-        case MOXI_TOK_DECIMAL:
-            // parse_decimal(parser);
-        
-        case MOXI_TOK_SYMBOL:
-            parse_symbol(parser);
-            break;
+ 		case PA_CMD1_TOK_RW_DEFINE_SYS_CMD11:
+			state = PS_CMD11;
+			goto consume;
 
-        case MOXI_TOK_LP:
-            parse_stack_new_frame(stack);
-            token_type = lexer_next_token(lex);
+ 		case PA_CMD1_TOK_RW_CHECK_SYS_CMD12:
+			state = PS_CMD12;
+			goto consume;
 
-            if (token_type == MOXI_TOK_LP) {
-                // `((_ ...) ...)`
-                //   ^
-                // Iterate since `parse_identifier` expects current token to be `_` or symbol
-                lexer_next_token(lex);
-            }
+ 		case PA_CMD2_TOK_STRING_R0:
+			state = PS_R0;
+			goto consume;
 
-            parse_identifier(parser);
-            depth++;
+ 		case PA_CMD3_TOK_SYMBOL_R0:
+			state = PS_R0;
+			goto consume;
 
-            break;
-        
-        case MOXI_TOK_RP:
-            // check and pop top frame, push result back onto stack
-            process_table[stack->data[stack->top_frame].tag](stack, context);
-            parse_stack_pop_frame(stack);
-            depth--;
-            break;
+ 		case PA_CMD4_TOK_SYMBOL_SVL0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			int_stack_push(pstack, PS_TRM0);
+			fprintf(stderr, "pushing %d\n", PS_TRM0);
+			int_stack_push(pstack, PS_SRT0);
+			fprintf(stderr, "pushing %d\n", PS_SRT0);
+			state = PS_SVL0;
+			goto consume;
 
-        default:
-            push_error(stack, 0, 0, 0, "expected symbol, '(', or ')'");
-            break;
-        }
-    } while(depth > 0);
+ 		case PA_CMD5_TOK_SYMBOL_CMD3a:
+			state = PS_CMD3a;
+			goto consume;
 
-}
+ 		case PA_CMD5a_TOK_LP_CMD3b:
+			state = PS_CMD3b;
+			goto consume;
 
+ 		case PA_CMD5b_TOK_RP_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_SRT0;
+			goto consume;
 
-/**
- * Parse a `define-fun` MoXI command. The current token should be `define-fun`.
- *
- * `(define-fun <fresh-symbol> <binder-list> <sort-symbol> <term>)`
-*/
-void parse_define_fun(parser_t *parser) 
-{
-    lexer_t *lex;
-    string_buffer_t *buffer;
-    context_t *context;
-    token_type_t token_type;
+ 		case PA_CMD5b_WC_SRT0:
+			int_stack_push(pstack, PS_CMD3b);
+			fprintf(stderr, "pushing %d\n", PS_CMD3b);
+			state = PS_SRT0;
+			goto skip;
 
-    char *function_symbol;
-    string_pair_list_t *rank;
-    term_t *term;
+ 		case PA_CMD6_TOK_SYMBOL_CMD4a:
+			state = PS_CMD4a;
+			goto consume;
 
-    lex = &parser->lex;
-    buffer = &parser->lex.buffer;
-    context = &parser->context;
+ 		case PA_CMD6a_TOK_LP_CMD4b:
+			state = PS_CMD4b;
+			goto consume;
 
-    function_symbol = parse_symbol(parser);
-    parse_sort_binder_list(parser);
-    parse_sort(parser);
+ 		case PA_CMD6b_TOK_RP_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_SRT0;
+			goto consume;
 
-    // open scope
+ 		case PA_CMD6b_TOK_SYMBOL_CMD4b:
+			state = PS_CMD4b;
+			goto consume;
 
+ 		case PA_CMD7_TOK_SYMBOL_CMD5a:
+			state = PS_CMD5a;
+			goto consume;
 
-    term = parse_term(parser);
-} 
+ 		case PA_CMD7a_TOK_NUMERAL_R0:
+			state = PS_R0;
+			goto consume;
 
+ 		case PA_CMD8_TOK_SYMBOL_CMD8a:
+			state = PS_CMD8a;
+			goto consume;
 
-/**
- * Parse a `define-sort` MoXI command. The current token should be `define-sort`. 
- * 
- * FIXME: Consider adding some "alias" table, since that's what these really are -- but how does
- * this relate to defined functions?
- * 
- * Examples: 
- * - `(define-sort BV8 () (_ BitVec 8))`
- * - `(define-sort BV8IdxArray (ElemSort) (Array BV8 ElemSort))`
- *
- * `define-sort <fresh-symbol> <sort-symbol-list> <sort>`
-*/
-void parse_define_sort(parser_t *parser) 
-{
+ 		case PA_CMD8a_TOK_LP_CMD8b:
+			state = PS_CMD8b;
+			goto consume;
 
-} 
+ 		case PA_CMD8b_TOK_SYMBOL_CMD8c:
+			state = PS_CMD8c;
+			goto consume;
 
+ 		case PA_CMD8c_TOK_SYMBOL_CMD8c:
+			state = PS_CMD8c;
+			goto consume;
 
+ 		case PA_CMD8c_TOK_RP_R0:
+			state = PS_R0;
+			goto consume;
 
-int parse_moxi(parser_t *parser)
-{
-    lexer_t *lex;
-    parse_stack_t *stack;
-    error_stack_t *errors;
-    token_type_t token_type;
+ 		case PA_CMD9_TOK_SYMBOL_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_SRT0;
+			goto consume;
 
-    lex = &parser->lex;
-    stack = &parser->stack;
+ 		case PA_CMD10_TOK_SYMBOL_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			int_stack_push(pstack, PS_TRM0);
+			fprintf(stderr, "pushing %d\n", PS_TRM0);
+			state = PS_SRT0;
+			goto consume;
 
-    do {
-        parse_left_paren(parser);
+ 		case PA_CMD11_TOK_SYMBOL_CMD11a:
+			state = PS_CMD11a;
+			goto consume;
 
-        token_type = lexer_next_token(lex);
+ 		case PA_CMD11a_TOK_KW_INPUT_SVL0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_SVL0;
+			goto consume;
 
-        switch (token_type)
-        {
-        case MOXI_TOK_RW_DEFINE_SYS:
-        case MOXI_TOK_RW_CHECK_SYS:
-        case MOXI_TOK_RW_DECLARE_SORT:
-        case MOXI_TOK_RW_DECLARE_ENUM_SORT:
-        case MOXI_TOK_RW_DECLARE_CONST:
-        case MOXI_TOK_RW_DECLARE_FUN:
-        case MOXI_TOK_RW_DEFINE_SORT:
-        case MOXI_TOK_RW_DEFINE_CONST:
-        case MOXI_TOK_RW_DEFINE_FUN:
-            parse_define_fun(parser);
-            break;
+ 		case PA_CMD11a_TOK_KW_OUTPUT_SVL0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_SVL0;
+			goto consume;
 
-        case MOXI_TOK_RW_EXIT:
-        case MOXI_TOK_RW_SET_LOGIC:
-        case MOXI_TOK_RW_ECHO:
-        default:
-            break;
-        }
+ 		case PA_CMD11a_TOK_KW_LOCAL_SVL0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_SVL0;
+			goto consume;
 
-        parse_right_paren(parser);
+ 		case PA_CMD11a_TOK_KW_INIT_TRM0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_TRM0;
+			goto consume;
 
-        if (errors->num_errors == 0) {
-            moxi_check_fun[parser->command.type]();
-            moxi_execute_fun[parser->command.type]();
-        }
+ 		case PA_CMD11a_TOK_KW_TRANS_TRM0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_TRM0;
+			goto consume;
 
-    } while(token_type != MOXI_TOK_EOF);
+ 		case PA_CMD11a_TOK_KW_INV_TRM0:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_TRM0;
+			goto consume;
 
-    return -1;
+ 		case PA_CMD11a_TOK_KW_SUBSYS_CMD11b:
+			int_stack_push(pstack, PS_CMD11a);
+			fprintf(stderr, "pushing %d\n", PS_CMD11a);
+			state = PS_CMD11b;
+			goto consume;
+
+ 		case PA_CMD11a_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_CMD11b_TOK_LP_CMD11c:
+			state = PS_CMD11c;
+			goto consume;
+
+ 		case PA_CMD11c_TOK_SYMBOL_CMD11d:
+			state = PS_CMD11d;
+			goto consume;
+
+ 		case PA_CMD11d_TOK_LP_CMD11e:
+			state = PS_CMD11e;
+			goto consume;
+
+ 		case PA_CMD11e_TOK_SYMBOL_CMD11e:
+			state = PS_CMD11e;
+			goto consume;
+
+ 		case PA_CMD11e_TOK_RP_R0:
+			state = PS_R0;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_INPUT_SVL0:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_SVL0;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_OUTPUT_SVL0:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_SVL0;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_LOCAL_SVL0:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_SVL0;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_ASSUME_CMD12a:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12a;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_CURRENT_CMD12a:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12a;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_REACH_CMD12a:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12a;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_FAIR_CMD12a:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12a;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_QUERY_CMD12b:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12b;
+			goto consume;
+
+ 		case PA_CMD12_TOK_KW_QUERIES_CMD12c:
+			int_stack_push(pstack, PS_CMD12);
+			fprintf(stderr, "pushing %d\n", PS_CMD12);
+			state = PS_CMD12c;
+			goto consume;
+
+ 		case PA_CMD12_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_CMD12a_TOK_LP_CMD12a0:
+			state = PS_CMD12a0;
+			goto consume;
+
+ 		case PA_CMD12a0_TOK_SYMBOL_TRM0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_TRM0;
+			goto consume;
+
+ 		case PA_CMD12b_TOK_LP_CMD12b0:
+			state = PS_CMD12b0;
+			goto consume;
+
+ 		case PA_CMD12b0_TOK_SYMBOL_CMD12b1:
+			state = PS_CMD12b1;
+			goto consume;
+
+ 		case PA_CMD12b1_TOK_LP_CMD12b2:
+			state = PS_CMD12b2;
+			goto consume;
+
+ 		case PA_CMD12b2_TOK_SYMBOL_CMD12b3:
+			state = PS_CMD12b3;
+			goto consume;
+
+ 		case PA_CMD12b3_TOK_SYMBOL_CMD12b3:
+			state = PS_CMD12b3;
+			goto consume;
+
+ 		case PA_CMD12b3_TOK_RP_R0:
+			state = PS_R0;
+			goto consume;
+
+ 		case PA_TRM0_TOK_NUMERAL_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_DECIMAL_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_HEX_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_BINARY_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_STRING_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_SYMBOL_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM0_TOK_LP_TRM1:
+			state = PS_TRM1;
+			goto consume;
+
+ 		case PA_TRM1_TOK_SYMBOL_TRM0:
+			int_stack_push(pstack, PS_TRM2);
+			fprintf(stderr, "pushing %d\n", PS_TRM2);
+			state = PS_TRM0;
+			goto consume;
+
+ 		case PA_TRM1_TOK_RW_UNDERSCORE_TRM3:
+			state = PS_TRM3;
+			goto consume;
+
+ 		case PA_TRM1_TOK_RW_AS_TRM4:
+			state = PS_TRM4;
+			goto consume;
+
+ 		case PA_TRM1_TOK_RW_LET_TRM5:
+			state = PS_TRM5;
+			goto consume;
+
+ 		case PA_TRM1_TOK_RW_FORALL_TRM6:
+			state = PS_TRM6;
+			goto consume;
+
+ 		case PA_TRM1_TOK_RW_EXISTS_TRM6:
+			state = PS_TRM6;
+			goto consume;
+
+ 		case PA_TRM1_TOK_LP_TRM7:
+			state = PS_TRM7;
+			goto consume;
+
+ 		case PA_TRM2_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM2_WC_TRM0:
+			int_stack_push(pstack, PS_TRM2);
+			fprintf(stderr, "pushing %d\n", PS_TRM2);
+			state = PS_TRM0;
+			goto skip;
+
+ 		case PA_TRM3_TOK_SYMBOL_TRM3a:
+			state = PS_TRM3a;
+			goto consume;
+
+ 		case PA_TRM3a_TOK_NUMERAL_TRM3b:
+			state = PS_TRM3b;
+			goto consume;
+
+ 		case PA_TRM3b_TOK_NUMERAL_TRM3b:
+			state = PS_TRM3b;
+			goto consume;
+
+ 		case PA_TRM3b_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM4_TOK_SYMBOL_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_SRT0;
+			goto consume;
+
+ 		case PA_TRM4_TOK_LP_TRM4a:
+			state = PS_TRM4a;
+			goto consume;
+
+ 		case PA_TRM4a_TOK_RW_UNDERSCORE_TRM4b:
+			state = PS_TRM4b;
+			goto consume;
+
+ 		case PA_TRM4b_TOK_SYMBOL_TRM4c:
+			state = PS_TRM4c;
+			goto consume;
+
+ 		case PA_TRM4c_TOK_NUMERAL_TRM4d:
+			state = PS_TRM4d;
+			goto consume;
+
+ 		case PA_TRM4d_TOK_NUMERAL_TRM4d:
+			state = PS_TRM4d;
+			goto consume;
+
+ 		case PA_TRM4d_TOK_RP_SRT0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_SRT0;
+			goto consume;
+
+ 		case PA_TRM5_TOK_LP_TRM5a:
+			state = PS_TRM5a;
+			goto consume;
+
+ 		case PA_TRM5a_TOK_LP_TRM5b:
+			state = PS_TRM5b;
+			goto consume;
+
+ 		case PA_TRM5b_TOK_SYMBOL_TRM0:
+			int_stack_push(pstack, PS_TRM5c);
+			fprintf(stderr, "pushing %d\n", PS_TRM5c);
+			state = PS_TRM0;
+			goto consume;
+
+ 		case PA_TRM5c_TOK_RP_TRM5d:
+			state = PS_TRM5d;
+			goto consume;
+
+ 		case PA_TRM5d_TOK_LP_TRM5b:
+			state = PS_TRM5b;
+			goto consume;
+
+ 		case PA_TRM5d_TOK_RP_TRM0:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			state = PS_TRM0;
+			goto consume;
+
+ 		case PA_TRM6_TOK_LP_SVL0a:
+			int_stack_push(pstack, PS_R0);
+			fprintf(stderr, "pushing %d\n", PS_R0);
+			int_stack_push(pstack, PS_TRM0);
+			fprintf(stderr, "pushing %d\n", PS_TRM0);
+			state = PS_SVL0a;
+			goto skip;
+
+ 		case PA_TRM7_TOK_RW_UNDERSCORE_TRM3:
+			int_stack_push(pstack, PS_TRM7a);
+			fprintf(stderr, "pushing %d\n", PS_TRM7a);
+			int_stack_push(pstack, PS_TRM0);
+			fprintf(stderr, "pushing %d\n", PS_TRM0);
+			state = PS_TRM3;
+			goto consume;
+
+ 		case PA_TRM7_TOK_RW_AS_TRM4:
+			int_stack_push(pstack, PS_TRM7a);
+			fprintf(stderr, "pushing %d\n", PS_TRM7a);
+			int_stack_push(pstack, PS_TRM0);
+			fprintf(stderr, "pushing %d\n", PS_TRM0);
+			state = PS_TRM4;
+			goto consume;
+
+ 		case PA_TRM7a_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_TRM7a_WC_TRM0:
+			state = PS_TRM0;
+			goto skip;
+
+ 		case PA_SVL0_TOK_LP_SVL1:
+			state = PS_SVL1;
+			goto consume;
+
+ 		case PA_SVL0a_TOK_LP_SVL0b:
+			state = PS_SVL0b;
+			goto consume;
+
+ 		case PA_SVL0b_TOK_LP_SVL2:
+			state = PS_SVL2;
+			goto consume;
+
+ 		case PA_SVL1_TOK_LP_SVL2:
+			state = PS_SVL2;
+			goto consume;
+
+ 		case PA_SVL1_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_SVL2_TOK_SYMBOL_SRT0:
+			int_stack_push(pstack, PS_SVL3);
+			fprintf(stderr, "pushing %d\n", PS_SVL3);
+			state = PS_SRT0;
+			goto consume;
+
+ 		case PA_SVL3_TOK_RP_SVL1:
+			state = PS_SVL1;
+			goto consume;
+
+ 		case PA_SRT0_TOK_SYMBOL_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_SRT0_TOK_LP_SRT1:
+			state = PS_SRT1;
+			goto consume;
+
+ 		case PA_SRT1_TOK_SYMBOL_SRT0:
+			int_stack_push(pstack, PS_SRT2);
+			fprintf(stderr, "pushing %d\n", PS_SRT2);
+			state = PS_SRT0;
+			goto consume;
+
+ 		case PA_SRT1_TOK_RW_UNDERSCORE_SRT3:
+			state = PS_SRT3;
+			goto consume;
+
+ 		case PA_SRT1_TOK_LP_SRT4:
+			state = PS_SRT4;
+			goto consume;
+
+ 		case PA_SRT2_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_SRT2_WC_SRT0:
+			int_stack_push(pstack, PS_SRT2);
+			fprintf(stderr, "pushing %d\n", PS_SRT2);
+			state = PS_SRT0;
+			goto skip;
+
+ 		case PA_SRT3_TOK_SYMBOL_SRT3a:
+			state = PS_SRT3a;
+			goto consume;
+
+ 		case PA_SRT3a_TOK_NUMERAL_SRT3b:
+			state = PS_SRT3b;
+			goto consume;
+
+ 		case PA_SRT3b_TOK_NUMERAL_SRT3b:
+			state = PS_SRT3b;
+			goto consume;
+
+ 		case PA_SRT3b_TOK_RP_DONE:
+			state = PS_DONE;
+			goto consume;
+
+ 		case PA_SRT4_TOK_SYMBOL_SRT4a:
+			state = PS_SRT4a;
+			goto consume;
+
+ 		case PA_SRT4a_TOK_NUMERAL_SRT4b:
+			state = PS_SRT4b;
+			goto consume;
+
+ 		case PA_SRT4b_TOK_NUMERAL_SRT4b:
+			state = PS_SRT4b;
+			goto consume;
+
+ 		case PA_SRT4b_TOK_RP_SRT0:
+			int_stack_push(pstack, PS_SRT2);
+			fprintf(stderr, "pushing %d\n", PS_SRT2);
+			state = PS_SRT0;
+			goto consume;
+
+ 		case PA_ANY_WC_ERR:
+			state = PS_ERR;
+			goto skip;
+
+	}
+
+	return 1;
 }
 

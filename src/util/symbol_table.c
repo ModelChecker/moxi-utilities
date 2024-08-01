@@ -11,7 +11,7 @@
 uint32_t compute_symbol_table_entry_hash(symbol_table_t *table, char *symbol)
 {
     uint32_t mask = table->size - 1;
-    return mask & djb2_hash_symbol(symbol);
+    return mask & djb2_hash_string(symbol);
 }
 
 
@@ -125,14 +125,16 @@ int64_t symbol_table_remove(symbol_table_t *table, char *symbol)
     }
 
     symbol_table_entry_t **cur, *prev;
+    int64_t value;
 
-    cur = &table->data[hash];
     prev = NULL;
 
     for(cur = &table->data[hash]; *cur != NULL; prev = *cur, cur = &(*cur)->next) {
         if(strcmp((*cur)->symbol, symbol)) {
             continue;
         }
+
+        value = (int64_t) (*cur)->value;
 
         if (prev == NULL) {
             *cur = NULL;
@@ -141,7 +143,7 @@ int64_t symbol_table_remove(symbol_table_t *table, char *symbol)
             free(*cur);
         }
 
-        return (int64_t) (*cur)->value;
+        return value;
     }
 
     return -1;

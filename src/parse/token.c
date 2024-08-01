@@ -1,6 +1,6 @@
 #include "token.h"
 
-const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1] = {
+const char *token_type_str[NUM_TOKENS] = {
     "<EOF>",
     "(",
     ")",
@@ -8,6 +8,7 @@ const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1] = {
     "<decimal>",
     "<binary>",
     "<hex>",
+    "<string>",
     "par",
     "NUMERAL",
     "DECIMAL",
@@ -31,6 +32,8 @@ const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1] = {
     "exit",
     "set-logic",
     "echo",
+    "reset",
+    "assert",
     ":input",
     ":output",
     ":local",
@@ -44,81 +47,157 @@ const char *token_type_str[MOXI_TOK_INVALID_SYMBOL+1] = {
     ":current",
     ":query",
     ":queries",
+    "<unknown-keyword>",
     "<symbol>",
     "<error-const>",
     "<error-num-zero>",
     "<error-quote-eof>",
     "<error-quote-char>",
+    "<error-string-eof>",
+    "<error-string-char>",
     "<error-symbol>",
+    "<error-keyword>",
     "<error>"
 };
 
-bool is_indexed_symbol[MOXI_SYM_BVSGE+1] = {
-    false, // MOXI_SYM_UNKNOWN
-    false, // MOXI_SYM_BOOL
-    false, // MOXI_SYM_TRUE
-    false, // MOXI_SYM_FALSE
-    false, // MOXI_SYM_NOT
-    false, // MOXI_SYM_IMPLIES
-    false, // MOXI_SYM_AND
-    false, // MOXI_SYM_OR
-    false, // MOXI_SYM_XOR
-    false, // MOXI_SYM_EQ
-    false, // MOXI_SYM_DISTINCT
-    false, // MOXI_SYM_ITE
-    false, // MOXI_SYM_ARRAY
-    false, // MOXI_SYM_SELECT
-    false, // MOXI_SYM_STORE
-    false, // MOXI_SYM_INT
-    false, // MOXI_SYM_REAL
-    false, // MOXI_SYM_MINUS
-    false, // MOXI_SYM_PLUS
-    false, // MOXI_SYM_TIMES
-    false, // MOXI_SYM_DIVIDES
-    false, // MOXI_SYM_LE
-    false, // MOXI_SYM_LT
-    false, // MOXI_SYM_GE
-    false, // MOXI_SYM_GT
-    false, // MOXI_SYM_DIV
-    false, // MOXI_SYM_MOD
-    false, // MOXI_SYM_ABS
-    true,  // MOXI_SYM_BITVEC
-    false, // MOXI_SYM_CONCAT
-    true,  // MOXI_SYM_EXTRACT
-    true,  // MOXI_SYM_REPEAT
-    false, // MOXI_SYM_BVCOMP
-    false, // MOXI_SYM_BVREDAND
-    false, // MOXI_SYM_BVREDOR
-    false, // MOXI_SYM_BVNOT
-    false, // MOXI_SYM_BVAND
-    false, // MOXI_SYM_BVOR
-    false, // MOXI_SYM_BVNAND
-    false, // MOXI_SYM_BVNOR
-    false, // MOXI_SYM_BVXOR
-    false, // MOXI_SYM_BVXNOR
-    false, // MOXI_SYM_BVNEG
-    false, // MOXI_SYM_BVADD
-    false, // MOXI_SYM_BVSUB
-    false, // MOXI_SYM_BVMUL
-    false, // MOXI_SYM_BVUDIV
-    false, // MOXI_SYM_BVUREM
-    false, // MOXI_SYM_BVSDIV
-    false, // MOXI_SYM_BVSREM
-    false, // MOXI_SYM_BVSMOD
-    false, // MOXI_SYM_BVSHL
-    false, // MOXI_SYM_BVLSHR
-    false, // MOXI_SYM_BVASHR
-    true,  // MOXI_SYM_ZERO_EXTEND
-    true,  // MOXI_SYM_SIGN_EXTEND
-    true,  // MOXI_SYM_ROTATE_LEFT
-    true,  // MOXI_SYM_ROTATE_RIGHT
-    false, // MOXI_SYM_BVULT
-    false, // MOXI_SYM_BVULE
-    false, // MOXI_SYM_BVUGT
-    false, // MOXI_SYM_BVUGE
-    false, // MOXI_SYM_BVSLT
-    false, // MOXI_SYM_BVSLE
-    false, // MOXI_SYM_BVSGT
-    false, // MOXI_SYM_BVSGE
+const char *symbol_type_str[NUM_SYMBOLS] = {
+    "Bool",
+    "true",
+    "false",
+    "not",
+    "implies",
+    "and",
+    "or",
+    "xor",
+    "eq",
+    "distinct",
+    "ite",
+    "Array",
+    "select",
+    "store",
+    "Int",
+    "Real",
+    "-",
+    "+",
+    "*",
+    "divisible",
+    "<=",
+    "<",
+    ">=",
+    ">",
+    "/",
+    "mod",
+    "abs",
+    "BitVec",
+    "concat",
+    "extract",
+    "repeat",
+    "bvcomp",
+    "bvredand",
+    "bvredor",
+    "bvnot",
+    "bvand",
+    "bvor",
+    "bvnand",
+    "bvnor",
+    "bvxor",
+    "bvxnor",
+    "bvneg",
+    "bvadd",
+    "bvsub",
+    "bvmul",
+    "bvudiv",
+    "bvurem",
+    "bvsdiv",
+    "bvsrem",
+    "bvsmod",
+    "bvshl",
+    "bvlshr",
+    "bvashr",
+    "zero_extend",
+    "sign_extend",
+    "rotate_left",
+    "rotate_right",
+    "bvult",
+    "bvule",
+    "bvugt",
+    "bvuge",
+    "bvslt",
+    "bvsle",
+    "bvsgt",
+    "bvsge",
+    "<unknown>",
+    "<symbol>",
+};
+
+
+bool is_indexed_symbol[NUM_SYMBOLS] = {
+    false, // SYM_BOOL
+    false, // SYM_TRUE
+    false, // SYM_FALSE
+    false, // SYM_NOT
+    false, // SYM_IMPLIES
+    false, // SYM_AND
+    false, // SYM_OR
+    false, // SYM_XOR
+    false, // SYM_EQ
+    false, // SYM_DISTINCT
+    false, // SYM_ITE
+    false, // SYM_ARRAY
+    false, // SYM_SELECT
+    false, // SYM_STORE
+    false, // SYM_INT
+    false, // SYM_REAL
+    false, // SYM_MINUS
+    false, // SYM_PLUS
+    false, // SYM_TIMES
+    false, // SYM_DIVIDES
+    false, // SYM_LE
+    false, // SYM_LT
+    false, // SYM_GE
+    false, // SYM_GT
+    false, // SYM_DIV
+    false, // SYM_MOD
+    false, // SYM_ABS
+    true,  // SYM_BITVEC
+    false, // SYM_CONCAT
+    true,  // SYM_EXTRACT
+    true,  // SYM_REPEAT
+    false, // SYM_BVCOMP
+    false, // SYM_BVREDAND
+    false, // SYM_BVREDOR
+    false, // SYM_BVNOT
+    false, // SYM_BVAND
+    false, // SYM_BVOR
+    false, // SYM_BVNAND
+    false, // SYM_BVNOR
+    false, // SYM_BVXOR
+    false, // SYM_BVXNOR
+    false, // SYM_BVNEG
+    false, // SYM_BVADD
+    false, // SYM_BVSUB
+    false, // SYM_BVMUL
+    false, // SYM_BVUDIV
+    false, // SYM_BVUREM
+    false, // SYM_BVSDIV
+    false, // SYM_BVSREM
+    false, // SYM_BVSMOD
+    false, // SYM_BVSHL
+    false, // SYM_BVLSHR
+    false, // SYM_BVASHR
+    true,  // SYM_ZERO_EXTEND
+    true,  // SYM_SIGN_EXTEND
+    true,  // SYM_ROTATE_LEFT
+    true,  // SYM_ROTATE_RIGHT
+    false, // SYM_BVULT
+    false, // SYM_BVULE
+    false, // SYM_BVUGT
+    false, // SYM_BVUGE
+    false, // SYM_BVSLT
+    false, // SYM_BVSLE
+    false, // SYM_BVSGT
+    false, // SYM_BVSGE
+    false, // SYM_SYMBOL
+    false, // SYM_UNKNOWN
 };
 
