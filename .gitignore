@@ -1,5 +1,5 @@
-.venv/*
+.*
 obj/
 src/parse/hash_*
-src/parse/parser.c
+src/parse/parse.c
 moxisc

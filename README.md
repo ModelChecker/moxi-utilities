@@ -2,7 +2,7 @@
 
 A reference sort checker for MoXI. The following programs are required:
 
-- C compiler (tested using clang)
+- C compiler (tested using gcc)
 - gperf
 - Python 3.10 or newer
 

@@ -15,8 +15,8 @@
 // The initial state of the parser is 'CMD0'.
 
 // Errors
-ERR_EXP_RP         *       ERR        pass        _
-ERR_EXP_LP_EOF     *       ERR        pass        _
+ERR_EXP_RP         *       ERR        pass        _     { print_error_with_loc(filename, lineno, col, "expected ')'"); }
+ERR_EXP_LP_EOF     *       ERR        pass        _     { print_error_with_loc(filename, lineno, col, "expected ')' or EOF"); }
 
 
 // End of syntactic element

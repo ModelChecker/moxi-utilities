@@ -8,6 +8,7 @@ import re
 from typing import Optional, NewType, cast
 
 FILE_DIR = pathlib.Path(__file__).parent
+TOKEN_H_PATH = FILE_DIR.parent / "src" / "parse" / "token.h"
 
 """
 We have state/token/state triples. We call a state/token pair an "action". 
@@ -24,20 +25,24 @@ State = NewType("State", str)
 Token = NewType("Token", str)
 Action = NewType("Action", str)
 
-DEFAULT_ERROR_STATE = State("PS_ERR")
-DONE_STATE = State("PS_DONE")
-INIT_STATE = State("PS_CMD0")
-
 WILDCARD_TOKEN = Token("*")
 
 
 def get_action(state: State, token: Token, next: State) -> Action:
     if token == WILDCARD_TOKEN:
-        return Action(f"PA_{state[3:]}_WC_{next[3:]}")
-    return Action(f"PA_{state[3:]}_{token}_{next[3:]}")
+        return Action(f"{state}_WC_{next}")
+    token_name = str(token).replace("TOK_", "")
+    return Action(f"{state}_{token_name}_{next}")
 
 
-DEFAULT_ERROR_ACTION = get_action(State("PS_ANY"), WILDCARD_TOKEN, DEFAULT_ERROR_STATE)
+DEFAULT_ERROR_STATE = State("ERR")
+DONE_STATE = State("DONE")
+INIT_STATE = State("CMD0")
+
+
+DEFAULT_ERROR_ACTION = get_action(
+    DEFAULT_ERROR_STATE, WILDCARD_TOKEN, DEFAULT_ERROR_STATE
+)
 
 PARSE_STACK_PUSH_FN = "int_stack_push(state_stack, {state})"
 
@@ -47,7 +52,7 @@ C_PREAMBLE = """
 #include <assert.h>
 
 #include "io/print.h"
-#include "parse/parser.h"
+#include "parse/parse.h"
 
 /**
  * Initializes `parser` to use `filename` as input.
@@ -64,7 +69,6 @@ int init_parser(parser_t *parser, const char *filename)
 	}
 
 	init_int_stack(&parser->state_stack);
-    parser->depth = 0;
 	parser->filename = filename;
 	return 0;
 }
@@ -80,7 +84,8 @@ void delete_parser(parser_t *parser)
 
 """
 
-C_PARSE_FN = """
+C_PARSE_FN = (
+    """
 parse_action_t get_action(parse_state_t state, token_type_t token) 
 {
     int i;
@@ -106,10 +111,14 @@ int parse_moxi(parser_t *parser)
     filename = parser->filename;
     lex = &parser->lex;
     state_stack = &parser->state_stack;
-    state = PS_CMD0;
+    state = """
+    + str(INIT_STATE)
+    + """;
 
 consume:
-    if (state ==""" + str(DONE_STATE) + """ && state_stack->top == 0) {
+    if (state =="""
+    + str(DONE_STATE)
+    + """ && state_stack->top == 0) {
 		return 0;
 	}
 
@@ -119,12 +128,15 @@ consume:
     col = lex->col;
 
 skip:
-    if (state == """ + str(DEFAULT_ERROR_STATE) + """) {
-        print_error_with_loc(filename, lineno, col, "syntax error");
+    if (state == """
+    + str(DEFAULT_ERROR_STATE)
+    + """) {
         return 1;
     } 
     
-    if (state == """ + str(DONE_STATE) + """) {
+    if (state == """
+    + str(DONE_STATE)
+    + """) {
         if (state_stack->top == 0) {
             return 0;
         }
@@ -135,11 +147,13 @@ skip:
     action = get_action(state, token);
 
 #ifdef DEBUG_PARSER
-    fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", state, token_type_str[token], token, action);
+    fprintf(stderr, "state: %d, token: '%s' (%d), action: %d\\n", 
+        state, token_type_str[token], token, action);
 #endif
 
     switch(action) {
 """
+)
 
 
 def parse_tokens(token_h: str) -> list[Token]:
@@ -158,7 +172,9 @@ def parse_tokens(token_h: str) -> list[Token]:
 
 
 def parse_table(content: str, tokens: list[Token]):
-    table: dict[tuple[State, Token], tuple[State, bool, Optional[list[State]]]] = {}
+    table: dict[
+        tuple[State, Token], tuple[State, bool, Optional[list[State]], Optional[str]]
+    ] = {}
     states: list[State] = [DEFAULT_ERROR_STATE, DONE_STATE]
     actions: list[Action] = [DEFAULT_ERROR_ACTION]
     edges: dict[State, list[Token]] = {DEFAULT_ERROR_STATE: [], DONE_STATE: []}
@@ -167,17 +183,23 @@ def parse_table(content: str, tokens: list[Token]):
     for line in content.splitlines():
         if line[0:2] == "//":
             continue
-        line_data = line.split()
+        line_data = line.split(maxsplit=5)
         if len(line_data) == 0:
             continue
-        if len(line_data) != 5:
-            print(sys.stderr, f"warning: ignoring bad line ({line})")
+
+        if len(line_data) == 5:
+            (state, token, next, consume, push) = line_data
+            code = None
+        elif len(line_data) == 6:
+            (state, token, next, consume, push, code) = line_data
+            code = code.strip()[1:-2]
+        else:
+            print(f"warning: bad line\n\t{line}", file=sys.stderr)
             continue
 
-        (state, token, next, consume, push) = line_data
-        state = State("PS_" + state)
+        state = State(state)
         token = Token(token)
-        next = State("PS_" + next)
+        next = State(next)
 
         if (state, token) in table:
             print(sys.stderr, f"error: repeated state/token pair ({state}, {token})")
@@ -188,7 +210,7 @@ def parse_table(content: str, tokens: list[Token]):
         if push == "_":
             push = None
         else:
-            push = [State("PS_" + p) for p in push.split(",")]
+            push = [State(p) for p in push.split(",")]
 
         if consume == "consume":
             consume = True
@@ -196,7 +218,7 @@ def parse_table(content: str, tokens: list[Token]):
             consume = False
 
         action = get_action(state, token, next)
-        table[(state, token)] = (next, consume, push)
+        table[(state, token)] = (next, consume, push, code)
         if state not in states:
             states.append(state)
         if next not in states:
@@ -225,26 +247,6 @@ def parse_table(content: str, tokens: list[Token]):
     return (table, states, actions, edges, default)
 
 
-def pp_array(values: list[str]) -> str:
-    max_elem_width = max([len(v) for v in values])
-    max_row_char_length = 76  # 80 chars minus 4 for tab
-    actual_elem_width = max_elem_width + 2  # chars for ', '
-    elems_per_row = int(max_row_char_length / actual_elem_width)
-
-    pp = "\t"
-    num_rows = int(len(values) / elems_per_row) + 1
-
-    for i in range(0, num_rows):
-        start = i * (elems_per_row)
-        end = min((i + 1) * (elems_per_row), len(values))
-        pp += " ".join(
-            ["{v:{e}}".format(v=v+",", e=max_elem_width) for v in values[start:end]]
-        )
-        pp += "\n\t"
-
-    return pp.rstrip()[:-1]
-
-
 def find_base(
     edges: list[Token],
     check: dict[int, State],
@@ -260,7 +262,7 @@ def find_base(
 def gen_states(states: list[State]) -> str:
     return (
         "typedef enum parse_state {\n"
-        + pp_array([str(s) for s in states])
+        + "\n\t".join([str(s) + "," for s in states])
         + "\n} parse_state_t;\n\n"
     )
 
@@ -268,7 +270,7 @@ def gen_states(states: list[State]) -> str:
 def gen_actions(actions: list[Action]) -> str:
     return (
         "typedef enum parse_action {\n"
-        + pp_array([str(a) for a in actions])
+        + "\n\t".join([str(a) + "," for a in actions])
         + "\n} parse_action_t;\n\n"
     )
 
@@ -286,7 +288,7 @@ def gen_base(states: list[State], base: dict[State, int]) -> str:
         "const int base["
         + str(len(base_array))
         + "] = {\n"
-        + pp_array([str(b) for b in base_array])
+        + "\n\t".join([str(b) + "," for b in base_array])
         + "\n};\n\n"
     )
 
@@ -300,7 +302,7 @@ def gen_default(states: list[State], default: dict[State, Action]) -> str:
         "const int def["
         + str(len(default_array))
         + "] = {\n"
-        + pp_array([str(d) for d in default_array])
+        + "\n\t".join([str(d) + "," for d in default_array])
         + "\n};\n\n"
     )
 
@@ -326,7 +328,7 @@ def gen_check(
         "const int check["
         + str(len(check_array))
         + "] = {\n"
-        + pp_array([str(b) for b in check_array])
+        + "\n\t".join([str(b) + "," for b in check_array])
         + "\n};\n\n"
     )
 
@@ -334,7 +336,9 @@ def gen_check(
 def gen_value(
     states: list[State],
     actions: list[Action],
-    table: dict[tuple[State, Token], tuple[State, bool, Optional[list[State]]]],
+    table: dict[
+        tuple[State, Token], tuple[State, bool, Optional[list[State]], Optional[str]]
+    ],
     base: dict[State, int],
     edges: dict[State, list[Token]],
 ) -> str:
@@ -348,14 +352,14 @@ def gen_value(
         for token in edges[state]:
             b = base[state]
             offset = tokens.index(token)
-            (next, _, _) = table[(state, token)]
+            (next, _, _, _) = table[(state, token)]
             value_array[b + offset] = actions.index(get_action(state, token, next))
 
     return (
         "const int value["
         + str(len(value_array))
         + "] = {\n"
-        + pp_array([str(b) for b in value_array])
+        + "\n\t".join([str(b) + "," for b in value_array])
         + "\n};\n\n"
     )
 
@@ -383,23 +387,37 @@ def gen_table(content: str, tokens: list[Token]) -> str:
     c_prog += gen_value(states, actions, table, base, edges)
 
     cases = []
-    for (state, token), (next, consume, push) in table.items():
+    for (state, token), (next, consume, push, extra_code) in table.items():
         token = cast(Token, token)  # pylance giving me a type warning?
         code = f"\t\tcase {get_action(state, token, next)}:\n"
+
+        if extra_code:
+            code += "".join(
+                [
+                    "\t\t\t" + line.strip() + ";\n"
+                    for line in extra_code.split(";")
+                    if not len(line) == 0 and not line.isspace()
+                ]
+            )
+
         if push:
             push = cast(list[str], push)
             for p in push:
                 code += f"\t\t\t{PARSE_STACK_PUSH_FN.format(state=p)};\n"
+
         code += f"\t\t\tstate = {next};\n"
+
         if consume:
             code += "\t\t\tgoto consume;\n"
         else:
             code += "\t\t\tgoto skip;\n"
+
         code += "\n"
         cases.append(code)
 
     error_case = (
         f"\t\tcase {DEFAULT_ERROR_ACTION}:\n"
+        + "\t\t\tprint_error_with_loc(filename, lineno, col, \"syntax error\");\n"
         + f"\t\t\tstate = {DEFAULT_ERROR_STATE};\n"
         + "\t\t\tgoto skip;\n\n"
     )
@@ -413,19 +431,13 @@ def gen_table(content: str, tokens: list[Token]) -> str:
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("input", help="path to parse table file")
-    arg_parser.add_argument(
-        "--token_h",
-        default=f"{FILE_DIR.parent}/src/parse/token.h",
-        help="path to token.h",
-    )
     args = arg_parser.parse_args()
 
-    token_h_path = pathlib.Path(args.token_h)
-    if not token_h_path.is_file():
-        print(f"error: token.h file is invalid ({token_h_path})", file=sys.stderr)
+    if not TOKEN_H_PATH.is_file():
+        print(f"error: token.h file is invalid ({TOKEN_H_PATH})", file=sys.stderr)
         sys.exit(1)
 
-    with open(token_h_path, "r") as f:
+    with open(TOKEN_H_PATH, "r") as f:
         tokens = parse_tokens(f.read())
 
     parse_tbl_path = pathlib.Path(args.input)

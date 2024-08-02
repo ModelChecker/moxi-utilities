@@ -2,11 +2,12 @@
  * 
 */
 #include <stdio.h>
+#include <yices.h>
 
 #include "io/print.h"
 #include "parse/token.h"
 #include "parse/lexer.h"
-#include "parse/parser.h"
+#include "parse/parse.h"
 
 const char *usage = "Usage: moxi filename\n";
 
@@ -24,9 +25,11 @@ int main(int argc, char *argv[])
     status = init_parser(&parser, filename);
 
     if (status) {
-        fprintf(stderr, "error: failed to open file %s\n", filename);
+        print_error("failed to open file %s", filename);
         return status;
     }
+
+    yices_init();
 
     token_type_t last_token = TOK_ERROR;
     while (!status && last_token != TOK_EOF) {
@@ -35,6 +38,7 @@ int main(int argc, char *argv[])
     }
     
     delete_parser(&parser);
+    yices_exit();
     
     return status;
 

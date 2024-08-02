@@ -1,11 +1,9 @@
 /**
- * 
-*/
+ *
+ */
 #include "context.h"
 
-
-void init_context(context_t *context)
-{
+void init_context(moxi_context_t *context) {
     symbol_table_t *symbol_table = &context->symbol_table;
     sort_table_t *sort_table = &context->sort_table;
 
@@ -25,22 +23,19 @@ void init_context(context_t *context)
     symbol_table_add(symbol_table, "=", MOXI_SYM_KIND_FUNCTION);
     symbol_table_add(symbol_table, "distinct", MOXI_SYM_KIND_FUNCTION);
     symbol_table_add(symbol_table, "ite", MOXI_SYM_KIND_FUNCTION);
-
 }
-
 
 // void delete_context(context_t *context);
 
 // symbol_kind_t context_find(context_t *context, char *symbol);
 
-// bool context_add_function_symbol(context_t *context, char *symbol, string_pair_list_t *rank, term_t *term);
-// bool context_remove_function_symbol(context_t *context, char *symbol);
-// bool context_add_sort_symbol(context_t *context, char *symbol);
-// bool context_add_system_symbol(context_t *context, char *symbol);
+// bool context_add_function_symbol(context_t *context, char *symbol,
+// string_pair_list_t *rank, term_t *term); bool
+// context_remove_function_symbol(context_t *context, char *symbol); bool
+// context_add_sort_symbol(context_t *context, char *symbol); bool
+// context_add_system_symbol(context_t *context, char *symbol);
 
-
-void add_bitvec_symbols(context_t *context)
-{
+void add_bitvec_symbols(moxi_context_t *context) {
     symbol_table_t *symbol_table = &context->symbol_table;
     sort_table_t *sort_table = &context->sort_table;
 
@@ -86,9 +81,7 @@ void add_bitvec_symbols(context_t *context)
     symbol_table_add(symbol_table, "bvsge", MOXI_SYM_KIND_FUNCTION);
 }
 
-
-void add_array_symbols(context_t *context)
-{
+void add_array_symbols(moxi_context_t *context) {
     symbol_table_t *symbol_table = &context->symbol_table;
     sort_table_t *sort_table = &context->sort_table;
 
@@ -99,9 +92,7 @@ void add_array_symbols(context_t *context)
     symbol_table_add(symbol_table, "store", MOXI_SYM_KIND_FUNCTION);
 }
 
-
-void add_int_symbols(context_t *context)
-{
+void add_int_symbols(moxi_context_t *context) {
     symbol_table_t *symbol_table = &context->symbol_table;
     sort_table_t *sort_table = &context->sort_table;
 
@@ -120,11 +111,8 @@ void add_int_symbols(context_t *context)
     symbol_table_add(symbol_table, "<", MOXI_SYM_KIND_FUNCTION);
 }
 
-
-void set_current_logic(context_t *context, logic_t logic)
-{
-    switch (logic)
-    {
+void set_current_logic(moxi_context_t *context, logic_t logic) {
+    switch (logic) {
     case LOGIC_AX:
         add_array_symbols(context);
         break;
@@ -210,8 +198,7 @@ void set_current_logic(context_t *context, logic_t logic)
         break;
     }
 
-  /*
-   * Base logics (with quantifiers)
-   */
-  
+    /*
+     * Base logics (with quantifiers)
+     */
 }
