@@ -8,20 +8,22 @@
 //
 // If <Token> is '*', this defines a default action for <Current state>.
 // Example: If the current state is R0 and the current token is <symbol>,
-//          then consume the next token and go to ERR_EXP_RP.
+//          then consume the next token and go to ERR_RP.
 //
-// All error states begin with 'ERR_', the default error state is 'ERR'
+// The error state is 'ERR'.
 //
 // The initial state of the parser is 'CMD0'.
 
 // Errors
-ERR_EXP_RP         *       ERR        pass        _     { print_error_with_loc(filename, lineno, col, "expected ')'"); }
-ERR_EXP_LP_EOF     *       ERR        pass        _     { print_error_with_loc(filename, lineno, col, "expected ')' or EOF"); }
-
+ERR_RP      *   ERR     pass    _     { print_error_with_loc(filename, lineno, col, "expected ')'"); }
+ERR_LP_EOF  *   ERR     pass    _     { print_error_with_loc(filename, lineno, col, "expected ')' or EOF"); }
+ERR_CMD     *   ERR     pass    _     { print_error_with_loc(filename, lineno, col, "expected command symbol"); }
+ERR_STR     *   ERR     pass    _     { print_error_with_loc(filename, lineno, col, "expected string"); }
+ERR_SYM     *   ERR     pass    _     { print_error_with_loc(filename, lineno, col, "expected symbol"); }
 
 // End of syntactic element
-R0          TOK_RP              DONE           consume     _
-R0          *                   ERR_EXP_RP     consume     _
+R0          TOK_RP              DONE        consume     _
+R0          *                   ERR_RP      consume     _
 
 
 // Commands
@@ -45,7 +47,7 @@ R0          *                   ERR_EXP_RP     consume     _
 // Start
 CMD0        TOK_LP              CMD1               consume     _
 CMD0        TOK_EOF             DONE               pass        _
-CMD0        *                   ERR_EXP_LP_EOF     pass        _
+CMD0        *                   ERR_LP_EOF     pass        _
 
 // After '('
 CMD1        TOK_RW_EXIT                 R0          consume     _
@@ -62,15 +64,19 @@ CMD1        TOK_RW_DECLARE_CONST        CMD9        consume     _
 CMD1        TOK_RW_DEFINE_CONST         CMD10       consume     _
 CMD1        TOK_RW_DEFINE_SYS           CMD11       consume     _
 CMD1        TOK_RW_CHECK_SYS            CMD12       consume     _
+CMD1        *                           ERR_CMD     pass        _
 
 // echo
-CMD2        TOK_STRING      R0      consume     _
+CMD2        TOK_STRING      R0          consume     _
+CMD2        *               ERR_STR     pass        _
 
 // set-logic
-CMD3        TOK_SYMBOL      R0      consume     _
+CMD3        TOK_SYMBOL      R0          consume     _
+CMD3        *               ERR_SYM     pass        _
 
 // define-fun
 CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0
+CMD4        *               ERR_SYM     pass        _
 
 // declare-fun
 CMD5        TOK_SYMBOL      CMD5a       consume     _
