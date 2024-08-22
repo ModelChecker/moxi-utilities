@@ -3,3 +3,4 @@ obj/
 src/parse/hash_*
 src/parse/parse.c
 moxisc
+tmp/

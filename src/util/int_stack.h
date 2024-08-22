@@ -12,8 +12,8 @@ typedef struct int_stack {
     int *data;
 } int_stack_t;
 
-#define INT_STACK_MIN 256
-#define INT_STACK_MAX 4098
+#define INT_STACK_MIN_SIZE 256
+#define INT_STACK_MAX_SIZE 65536
 
 void init_int_stack(int_stack_t *stack);
 void delete_int_stack(int_stack_t *stack);

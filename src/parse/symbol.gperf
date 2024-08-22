@@ -2,7 +2,7 @@
 #include <string.h>
 #include "token.h"
 %}
-struct token;
+struct symbol;
 %%
 Bool,              SYM_BOOL
 true,              SYM_TRUE

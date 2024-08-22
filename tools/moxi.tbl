@@ -4,7 +4,7 @@
 // current state and token, whether or not to consume the current token, and 
 // whether to push a state onto the parse stack. The format is:
 //
-// <Current state>  <Token>  <Next state>  <Consume token?>  <Push states?>
+// <Current state>  <Token>  <Next state>  <Consume token?>  <Push states?> <Code (Optional)>
 //
 // If <Token> is '*', this defines a default action for <Current state>.
 // Example: If the current state is R0 and the current token is <symbol>,
@@ -47,7 +47,7 @@ R0          *                   ERR_RP      consume     _
 // Start
 CMD0        TOK_LP              CMD1               consume     _
 CMD0        TOK_EOF             DONE               pass        _
-CMD0        *                   ERR_LP_EOF     pass        _
+CMD0        *                   ERR_LP_EOF         pass        _
 
 // After '('
 CMD1        TOK_RW_EXIT                 R0          consume     _
@@ -55,7 +55,7 @@ CMD1        TOK_RW_RESET                R0          consume     _
 CMD1        TOK_RW_ASSERT               TRM0        consume     R0
 CMD1        TOK_RW_ECHO                 CMD2        consume     _
 CMD1        TOK_RW_SET_LOGIC            CMD3        consume     _
-CMD1        TOK_RW_DEFINE_FUN           CMD4        consume     _
+CMD1        TOK_RW_DEFINE_FUN           CMD4        consume     _   { pstack_push_frame(pstack, FRM_DEFINE_FUN, lineno, col); }
 CMD1        TOK_RW_DECLARE_FUN          CMD5        consume     _
 CMD1        TOK_RW_DEFINE_SORT          CMD6        consume     _
 CMD1        TOK_RW_DECLARE_SORT         CMD7        consume     _
@@ -75,7 +75,7 @@ CMD3        TOK_SYMBOL      R0          consume     _
 CMD3        *               ERR_SYM     pass        _
 
 // define-fun
-CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0
+CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0    { pstack_push_symbol(pstack, str, lineno, col); }
 CMD4        *               ERR_SYM     pass        _
 
 // declare-fun
@@ -196,16 +196,16 @@ CMD12d0     TOK_RP      DONE       consume      _
 // [NOT IMPL] | ( ! <term> <attribute>+ ) 
 
 // Start
-TRM0       TOK_NUMERAL     DONE        consume     _
-TRM0       TOK_DECIMAL     DONE        consume     _
-TRM0       TOK_HEX         DONE        consume     _
-TRM0       TOK_BINARY      DONE        consume     _
-TRM0       TOK_STRING      DONE        consume     _
-TRM0       TOK_SYMBOL      DONE        consume     _
-TRM0       TOK_LP          TRM1        consume     _
+TRM0       TOK_NUMERAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_numeral(pstack, str, lineno, col); }
+TRM0       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_error(pstack, lineno, col); }
+TRM0       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_error(pstack, lineno, col); }
+TRM0       TOK_BINARY      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_error(pstack, lineno, col); }
+TRM0       TOK_STRING      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_error(pstack, lineno, col); }
+TRM0       TOK_SYMBOL      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); pstack_push_symbol(pstack, str, lineno, col); }
+TRM0       TOK_LP          TRM1        consume     _        { pstack_push_frame(pstack, FRM_TERM, lineno, col); }
 
 // After '('
-TRM1       TOK_SYMBOL           TRM0       consume     TRM2
+TRM1       TOK_SYMBOL           TRM0       consume     TRM2     { pstack_push_symbol(pstack, str, lineno, col); }
 TRM1       TOK_RW_UNDERSCORE    TRM3       consume     _
 TRM1       TOK_RW_AS            TRM4       consume     _
 TRM1       TOK_RW_LET           TRM5       consume     _
@@ -254,14 +254,16 @@ TRM7a       *                   TRM0       pass        _
 
 // Sorted variable lists (SVL)
 // Example: '((var1 sort2) (var2 sort2))'
-// SVL0 accepts empty list, SVL0a requires at least one element
-SVL0        TOK_LP          SVL1        consume     _
-SVL0a       TOK_LP          SVL0b       consume     _
+// This automata has two entry points:
+//   - SVL0 accepts an empty list
+//   - SVL0a requires at least one element
+SVL0        TOK_LP          SVL1        consume     _       { pstack_push_frame(pstack, FRM_NOOP, lineno, col); }
+SVL0a       TOK_LP          SVL0b       consume     _       { pstack_push_frame(pstack, FRM_NOOP, lineno, col); }
 SVL0b       TOK_LP          SVL2        consume     _
-SVL1        TOK_LP          SVL2        consume     _
+SVL1        TOK_LP          SVL2        consume     _       { pstack_push_frame(pstack, FRM_VAR_DECL, lineno, col); }
 SVL1        TOK_RP          DONE        consume     _
-SVL2        TOK_SYMBOL      SRT0        consume     SVL3
-SVL3        TOK_RP          SVL1        consume     _
+SVL2        TOK_SYMBOL      SRT0        consume     SVL3    { pstack_push_symbol(pstack, str, lineno, col); }
+SVL3        TOK_RP          SVL1        consume     _       { pstack_eval_frame(pstack, ctx); }
 
 
 // Sorts
@@ -273,26 +275,26 @@ SVL3        TOK_RP          SVL1        consume     _
 //           | ( (_ <symbol> <numeral>+ ) <sort>+ )
 
 // Start
-SRT0        TOK_SYMBOL          DONE        consume     _
+SRT0        TOK_SYMBOL          DONE        consume     _       { pstack_push_frame(pstack, FRM_SORT, lineno, col); pstack_push_symbol(pstack, str, lineno, col); }
 SRT0        TOK_LP              SRT1        consume     _
 
 // After '('
-SRT1        TOK_SYMBOL          SRT0        consume     SRT2
+SRT1        TOK_SYMBOL          SRT0        consume     SRT2    { pstack_push_frame(pstack, FRM_SORT, lineno, col); pstack_push_symbol(pstack, str, lineno, col); }
 SRT1        TOK_RW_UNDERSCORE   SRT3        consume     _
-SRT1        TOK_LP              SRT4        consume     _
+SRT1        TOK_LP              SRT4        consume     _       { pstack_push_frame(pstack, FRM_SORT, lineno, col); }
 
 // After '( <symbol> <sort>'
 SRT2        TOK_RP              DONE        consume     _
 SRT2        *                   SRT0        pass        SRT2
 
 // After '(_'
-SRT3        TOK_SYMBOL          SRT3a        consume     _
-SRT3a       TOK_NUMERAL         SRT3b        consume     _
-SRT3b       TOK_NUMERAL         SRT3b        consume     _
+SRT3        TOK_SYMBOL          SRT3a        consume     _      { pstack_push_symbol(pstack, str, lineno, col); }
+SRT3a       TOK_NUMERAL         SRT3b        consume     _      { pstack_push_numeral(pstack, str, lineno, col); }
+SRT3b       TOK_NUMERAL         SRT3b        consume     _      { pstack_push_numeral(pstack, str, lineno, col); }
 SRT3b       TOK_RP              DONE         consume     _
 
 // After '((_'
-SRT4        TOK_SYMBOL          SRT4a        consume     _
-SRT4a       TOK_NUMERAL         SRT4b        consume     _
-SRT4b       TOK_NUMERAL         SRT4b        consume     _
+SRT4        TOK_SYMBOL          SRT4a        consume     _      { pstack_push_symbol(pstack, str, lineno, col); }
+SRT4a       TOK_NUMERAL         SRT4b        consume     _      { pstack_push_numeral(pstack, str, lineno, col); }
+SRT4b       TOK_NUMERAL         SRT4b        consume     _      { pstack_push_numeral(pstack, str, lineno, col); }
 SRT4b       TOK_RP              SRT0         consume     SRT2

@@ -1,122 +1,162 @@
 /**
  *
  */
-#include "context.h"
+#include "moxi/context.h"
 
-void init_context(moxi_context_t *context) {
-    symbol_table_t *symbol_table = &context->symbol_table;
-    sort_table_t *sort_table = &context->sort_table;
-
-    init_symbol_table(symbol_table, 0);
-    init_sort_table(sort_table, 0);
-
-    symbol_table_add(symbol_table, "Bool", MOXI_SYM_KIND_SORT);
-    sort_table_add(sort_table, "Bool", 0);
-
-    symbol_table_add(symbol_table, "true", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "false", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "not", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "and", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "or", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "=>", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "xor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "=", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "distinct", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "ite", MOXI_SYM_KIND_FUNCTION);
+void init_context(context_t *context) 
+{
+    init_string_int_map(&context->symbol_table, 0);
+    init_string_map(&context->var_table, 0);
 }
 
-// void delete_context(context_t *context);
-
-// symbol_kind_t context_find(context_t *context, char *symbol);
-
-// bool context_add_function_symbol(context_t *context, char *symbol,
-// string_pair_list_t *rank, term_t *term); bool
-// context_remove_function_symbol(context_t *context, char *symbol); bool
-// context_add_sort_symbol(context_t *context, char *symbol); bool
-// context_add_system_symbol(context_t *context, char *symbol);
-
-void add_bitvec_symbols(moxi_context_t *context) {
-    symbol_table_t *symbol_table = &context->symbol_table;
-    sort_table_t *sort_table = &context->sort_table;
-
-    symbol_table_add(symbol_table, "BitVec", MOXI_SYM_KIND_SORT);
-    sort_table_add(sort_table, "BitVec", 0);
-
-    symbol_table_add(symbol_table, "concat", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "extract", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "repeat", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvcomp", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvredand", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvredor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvnot", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvand", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvnand", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvnor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvxor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvxnor", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvneg", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvadd", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsub", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvmul", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvudiv", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvurem", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsdiv", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsrem", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsmod", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvshl", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvlshr", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvashr", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "zero_extend", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "sign_extend", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "rotate_left", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "rotate_right", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvult", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvule", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvugt", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvuge", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvslt", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsle", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsgt", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "bvsge", MOXI_SYM_KIND_FUNCTION);
+void delete_context(context_t *context)
+{
+    delete_string_int_map(&context->symbol_table);
+    delete_string_map(&context->var_table);
 }
 
-void add_array_symbols(moxi_context_t *context) {
-    symbol_table_t *symbol_table = &context->symbol_table;
-    sort_table_t *sort_table = &context->sort_table;
-
-    symbol_table_add(symbol_table, "Array", MOXI_SYM_KIND_SORT);
-    sort_table_add(sort_table, "Array", 2);
-
-    symbol_table_add(symbol_table, "select", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "store", MOXI_SYM_KIND_FUNCTION);
+symbol_kind_t context_find(context_t *context, char *symbol)
+{
+    int ret = string_int_map_find(&context->symbol_table, symbol);
+    return ret < 0 ? SYM_KIND_NONE : ret;
 }
 
-void add_int_symbols(moxi_context_t *context) {
-    symbol_table_t *symbol_table = &context->symbol_table;
-    sort_table_t *sort_table = &context->sort_table;
-
-    symbol_table_add(symbol_table, "Int", MOXI_SYM_KIND_SORT);
-    sort_table_add(sort_table, "Int", 0);
-
-    symbol_table_add(symbol_table, "+", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "-", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "*", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "div", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "mod", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "abs", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, ">=", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, ">", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "<=", MOXI_SYM_KIND_FUNCTION);
-    symbol_table_add(symbol_table, "<", MOXI_SYM_KIND_FUNCTION);
+bool context_add_function_symbol(context_t *context, char *symbol,
+                                 sort_t *rank, uint32_t rank_size)
+{
+    return true;
 }
 
-void set_current_logic(moxi_context_t *context, logic_t logic) {
+// bool context_remove_function_symbol(context_t *context, char *symbol);
+// bool context_add_sort_symbol(context_t *context, char *symbol);
+// bool context_add_system_symbol(context_t *context, char *symbol);
+
+bool context_add_var_symbol(context_t *context, char *symbol, sort_t *sort)
+{
+    string_int_map_t *symbol_table;
+    string_map_t *var_table;
+
+    symbol_table = &context->symbol_table;
+    if (string_int_map_find(symbol_table, symbol) >= 0) {
+        return false;
+    }
+    
+    var_table = &context->var_table;
+    string_int_map_add(symbol_table, symbol, SYM_KIND_VARIABLE);
+    string_map_add(var_table, symbol, (void*) sort);
+    return true;
+}
+
+sort_t *context_find_var_symbol(context_t *context, char *symbol)
+{
+    return string_map_find(&context->var_table, symbol);
+}
+
+void context_reset_var_symbols(context_t *context)
+{
+
+}
+
+void add_core_symbols(context_t *context)
+{
+    string_int_map_t *symbol_table = &context->symbol_table;
+
+    string_int_map_add(symbol_table, "Bool", SYM_KIND_SORT);
+
+    string_int_map_add(symbol_table, "true", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "false", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "not", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "and", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "or", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "=>", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "xor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "=", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "distinct", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "ite", SYM_KIND_TERM);
+}
+
+void add_bitvec_symbols(context_t *context)
+{
+    string_int_map_t *symbol_table = &context->symbol_table;
+
+    string_int_map_add(symbol_table, "BitVec", SYM_KIND_SORT);
+
+    string_int_map_add(symbol_table, "concat", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "extract", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "repeat", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvcomp", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvredand", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvredor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvnot", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvand", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvnand", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvnor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvxor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvxnor", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvneg", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvadd", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsub", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvmul", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvudiv", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvurem", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsdiv", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsrem", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsmod", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvshl", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvlshr", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvashr", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "zero_extend", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "sign_extend", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "rotate_left", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "rotate_right", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvult", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvule", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvugt", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvuge", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvslt", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsle", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsgt", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "bvsge", SYM_KIND_TERM);
+}
+
+void add_array_symbols(context_t *context)
+{
+    string_int_map_t *symbol_table = &context->symbol_table;
+
+    string_int_map_add(symbol_table, "Array", SYM_KIND_SORT);
+
+    string_int_map_add(symbol_table, "select", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "store", SYM_KIND_TERM);
+}
+
+void add_int_symbols(context_t *context)
+{
+    string_int_map_t *symbol_table = &context->symbol_table;
+
+    string_int_map_add(symbol_table, "Int", SYM_KIND_SORT);
+
+    string_int_map_add(symbol_table, "+", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "-", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "*", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "div", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "mod", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "abs", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, ">=", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, ">", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "<=", SYM_KIND_TERM);
+    string_int_map_add(symbol_table, "<", SYM_KIND_TERM);
+}
+
+void set_current_logic(context_t *context, logic_t logic)
+{
     switch (logic) {
     case LOGIC_AX:
         add_array_symbols(context);
         break;
     case LOGIC_BV:
+        add_bitvec_symbols(context);
+        break;
     case LOGIC_IDL:
     case LOGIC_LIA:
     case LOGIC_LRA:
@@ -202,3 +242,5 @@ void set_current_logic(moxi_context_t *context, logic_t logic) {
      * Base logics (with quantifiers)
      */
 }
+
+

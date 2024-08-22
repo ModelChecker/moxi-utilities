@@ -5,7 +5,7 @@
 #define __TOKEN_H__
 
 #include <stdbool.h>
-
+#include <stdint.h>
 
 typedef enum token_type {
     TOK_EOF,
@@ -158,9 +158,29 @@ typedef enum symbol_type {
 
 #define NUM_SYMBOLS (SYM_UNKNOWN+1)
 
+typedef struct symbol {
+    char *name;
+    symbol_type_t type;
+} symbol_t;
+
+typedef enum symbol_kind_ {
+    SYM_KIND_SORT,
+    SYM_KIND_TERM,
+    SYM_KIND_VARIABLE,
+    SYM_KIND_SYSTEM,
+    SYM_KIND_NONE
+} symbol_kind_t;
+
 // Lookup table for string representations of symbols
 extern const char *symbol_type_str[NUM_SYMBOLS];
-extern bool is_indexed_symbol[NUM_SYMBOLS];
 
+// Lookup table for required number of indices for symbols
+extern uint8_t symbol_num_indices[NUM_SYMBOLS];
+
+// Returns number of expected indices for `symbol`
+uint8_t get_num_indices(const char *symbol);
+
+// Lookup table for kind of symbol
+extern symbol_kind_t symbol_kind[NUM_SYMBOLS];
 
 #endif

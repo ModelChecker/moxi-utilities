@@ -382,10 +382,10 @@ token_type_t read_symbol(lexer_t *lex)
     } while(is_simple_char(ch));
 
     if (buffer->data[0] == ':') {
-        if (buffer->idx == 1) {
+        if (buffer->len == 1) {
             return TOK_INVALID_KEYWORD;
         }
-        tok = in_moxi_tok(buffer->data, buffer->idx);
+        tok = in_moxi_tok(buffer->data, buffer->len);
         if (tok != NULL) {
             return tok->type;
         }
@@ -398,7 +398,7 @@ token_type_t read_symbol(lexer_t *lex)
         file_reader_next_char(&lex->reader);
     }
 
-    tok = in_moxi_tok(buffer->data, buffer->idx);
+    tok = in_moxi_tok(buffer->data, buffer->len);
     if (tok != NULL) {
         return tok->type;
     } 
@@ -436,7 +436,7 @@ token_type_t read_keyword(lexer_t *lex)
         return TOK_INVALID_KEYWORD;
     }
 
-    tok = in_moxi_tok(buffer->data, buffer->idx);
+    tok = in_moxi_tok(buffer->data, buffer->len);
     if (tok != NULL) {
         return tok->type;
     } 

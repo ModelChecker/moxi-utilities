@@ -44,7 +44,7 @@ DEFAULT_ERROR_ACTION = get_action(
     DEFAULT_ERROR_STATE, WILDCARD_TOKEN, DEFAULT_ERROR_STATE
 )
 
-PARSE_STACK_PUSH_FN = "int_stack_push(state_stack, {state})"
+PARSE_STACK_PUSH_FN = "int_stack_push(sstack, {state})"
 
 C_PREAMBLE = """
 #include <stdlib.h>
@@ -63,23 +63,21 @@ int init_parser(parser_t *parser, const char *filename)
 {
 	int status;
     status = init_file_lexer(&parser->lex, filename);
-
 	if (status) {
 		return status;
 	}
 
-	init_int_stack(&parser->state_stack);
+    init_int_stack(&parser->sstack);
+    init_pstack(&parser->pstack);
 	parser->filename = filename;
 	return 0;
 }
 
-/**
- * 
-*/
 void delete_parser(parser_t *parser)
 {
     delete_lexer(&parser->lex);
-    delete_int_stack(&parser->state_stack);
+    delete_int_stack(&parser->sstack);
+    delete_pstack(&parser->pstack);
 }
 
 """
@@ -100,26 +98,32 @@ parse_action_t get_action(parse_state_t state, token_type_t token)
 int parse_moxi(parser_t *parser) 
 {
     lexer_t *lex;
+    string_buffer_t *str;
     const char *filename;
     token_type_t token;
-    int_stack_t *state_stack;
+    int_stack_t *sstack;
     parse_state_t state;
     parse_action_t action;
     uint64_t lineno;
     uint64_t col;
+    pstack_t *pstack;
+    context_t *ctx;
 
-    filename = parser->filename;
     lex = &parser->lex;
-    state_stack = &parser->state_stack;
+    str = &lex->buffer;
+    filename = parser->filename;
+    sstack = &parser->sstack;
     state = """
     + str(INIT_STATE)
     + """;
+    pstack = &parser->pstack;
+    ctx = &parser->ctx;
 
 consume:
-    if (state =="""
+    if (state == """
     + str(DONE_STATE)
-    + """ && state_stack->top == 0) {
-		return 0;
+    + """ && sstack->top == 0) {
+		return token == TOK_EOF ? 1 : 0;
 	}
 
     lexer_next_token(lex);
@@ -137,11 +141,18 @@ skip:
     if (state == """
     + str(DONE_STATE)
     + """) {
-        if (state_stack->top == 0) {
-            return 0;
+        if (sstack->top == 0) {
+            return token == TOK_EOF ? 1 : 0;
         }
-        state = int_stack_pop(state_stack);
-        // Then we handle the top frame of the parse stack
+        state = int_stack_pop(sstack);
+        pstack_eval_frame(pstack, ctx);
+    }
+
+    if (pstack->status) {
+        print_error("type check error");
+		int tmp = pstack->status;
+        pstack_reset(pstack);
+        return tmp;
     }
 
     action = get_action(state, token);

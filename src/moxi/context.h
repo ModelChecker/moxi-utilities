@@ -6,23 +6,11 @@
 
 #include <stdbool.h>
 
-#include "yices.h"
-
-#include "util/string_pair_list.h"
-#include "util/symbol_table.h"
-
-#include "moxi/sort_table.h"
-#include "moxi/sorts.h"
-#include "moxi/systems.h"
-#include "moxi/terms.h"
-
-typedef enum symbol_kind {
-    MOXI_SYM_KIND_SORT,
-    MOXI_SYM_KIND_FUNCTION,
-    MOXI_SYM_KIND_VARIABLE,
-    MOXI_SYM_KIND_SYSTEM,
-    MOXI_SYM_KIND_NONE
-} symbol_kind_t;
+#include "util/string_list.h"
+#include "util/string_int_map.h"
+#include "util/string_map.h"
+#include "parse/token.h"
+#include "moxi/sort.h"
 
 typedef enum logic {
     /*
@@ -142,12 +130,16 @@ typedef enum logic {
     LOGIC_UNKNOWN,
 } logic_t;
 
-typedef struct yices_context_t context_t;
+typedef struct symbol_table_entry {
+    symbol_kind_t kind;
+    uint32_t num_parameters;
+} symbol_table_entry_t;
+
+// A rank is a list of sorts with the last element being the return sort.
+typedef sort_t *rank_t;
 
 /**
- * Stores information on symbols and their interpretations. Most of the context
- * management is handled by yices, including sorts and functions. Everything to
- * do with systems, we have to handle.
+ * Stores information on symbols and their interpretations.
  *
  * Note: we don't allow shadowing of sort/function/system symbols.
  */
@@ -159,57 +151,54 @@ typedef struct context {
      * Maps symbols to their kind. Use this to track all symbols currently in
      * use and which table to perform an actual lookup (e.g., `sort_table`,
      * `function_table`, etc.).
-     *
-     * "sort-symbol" ->   `MOXI_SYM_KIND_SORT`
-     * "fun-symbol" ->    `MOXI_SYM_KIND_FUNCTION`
-     * "var-symbol" ->    `MOXI_SYM_KIND_VARIABLE`
-     * "system-symbol" -> `MOXI_SYM_KIND_SYSTEM`
      */
-    symbol_table_t symbol_table;
+    string_int_map_t symbol_table;
 
     /**
-     * Maps sort symbols to their arity.
-     *
-     * "sort-id" -> arity
+     * Maps sort symbols to their number of parameters and definition. If a sort
+     * is uninterpreted (i.e., has no definition), then its definition is NULL.
      */
-    sort_table_t sort_table;
+    string_map_t sort_table;
 
     /**
-     * Maps function symbols to their rank and term, if available. A rank is a
-     * list of sort/variable symbol pairs. Its term is unavailable (NULL) if it
-     * is an uninterpreted function.
-     *
-     * "fun-id" -> ([("var1", "sort1"), ..., ("varN", "sortN")], term)
+     * Maps variable symbols to their kind (input, output, local) and sort.
      */
-    symbol_table_t function_table;
+    string_map_t var_table;
 
     /**
-     * Maps system symbols to their definitions.
-     *
-     * "sys-id" -> <system-definition>
+     * Maps function symbols to their signature and definition. If a function is
+     * uninterpreted (i.e., has no definition), then its definition is NULL.
      */
-    symbol_table_t system_table;
+    string_map_t fun_table;
 
     /**
-     * Maps variables to their sorts.
-     *
-     * "var-id" -> sort symbol
+     * Maps systems to their signature.
      */
-    symbol_table_t variable_table;
+    string_map_t sys_table;
 
-} moxi_context_t;
+} context_t;
 
-void init_context(moxi_context_t *context);
-void delete_context(moxi_context_t *context);
+void init_context(context_t *context);
+void delete_context(context_t *context);
 
-symbol_kind_t context_find(moxi_context_t *context, char *symbol);
+symbol_kind_t context_find(context_t *context, char *symbol);
 
-bool context_add_function_symbol(moxi_context_t *context, char *symbol,
-                                 string_pair_list_t *rank, term_t *term);
-bool context_remove_function_symbol(moxi_context_t *context, char *symbol);
-bool context_add_sort_symbol(moxi_context_t *context, char *symbol);
-bool context_add_system_symbol(moxi_context_t *context, char *symbol);
+bool context_add_function_symbol(context_t *context, char *symbol,
+                                 rank_t rank, uint32_t rank_size);
+bool context_remove_function_symbol(context_t *context, char *symbol);
+bool context_add_sort_symbol(context_t *context, char *symbol);
+bool context_add_system_symbol(context_t *context, char *symbol);
 
-void set_current_logic(moxi_context_t *context, logic_t logic);
+/**
+ * Adds `symbol |-> sort` to the context and fails if `symbol` is already in the
+ * context. Returns true on success and false on failure.
+ */
+bool context_add_var_symbol(context_t *context, char *symbol, sort_t *sort);
+
+sort_list_entry_t *context_get_var_symbols(context_t *context);
+sort_t *context_find_var_symbol(context_t *context, char *symbol);
+void context_reset_var_symbols(context_t *context);
+
+void set_current_logic(context_t *context, logic_t logic);
 
 #endif

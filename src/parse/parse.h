@@ -4,13 +4,11 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
-#include "util/string_hash_set.h"
-#include "util/symbol_table.h"
 #include "util/int_stack.h"
-
 #include "parse/token.h"
 #include "parse/lexer.h"
-
+#include "parse/pstack.h"
+#include "moxi/context.h"
 
 /**
  * Each parser uses a lexer to iteratively parse an input file. 
@@ -19,13 +17,23 @@ typedef struct parser {
     const char *filename;
     lexer_t lex;
     
-    // parse_stack_t parse_stack;
-    int_stack_t state_stack;
+    pstack_t pstack;
+    int_stack_t sstack;
+    context_t ctx;
 } parser_t;
 
 
 int init_parser(parser_t *parser, const char *filename);
 void delete_parser(parser_t *parser);
+
+/**
+ * Parse a single command from the input file.
+ * 
+ * Returns:
+ * - -1 if an error occurs during parsing
+ * - 1 if the last token is EOF
+ * - 0 otherwise 
+ */
 int parse_moxi(parser_t *parser);
 
 

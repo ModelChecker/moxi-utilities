@@ -2,7 +2,6 @@
  * 
 */
 #include <stdio.h>
-#include <yices.h>
 
 #include "io/print.h"
 #include "parse/token.h"
@@ -29,18 +28,13 @@ int main(int argc, char *argv[])
         return status;
     }
 
-    yices_init();
-
-    token_type_t last_token = TOK_ERROR;
-    while (!status && last_token != TOK_EOF) {
+    while (status == 0) {
         status = parse_moxi(&parser);
-        last_token = parser.lex.tok_type;
     }
     
     delete_parser(&parser);
-    yices_exit();
     
-    return status;
+    return status < 0;
 
     // fprintf(stdout, "starting up\n");
 
