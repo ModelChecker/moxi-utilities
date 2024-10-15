@@ -12,7 +12,7 @@ DBGFLAGS := -g -O0 -fdata-sections -ffunction-sections -fno-common -fsanitize=un
 CPPFLAGS := 
 CFLAGS := -Wall -I$(SRC_DIR) -I/usr/local/include $(CPPFLAGS) -DDEBUG_PARSER -g
 
-LIB := -lyices
+LIB :=
 
 # Token hashing
 gperf_generated := $(SRC_DIR)/parse/hash_token.h \

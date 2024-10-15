@@ -69,6 +69,7 @@ int init_parser(parser_t *parser, const char *filename)
 
     init_int_stack(&parser->sstack);
     init_pstack(&parser->pstack);
+    init_context(&parser->ctx);
 	parser->filename = filename;
 	return 0;
 }

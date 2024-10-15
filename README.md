@@ -5,7 +5,6 @@ A reference sort checker for MoXI. The following programs are required:
 - C compiler (tested using gcc)
 - gperf
 - Python 3.10 or newer
-- [Yices 2](https://yices.csl.sri.com/)
 
 To build, run
 
