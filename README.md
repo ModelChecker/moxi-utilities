@@ -18,4 +18,4 @@ To run the test suite, run
 
     python3 test/test.py
 
-Much of the internals are adapted from Yices, including the parsing and type checking technique. See [their source code](https://github.com/SRI-CSL/yices2) (especially the SMTLIB2 sections) for reference. This code uses Yices in the sort checker to do some context management (terms and sorts).
+Much of the internals are adapted from Yices, including the parsing and type checking technique. See [their source code](https://github.com/SRI-CSL/yices2) (especially the SMTLIB2 sections) for reference. 
