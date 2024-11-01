@@ -92,6 +92,8 @@ const char *symbol_type_str[NUM_SYMBOLS] = {
     "/",
     "mod",
     "abs",
+    "to_real",
+    "to_int",
     "BitVec",
     "concat",
     "extract",
@@ -162,6 +164,8 @@ uint8_t symbol_num_indices[NUM_SYMBOLS] = {
     0, // DIV
     0, // MOD
     0, // ABS
+    0, // TO_REAL
+    0, // TO_INT
     1, // BITVEC
     0, // CONCAT
     2, // EXTRACT
@@ -214,6 +218,16 @@ uint8_t get_num_indices(const char *symbol)
     }
 }
 
+const symbol_t *get_symbol(const char *symbol)
+{
+    return in_moxi_sym(symbol, strlen(symbol));
+}
+
+bool is_theory_symbol(const char *symbol)
+{
+    return get_symbol(symbol) != NULL;
+}
+
 symbol_kind_t symbol_kind[NUM_SYMBOLS] = {
     SYM_KIND_SORT, // BOOL
     SYM_KIND_TERM, // TRUE
@@ -242,6 +256,8 @@ symbol_kind_t symbol_kind[NUM_SYMBOLS] = {
     SYM_KIND_TERM, // DIV
     SYM_KIND_TERM, // MOD
     SYM_KIND_TERM, // ABS
+    SYM_KIND_TERM, // TO_REAL
+    SYM_KIND_TERM, // TO_INT
     SYM_KIND_SORT, // BITVEC
     SYM_KIND_TERM, // CONCAT
     SYM_KIND_TERM, // EXTRACT

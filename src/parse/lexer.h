@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-#include "util/string_buffer.h"
+#include "util/char_buffer.h"
 #include "io/file_reader.h"
 #include "parse/token.h"
 
@@ -19,11 +19,10 @@ typedef struct lexer {
 
     // Position of current token's first char
     uint64_t tok_pos;
-    uint64_t lineno;
-    uint64_t col;
+    loc_t loc;
 
     token_type_t tok_type;
-    string_buffer_t buffer;
+    char_buffer_t buffer;
 } lexer_t;
 
 

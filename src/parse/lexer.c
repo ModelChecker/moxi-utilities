@@ -70,13 +70,12 @@ bool is_simple_char(char c)
 void init_lexer(lexer_t *lex)
 {
     lex->tok_pos = 0;
-    lex->lineno = 0;
-    lex->col = 0;
+    lex->loc = (loc_t) {0, 0};
 
     lex->tok_type = TOK_ERROR;
     
-    string_buffer_t *buffer = &lex->buffer;
-    init_string_buffer(buffer, BUFFER_MIN);
+    char_buffer_t *buffer = &lex->buffer;
+    init_char_buffer(buffer, BUFFER_MIN);
 }
 
 
@@ -106,7 +105,7 @@ int init_file_lexer(lexer_t *lex, const char *filename)
 void delete_lexer(lexer_t *lex)
 {   
     close_file_reader(&lex->reader);
-    delete_string_buffer(&lex->buffer);
+    delete_char_buffer(&lex->buffer);
 }
 
 
@@ -115,7 +114,7 @@ void delete_lexer(lexer_t *lex)
 */
 token_type_t read_decimal(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     char ch;
 
@@ -125,7 +124,7 @@ token_type_t read_decimal(lexer_t *lex)
 
     assert(ch == '.');
 
-    string_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, ch);
     ch = file_reader_next_char(&lex->reader);
 
     // Cannot allow the token `123.`
@@ -134,7 +133,7 @@ token_type_t read_decimal(lexer_t *lex)
     }
 
     do {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     } while(isdigit(ch));
 
@@ -149,7 +148,7 @@ token_type_t read_decimal(lexer_t *lex)
 */
 token_type_t read_numeral(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     char ch;
 
@@ -163,14 +162,14 @@ token_type_t read_numeral(lexer_t *lex)
     //   - only `0` or 
     //   - `0.<numeral>`
     if (ch == '0') {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
 
         // Any numeral that starts with `0` and followed by another digit is an error.
         // We consume all the digits for better error messaging.
         if (isdigit(ch)) {
             do {
-                string_buffer_append_char(buffer, ch);
+                char_buffer_append_char(buffer, ch);
                 ch = file_reader_next_char(&lex->reader);
             } while(isdigit(ch));
 
@@ -185,7 +184,7 @@ token_type_t read_numeral(lexer_t *lex)
     }
 
     do {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     } while(isdigit(ch));
 
@@ -204,7 +203,7 @@ token_type_t read_numeral(lexer_t *lex)
 */
 token_type_t read_constant(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     char ch;
 
@@ -214,27 +213,27 @@ token_type_t read_constant(lexer_t *lex)
 
     assert(ch == '#');
 
-    string_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, ch);
     ch = file_reader_next_char(&lex->reader);
 
     switch (ch)
     {
     case 'b':
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
 
         while(ch == '0' || ch == '1') {
-            string_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, ch);
             ch = file_reader_next_char(&lex->reader);
         }
 
         return TOK_BINARY;
     case 'x':
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
 
         while(isxdigit(ch)) {
-            string_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, ch);
             ch = file_reader_next_char(&lex->reader);
         }
 
@@ -255,7 +254,7 @@ token_type_t read_constant(lexer_t *lex)
 */
 token_type_t read_string(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     char ch;
 
@@ -264,23 +263,23 @@ token_type_t read_string(lexer_t *lex)
     ch = reader->cur;
 
     assert(ch == '"');
-    string_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, ch);
     ch = file_reader_next_char(&lex->reader);
 
 keep_going:
     while(ch != '"' && isprint(ch) && ch != '\\') {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
     if (ch == '"') {
         // Then this is a valid symbol, consume `"`
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
 
         if (ch == '"') {
             // Then we have an escaped quote `""`
-            string_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, ch);
             ch = file_reader_next_char(&lex->reader);
             goto keep_going;
         }
@@ -290,7 +289,7 @@ keep_going:
 
     // In error state, so consume until we find another `"` or EOF
     while(ch != '"' && ch != EOF) {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
@@ -311,7 +310,7 @@ keep_going:
 */
 token_type_t read_quoted_symbol(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     char ch;
 
@@ -320,22 +319,22 @@ token_type_t read_quoted_symbol(lexer_t *lex)
     ch = reader->cur;
 
     assert(ch == '|');
-    string_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, ch);
     ch = file_reader_next_char(&lex->reader);
 
     while(ch != '|' && isprint(ch) && ch != '\\') {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
     if (ch == '|') {
         // Then this is a valid symbol, consume `|`
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
 
         // Could also be primed symbol
         if (ch == '\'') {
-            string_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, ch);
             file_reader_next_char(&lex->reader);
         }
 
@@ -344,7 +343,7 @@ token_type_t read_quoted_symbol(lexer_t *lex)
 
     // In error state, so consume until we find another `|` or EOF
     while(ch != '|' && ch != EOF) {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
@@ -367,7 +366,7 @@ token_type_t read_quoted_symbol(lexer_t *lex)
 */
 token_type_t read_symbol(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     const token_t *tok;
     char ch;
@@ -377,7 +376,7 @@ token_type_t read_symbol(lexer_t *lex)
     ch = reader->cur;
 
     do {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     } while(is_simple_char(ch));
 
@@ -394,7 +393,7 @@ token_type_t read_symbol(lexer_t *lex)
 
     // Prime symbol (') allowed at the end of a non-zero length symbol
     if (ch == '\'') {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         file_reader_next_char(&lex->reader);
     }
 
@@ -415,7 +414,7 @@ token_type_t read_symbol(lexer_t *lex)
 */
 token_type_t read_keyword(lexer_t *lex)
 {
-    string_buffer_t *buffer;
+    char_buffer_t *buffer;
     file_reader_t *reader;
     const token_t *tok;
     char ch;
@@ -428,11 +427,11 @@ token_type_t read_keyword(lexer_t *lex)
     ch = file_reader_next_char(&lex->reader);
 
     do {
-        string_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, ch);
         ch = file_reader_next_char(&lex->reader);
     } while(is_simple_char(ch));
 
-    if (string_buffer_get_length(buffer) <= 1) {
+    if (char_buffer_get_length(buffer) <= 1) {
         return TOK_INVALID_KEYWORD;
     }
 
@@ -454,8 +453,8 @@ void lexer_next_token(lexer_t *lex)
     file_reader_t *reader = &lex->reader;
     ch = reader->cur;
 
-    string_buffer_t *buffer = &lex->buffer;
-    string_buffer_reset(buffer);
+    char_buffer_t *buffer = &lex->buffer;
+    char_buffer_reset(buffer);
 
     token_type_t tok_type = TOK_ERROR;
 
@@ -473,8 +472,7 @@ void lexer_next_token(lexer_t *lex)
     }
 
     lex->tok_pos = reader->pos;
-    lex->lineno = reader->lineno;
-    lex->col = reader->col;
+    lex->loc = reader->loc;
 
     switch (ch) {
     case EOF:
@@ -525,10 +523,6 @@ void lexer_next_token(lexer_t *lex)
         file_reader_next_char(reader);
         tok_type = TOK_INVALID_SYMBOL;
     }
-
-#ifdef DEBUG_LEXER
-    fprintf(stderr, "%s:%ld:%ld\n", token_type_str[tok_type], lex->lineno, lex->col);
-#endif
 
     lex->tok_type = tok_type;
 }

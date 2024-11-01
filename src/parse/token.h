@@ -114,6 +114,8 @@ typedef enum symbol_type {
     SYM_DIV,
     SYM_MOD,
     SYM_ABS,
+    SYM_TO_REAL,
+    SYM_TO_INT,
     SYM_BITVEC,
     SYM_CONCAT,
     SYM_EXTRACT,
@@ -179,6 +181,12 @@ extern uint8_t symbol_num_indices[NUM_SYMBOLS];
 
 // Returns number of expected indices for `symbol`
 uint8_t get_num_indices(const char *symbol);
+
+// Returns symbol_t for `symbol` using gperf function, NULL if `symbol` is not a theory symbol.
+const symbol_t *get_symbol(const char *symbol);
+
+// Returns true if `symbol` is a theory symbol
+bool is_theory_symbol(const char *symbol);
 
 // Lookup table for kind of symbol
 extern symbol_kind_t symbol_kind[NUM_SYMBOLS];

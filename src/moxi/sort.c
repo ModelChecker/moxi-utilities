@@ -1,140 +1,216 @@
 #include <stdbool.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h> 
 
 #include "moxi/sort.h"
 
-bool is_equal_sort(sort_t *s1, sort_t *s2)
+sort_t cur_sort_id = 3; // Start at 3 since 0, 1, and 2 
+                        // are reserved for bool, int, and real
+
+sort_t new_sort_id() { return cur_sort_id++; }
+
+uint32_t sort_hash(sort_obj_t *sort_obj)
 {
-    if (strcmp(s1->symbol, s2->symbol) || s1->num_indices != s2->num_indices ||
-        s1->num_params != s2->num_params) {
+    switch (sort_obj->base)
+    {
+    case bool_sort:
+        return djb2_hash_string("Bool") ;
+    case int_sort:
+        return djb2_hash_string("Int") ;
+    case real_sort:
+        return djb2_hash_string("Real") ;
+    case bitvec_sort:
+    {
+        bv_sort_obj_t *sort = sort_obj->data;
+        return djb2_hash_string("BitVec") ^ 
+                jenkins_hash_uint64(sort->width);
+    }
+    case array_sort:
+    {
+        array_sort_obj_t *sort = sort_obj->data;
+        return djb2_hash_string("Array") ^ 
+                jenkins_hash_uint32(sort->index) ^ 
+                jenkins_hash_uint32(sort->element);
+    }
+    case uninterpreted_sort:
+    {
+        decl_sort_obj_t *sort = sort_obj->data;
+        uint32_t hash = djb2_hash_string("DeclSort");
+        size_t i;
+        for (i = 0; i < sort->num_params; ++i) {
+            hash ^= jenkins_hash_uint32(sort->params[i]);
+        }
+        return hash;
+    }
+    default:
+        assert(false);
+    }
+}
+
+bool sort_eq(sort_obj_t *so1, sort_obj_t *so2)
+{   
+    if (so1->base != so2->base) {
         return false;
     }
 
-    size_t i;
-    for (i = 0; i < s1->num_indices; ++i) {
-        if (s1->indices[i] != s2->indices[i]) {
-            return false;
+    switch (so1->base)
+    {
+    case bool_sort:
+    case int_sort:
+    case real_sort:
+        return true;
+    case bitvec_sort:
+    {
+        bv_sort_obj_t *bv_obj_1 = so1->data;
+        bv_sort_obj_t *bv_obj_2 = so2->data;
+        return bv_obj_1->width == bv_obj_2->width;
+    }
+    case array_sort:
+    {
+        array_sort_obj_t *array_obj_1 = so1->data;
+        array_sort_obj_t *array_obj_2 = so2->data;
+        return array_obj_1->index == array_obj_2->index && 
+                array_obj_1->element == array_obj_2->element;
+    }
+    case uninterpreted_sort:
+    {
+        decl_sort_obj_t *decl_obj_1 = so1->data;
+        decl_sort_obj_t *decl_obj_2 = so2->data;
+        size_t i;
+        for (i = 0; i < decl_obj_1->num_params; ++i) {
+            if (decl_obj_1->params[i] != decl_obj_2->params[i]) {
+                return false;
+            }
         }
+        return true;
     }
-
-    for (i = 0; i < s1->num_params; ++i) {
-        if (!is_equal_sort(s1->params[i], s2->params[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool is_bool_sort(sort_t *sort)
-{
-    return !strcmp(sort->symbol, "Bool") && sort->num_indices == 0 &&
-           sort->num_params == 0;
-}
-
-bool is_int_sort(sort_t *sort)
-{
-    return !strcmp(sort->symbol, "Int") && sort->num_indices == 0 &&
-           sort->num_params == 0;
-}
-
-bool is_real_sort(sort_t *sort)
-{
-    return !strcmp(sort->symbol, "Real") && sort->num_indices == 0 &&
-           sort->num_params == 0;
-}
-
-bool is_bitvec_sort(sort_t *sort)
-{
-    return !strcmp(sort->symbol, "BitVec") && sort->num_indices == 1 &&
-           sort->num_params == 0;
-}
-
-bool is_array_sort(sort_t *sort)
-{
-    return !strcmp(sort->symbol, "Array") && sort->num_indices == 0 &&
-           sort->num_params == 2;
-}
-
-uint64_t get_bitvec_width(sort_t *sort)
-{
-    if (!is_bitvec_sort(sort)) {
-        return 0;
-    }
-    return sort->indices[0];
-}
-
-void init_sort(sort_t *sort, char *symbol, uint64_t indices[],
-               size_t num_indices, sort_t *params[], size_t num_params)
-{
-    sort->symbol = symbol;
-    sort->indices = malloc(sizeof(uint64_t) * num_indices);
-    size_t i;
-    for (i = 0; i < num_indices; ++i) {
-        sort->indices[i] = indices[i];
-    }
-    sort->params = malloc(sizeof(sort_t *) * num_params);
-    for (i = 0; i < num_params; ++i) {
-        sort->params[i] = params[i];
+    default:
+        assert(false);
     }
 }
 
-void delete_sort(sort_t *sort)
+void init_sort_table(int_map_t *sort_table)
 {
-    free(sort->indices);
-    size_t i;
-    for (i = 0; i < sort->num_params; ++i) {
-        delete_sort(sort->params[i]);
+    init_int_map(sort_table, 0);
+
+    // Add the bool, int, and real sorts to the table.
+    sort_obj_t *bool_sort_obj = malloc(sizeof(sort_obj_t));
+    bool_sort_obj->base = bool_sort;
+    bool_sort_obj->id = bool_sort;
+    bool_sort_obj->data = NULL;
+    int_map_add(sort_table, bool_sort, bool_sort_obj);
+
+    sort_obj_t *int_sort_obj = malloc(sizeof(sort_obj_t));
+    int_sort_obj->base = int_sort;
+    int_sort_obj->id = int_sort;
+    int_sort_obj->data = NULL;
+    int_map_add(sort_table, int_sort, int_sort_obj);
+
+    sort_obj_t *real_sort_obj = malloc(sizeof(sort_obj_t));
+    real_sort_obj->base = real_sort;
+    real_sort_obj->id = real_sort;
+    real_sort_obj->data = NULL;
+    int_map_add(sort_table, real_sort, real_sort_obj);
+}
+
+void delete_sort_table(int_map_t *sort_table)
+{
+    // This will delete all the sort objects in the table as well.
+    // FIXME: need to attach a delete function to the elements in int_map_t
+    delete_int_map(sort_table);
+}
+
+sort_t sort_table_get(int_map_t *sort_table, sort_obj_t *sort)
+{
+    uint32_t hash = sort_hash(sort);
+    
+    // Find an unused hash in the sort table. We just increment the hash until
+    // we find an empty spot -- should be good enough for now.
+    sort_obj_t *old = int_map_find(sort_table, hash);
+    while(old != NULL && !sort_eq(old, sort)) {
+        hash++;
+        old = int_map_find(sort_table, hash);
     }
-    free(sort->params);
+
+    // If we sort is not equal to any existing sort, add it to the table.
+    if (old == NULL) {
+        int_map_add(sort_table, hash, sort);
+    }
+
+    return hash;
 }
 
-sort_t *new_sort(char *symbol, sort_t *params[], size_t nparams)
+sort_t get_bitvec_sort(int_map_t *sort_table, uint64_t width)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    init_sort(new, symbol, NULL, 0, params, nparams);
-    return new;
+    bv_sort_obj_t *bv_sort_obj = malloc(sizeof(bv_sort_obj_t));
+    bv_sort_obj->width = width;
+
+    sort_obj_t *sort_obj = malloc(sizeof(sort_obj_t));
+    sort_obj->base = bitvec_sort;
+    sort_obj->data = bv_sort_obj;
+
+    return sort_table_get(sort_table, sort_obj);
 }
 
-sort_t *new_bool_sort()
+sort_t get_array_sort(int_map_t *sort_table, sort_t index, sort_t elem)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    init_sort(new, "Bool", NULL, 0, NULL, 0);
-    return new;
+    array_sort_obj_t *array_sort_obj = malloc(sizeof(array_sort_obj_t));
+    array_sort_obj->index = index;
+    array_sort_obj->element = elem;
+
+    sort_obj_t *sort_obj = malloc(sizeof(sort_obj_t));
+    sort_obj->base = array_sort;
+    sort_obj->data = array_sort_obj;
+
+    return sort_table_get(sort_table, sort_obj);
 }
 
-sort_t *new_int_sort()
+bool is_bool_sort(int_map_t *sort_table, sort_t sort)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    init_sort(new, "Int", NULL, 0, NULL, 0);
-    return new;
+    return sort == bool_sort;
 }
 
-sort_t *new_real_sort()
+bool is_int_sort(int_map_t *sort_table, sort_t sort)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    init_sort(new, "Real", NULL, 0, NULL, 0);
-    return new;
+    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+    if (sort_obj == NULL) {
+        return false;
+    }
+    return sort_obj->base == int_sort;
 }
 
-sort_t *new_bitvec_sort(uint64_t width)
+bool is_real_sort(int_map_t *sort_table, sort_t sort)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    init_sort(new, "BitVec", (uint64_t[]) {width}, 1, NULL, 0);
-    return new;
+    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+    if (sort_obj == NULL) {
+        return false;
+    }
+    return sort_obj->base == real_sort;
 }
 
-sort_t *new_array_sort(sort_t *index, sort_t *elem)
+bool is_bitvec_sort(int_map_t *sort_table, sort_t sort)
 {
-    sort_t *new;
-    new = malloc(sizeof(sort_t));
-    sort_t *tmp[2] = {index, elem};
-    init_sort(new, "Array", NULL, 0, tmp, 2);
-    return new;
+    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+    if (sort_obj == NULL) {
+        return false;
+    }
+    return sort_obj->base == bitvec_sort;
+}
+
+bool is_array_sort(int_map_t *sort_table, sort_t sort)
+{
+    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+    if (sort_obj == NULL) {
+        return false;
+    }
+    return sort_obj->base == array_sort;
+}
+
+uint64_t get_bitvec_width(int_map_t *sort_table, sort_t sort)
+{
+    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+    assert(sort_obj->base == bitvec_sort);
+    bv_sort_obj_t *sort_data = (bv_sort_obj_t*) sort_obj->data;
+    return sort_data->width;
 }

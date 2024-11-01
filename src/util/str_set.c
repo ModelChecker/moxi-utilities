@@ -5,48 +5,48 @@
 #include <string.h>
 
 #include "util/hash.h"
-#include "util/string_set.h"
+#include "util/str_set.h"
 
 
 /**
  * Compute the hash value for `symbol` relative to the size of `set`. Since `set`'s size is a
- * power of 2, we just return the lowest `log2(set->size)-1` bits of `symbol`'s hash.
+ * power of 2, we just return the lowest `log2(set->capacity)-1` bits of `symbol`'s hash.
 */
-uint32_t compute_string_set_entry_hash(string_set_t *set, char *symbol)
+uint32_t compute_str_set_entry_hash(str_set_t *set, char *symbol)
 {
-    uint32_t mask = set->size - 1;
+    uint32_t mask = set->capacity - 1;
     return mask & djb2_hash_string(symbol);
 }
 
 
-void init_string_set(string_set_t *set, uint32_t size)
+void init_str_set(str_set_t *set, uint32_t size)
 {
     if (size == 0) {
-        set->size = DEFAULT_STRING_SET_SIZE;
+        set->capacity = DEFAULT_STRING_SET_SIZE;
     } else {
-        set->size = size;
+        set->capacity = size;
     }
 
-    set->data = malloc(set->size * sizeof(string_set_entry_t *)); 
+    set->data = malloc(set->capacity * sizeof(str_set_entry_t *)); 
     
     uint32_t i;
-    for(i = 0; i < set->size; ++i) {
+    for(i = 0; i < set->capacity; ++i) {
         set->data[i] = NULL;
     }
 }
 
 
-bool string_set_contains(string_set_t *set, char *str)
+bool str_set_contains(str_set_t *set, char *str)
 {
     uint32_t hash;
     
-    hash = compute_string_set_entry_hash(set, str);
+    hash = compute_str_set_entry_hash(set, str);
 
     if (set->data[hash] == NULL) {
         return false;
     }
 
-    string_set_entry_t *cur;
+    str_set_entry_t *cur;
     for(cur = set->data[hash]; cur != NULL; cur = cur->next) {
         if (!strcmp(cur->value, str)) {
             return true;
@@ -57,23 +57,23 @@ bool string_set_contains(string_set_t *set, char *str)
 }
 
 
-void string_set_add(string_set_t *set, char *str)
+void str_set_add(str_set_t *set, char *str)
 {
-    string_set_entry_t *entry;
+    str_set_entry_t *entry;
     uint32_t hash;
 
-    entry = malloc(sizeof(string_set_entry_t));
+    entry = malloc(sizeof(str_set_entry_t));
     entry->value = str;
     entry->next = NULL;
 
-    hash = compute_string_set_entry_hash(set, str);
+    hash = compute_str_set_entry_hash(set, str);
 
     if (set->data[hash] == NULL) {
         set->data[hash] = entry;
         return;
     }
 
-    string_set_entry_t *cur;
+    str_set_entry_t *cur;
     for(cur = set->data[hash]; cur->next != NULL; cur = cur->next);
     cur->next = entry;
 }
@@ -82,17 +82,17 @@ void string_set_add(string_set_t *set, char *str)
 /**
  * Returns `true` on success, `false` otherwise.
 */
-bool string_set_remove(string_set_t *set, char *str)
+bool str_set_remove(str_set_t *set, char *str)
 {
     uint32_t hash;
     
-    hash = compute_string_set_entry_hash(set, str);
+    hash = compute_str_set_entry_hash(set, str);
 
     if (set->data[hash] == NULL) {
         return -1;
     }
 
-    string_set_entry_t **cur, *prev;
+    str_set_entry_t **cur, *prev;
 
     prev = NULL;
 

@@ -1,246 +1,247 @@
 /**
  *
  */
+#include <stdio.h>
+
+#include "io/print.h"
 #include "moxi/context.h"
+#include "moxi/hash_logic.h"
 
-void init_context(context_t *context) 
+void activate_core_symbols(context_t *ctx)
 {
-    init_string_int_map(&context->symbol_table, 0);
-    init_string_map(&context->var_table, 0);
+    ctx->active_symbols[SYM_BOOL] = true;
+    ctx->active_symbols[SYM_TRUE] = true;
+    ctx->active_symbols[SYM_FALSE] = true;
+    ctx->active_symbols[SYM_NOT] = true;
+    ctx->active_symbols[SYM_AND] = true;
+    ctx->active_symbols[SYM_OR] = true;
+    ctx->active_symbols[SYM_IMPLIES] = true;
+    ctx->active_symbols[SYM_XOR] = true;
+    ctx->active_symbols[SYM_EQ] = true;
+    ctx->active_symbols[SYM_DISTINCT] = true;
+    ctx->active_symbols[SYM_ITE] = true;
 }
 
-void delete_context(context_t *context)
+void activate_bitvec_symbols(context_t *ctx)
 {
-    delete_string_int_map(&context->symbol_table);
-    delete_string_map(&context->var_table);
+    ctx->active_symbols[SYM_BITVEC] = true;
+    ctx->active_symbols[SYM_CONCAT] = true;
+    ctx->active_symbols[SYM_EXTRACT] = true;
+    ctx->active_symbols[SYM_REPEAT] = true;
+    ctx->active_symbols[SYM_BVCOMP] = true;
+    ctx->active_symbols[SYM_BVREDAND] = true;
+    ctx->active_symbols[SYM_BVREDOR] = true;
+    ctx->active_symbols[SYM_BVNOT] = true;
+    ctx->active_symbols[SYM_BVAND] = true;
+    ctx->active_symbols[SYM_BVOR] = true;
+    ctx->active_symbols[SYM_BVNAND] = true;
+    ctx->active_symbols[SYM_BVNOR] = true;
+    ctx->active_symbols[SYM_BVXOR] = true;
+    ctx->active_symbols[SYM_BVXNOR] = true;
+    ctx->active_symbols[SYM_BVNEG] = true;
+    ctx->active_symbols[SYM_BVADD] = true;
+    ctx->active_symbols[SYM_BVSUB] = true;
+    ctx->active_symbols[SYM_BVMUL] = true;
+    ctx->active_symbols[SYM_BVUDIV] = true;
+    ctx->active_symbols[SYM_BVUREM] = true;
+    ctx->active_symbols[SYM_BVSDIV] = true;
+    ctx->active_symbols[SYM_BVSREM] = true;
+    ctx->active_symbols[SYM_BVSMOD] = true;
+    ctx->active_symbols[SYM_BVSHL] = true;
+    ctx->active_symbols[SYM_BVLSHR] = true;
+    ctx->active_symbols[SYM_BVASHR] = true;
+    ctx->active_symbols[SYM_ZERO_EXTEND] = true;
+    ctx->active_symbols[SYM_SIGN_EXTEND] = true;
+    ctx->active_symbols[SYM_ROTATE_LEFT] = true;
+    ctx->active_symbols[SYM_ROTATE_RIGHT] = true;
+    ctx->active_symbols[SYM_BVULT] = true;
+    ctx->active_symbols[SYM_BVULE] = true;
+    ctx->active_symbols[SYM_BVUGT] = true;
+    ctx->active_symbols[SYM_BVUGE] = true;
+    ctx->active_symbols[SYM_BVSLT] = true;
+    ctx->active_symbols[SYM_BVSLE] = true;
+    ctx->active_symbols[SYM_BVSGT] = true;
+    ctx->active_symbols[SYM_BVSGE] = true;
 }
 
-symbol_kind_t context_find(context_t *context, char *symbol)
+void activate_array_symbols(context_t *ctx)
 {
-    int ret = string_int_map_find(&context->symbol_table, symbol);
+    ctx->active_symbols[SYM_ARRAY] = true;
+    ctx->active_symbols[SYM_SELECT] = true;
+    ctx->active_symbols[SYM_STORE] = true;
+}
+
+void activate_int_symbols(context_t *ctx)
+{
+    ctx->active_symbols[SYM_INT] = true;
+    ctx->active_symbols[SYM_PLUS] = true;
+    ctx->active_symbols[SYM_MINUS] = true;
+    ctx->active_symbols[SYM_TIMES] = true;
+    ctx->active_symbols[SYM_DIV] = true;
+    ctx->active_symbols[SYM_MOD] = true;
+    ctx->active_symbols[SYM_ABS] = true;
+    ctx->active_symbols[SYM_GT] = true;
+    ctx->active_symbols[SYM_GE] = true;
+    ctx->active_symbols[SYM_LT] = true;
+    ctx->active_symbols[SYM_LE] = true;
+}
+
+void activate_real_symbols(context_t *ctx)
+{
+    ctx->active_symbols[SYM_REAL] = true;
+    ctx->active_symbols[SYM_PLUS] = true;
+    ctx->active_symbols[SYM_MINUS] = true;
+    ctx->active_symbols[SYM_TIMES] = true;
+    ctx->active_symbols[SYM_DIV] = true;
+    ctx->active_symbols[SYM_MOD] = true;
+    ctx->active_symbols[SYM_ABS] = true;
+    ctx->active_symbols[SYM_GT] = true;
+    ctx->active_symbols[SYM_GE] = true;
+    ctx->active_symbols[SYM_LT] = true;
+    ctx->active_symbols[SYM_LE] = true;
+}
+
+void activate_int_real_symbols(context_t *ctx)
+{
+    activate_int_symbols(ctx);
+    activate_real_symbols(ctx);
+    ctx->active_symbols[SYM_TO_REAL] = true;
+    ctx->active_symbols[SYM_TO_INT] = true;
+}
+
+/**
+ * Sets all non-core symbols in `active_symbols` to `false`.
+ */
+void reset_symbols(context_t *ctx)
+{
+    size_t i;
+    for (i = 0; i < NUM_SYMBOLS; ++i) {
+        ctx->active_symbols[i] = false;
+    }
+    activate_core_symbols(ctx);
+}
+
+void init_context(context_t *ctx)
+{
+    init_str_int_map(&ctx->symbol_table, 0);
+    init_str_map(&ctx->var_table, 0);
+    init_str_map(&ctx->fun_table, 0);
+    init_sort_table(&ctx->sort_table);
+
+    ctx->logic = &no_logic;
+    activate_core_symbols(ctx);
+}
+
+void delete_context(context_t *ctx)
+{
+    delete_str_int_map(&ctx->symbol_table);
+    delete_str_map(&ctx->var_table);
+    delete_sort_table(&ctx->sort_table);
+}
+
+symbol_kind_t context_find(context_t *ctx, char *name)
+{
+    const symbol_t *symbol = get_symbol(name);
+    if (symbol != NULL && ctx->active_symbols[symbol->type]) {
+        return symbol_kind[symbol->type];
+    }
+    int ret = str_int_map_find(&ctx->symbol_table, name);
     return ret < 0 ? SYM_KIND_NONE : ret;
 }
 
-bool context_add_function_symbol(context_t *context, char *symbol,
-                                 sort_t *rank, uint32_t rank_size)
+bool context_add_fun_symbol(context_t *ctx, char *symbol, rank_t *rank)
 {
-    return true;
-}
+    str_int_map_t *symbol_table;
+    str_map_t *fun_table;
 
-// bool context_remove_function_symbol(context_t *context, char *symbol);
-// bool context_add_sort_symbol(context_t *context, char *symbol);
-// bool context_add_system_symbol(context_t *context, char *symbol);
-
-bool context_add_var_symbol(context_t *context, char *symbol, sort_t *sort)
-{
-    string_int_map_t *symbol_table;
-    string_map_t *var_table;
-
-    symbol_table = &context->symbol_table;
-    if (string_int_map_find(symbol_table, symbol) >= 0) {
+    symbol_table = &ctx->symbol_table;
+    if (str_int_map_find(symbol_table, symbol) >= 0) {
         return false;
     }
-    
-    var_table = &context->var_table;
-    string_int_map_add(symbol_table, symbol, SYM_KIND_VARIABLE);
-    string_map_add(var_table, symbol, (void*) sort);
+
+    fun_table = &ctx->fun_table;
+    str_int_map_add(symbol_table, symbol, strlen(symbol), SYM_KIND_TERM);
+    str_map_add(fun_table, symbol, strlen(symbol), (void *)rank);
+    // int i = str_int_map_find(symbol_table, symbol);
+    // fprintf(stderr, "%d\n", i);
     return true;
 }
 
-sort_t *context_find_var_symbol(context_t *context, char *symbol)
+bool context_add_const_symbol(context_t *ctx, char *symbol, sort_t sort)
 {
-    return string_map_find(&context->var_table, symbol);
+    sort_t *sort_list = malloc(sizeof(sort_t));
+    sort_list[0] = sort;
+
+    rank_t *rank = malloc(sizeof(rank_t));
+    rank->sorts = sort_list;
+    rank->len = 1;
+
+    return context_add_fun_symbol(ctx, symbol, rank);
 }
 
-void context_reset_var_symbols(context_t *context)
-{
+// bool context_add_sort_symbol(context_t *ctx, char *symbol);
+// bool context_add_system_symbol(context_t *ctx, char *symbol);
 
+bool context_add_var_symbol(context_t *ctx, char *symbol, var_kind_t kind,
+                            sort_t sort)
+{
+    str_int_map_t *symbol_table;
+    str_map_t *var_table;
+
+    symbol_table = &ctx->symbol_table;
+    if (str_int_map_find(symbol_table, symbol) >= 0) {
+        return false;
+    }
+    str_int_map_add(symbol_table, symbol, strlen(symbol), SYM_KIND_VARIABLE);
+
+    var_table = &ctx->var_table;
+    var_table_entry_t *entry = malloc(sizeof(var_table_entry_t));
+    entry->kind = kind;
+    entry->sort = sort;
+    str_map_add(var_table, symbol, strlen(symbol), entry);
+    return true;
 }
 
-void add_core_symbols(context_t *context)
+bool context_remove_symbol(context_t *ctx, char *symbol)
 {
-    string_int_map_t *symbol_table = &context->symbol_table;
-
-    string_int_map_add(symbol_table, "Bool", SYM_KIND_SORT);
-
-    string_int_map_add(symbol_table, "true", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "false", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "not", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "and", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "or", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "=>", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "xor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "=", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "distinct", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "ite", SYM_KIND_TERM);
+    return false;
 }
 
-void add_bitvec_symbols(context_t *context)
+var_table_entry_t *context_find_var_symbol(context_t *ctx, char *symbol)
 {
-    string_int_map_t *symbol_table = &context->symbol_table;
-
-    string_int_map_add(symbol_table, "BitVec", SYM_KIND_SORT);
-
-    string_int_map_add(symbol_table, "concat", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "extract", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "repeat", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvcomp", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvredand", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvredor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvnot", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvand", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvnand", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvnor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvxor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvxnor", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvneg", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvadd", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsub", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvmul", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvudiv", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvurem", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsdiv", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsrem", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsmod", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvshl", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvlshr", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvashr", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "zero_extend", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "sign_extend", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "rotate_left", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "rotate_right", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvult", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvule", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvugt", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvuge", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvslt", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsle", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsgt", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "bvsge", SYM_KIND_TERM);
+    return str_map_find(&ctx->var_table, symbol);
 }
 
-void add_array_symbols(context_t *context)
+void context_reset_var_symbols(context_t *ctx) {}
+
+/**
+ * Sets the logic in `ctx` to the one defined by `symbol`. Returns true if
+ * `symbol` is a valid logic, `false` otherwise.
+ */
+bool set_current_logic(context_t *ctx, char *symbol, size_t n)
 {
-    string_int_map_t *symbol_table = &context->symbol_table;
+    const logic_t *logic = in_moxi_logic(symbol, n);
+    if (logic == NULL) {
+        PRINT_ERROR("unknown logic '%s'", symbol);
+        ctx->logic = &unkown_logic;
+        return false;
+    }
+    logic_type_t type = logic->type;
+    ctx->logic = logic;
 
-    string_int_map_add(symbol_table, "Array", SYM_KIND_SORT);
-
-    string_int_map_add(symbol_table, "select", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "store", SYM_KIND_TERM);
-}
-
-void add_int_symbols(context_t *context)
-{
-    string_int_map_t *symbol_table = &context->symbol_table;
-
-    string_int_map_add(symbol_table, "Int", SYM_KIND_SORT);
-
-    string_int_map_add(symbol_table, "+", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "-", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "*", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "div", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "mod", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "abs", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, ">=", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, ">", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "<=", SYM_KIND_TERM);
-    string_int_map_add(symbol_table, "<", SYM_KIND_TERM);
-}
-
-void set_current_logic(context_t *context, logic_t logic)
-{
-    switch (logic) {
-    case LOGIC_AX:
-        add_array_symbols(context);
-        break;
-    case LOGIC_BV:
-        add_bitvec_symbols(context);
-        break;
-    case LOGIC_IDL:
-    case LOGIC_LIA:
-    case LOGIC_LRA:
-    case LOGIC_LIRA:
-    case LOGIC_NIA:
-    case LOGIC_NRA:
-    case LOGIC_NIRA:
-    case LOGIC_RDL:
-    case LOGIC_UF:
-    case LOGIC_ABV:
-    case LOGIC_ALIA:
-    case LOGIC_ALRA:
-    case LOGIC_ALIRA:
-    case LOGIC_ANIA:
-    case LOGIC_ANRA:
-    case LOGIC_ANIRA:
-    case LOGIC_AUF:
-    case LOGIC_UFBV:
-    case LOGIC_UFBVLIA:
-    case LOGIC_UFIDL:
-    case LOGIC_UFLIA:
-    case LOGIC_UFLRA:
-    case LOGIC_UFLIRA:
-    case LOGIC_UFNIA:
-    case LOGIC_UFNRA:
-    case LOGIC_UFNIRA:
-    case LOGIC_UFRDL:
-    case LOGIC_AUFBV:
-    case LOGIC_AUFBVLIA:
-    case LOGIC_AUFBVNIA:
-    case LOGIC_AUFLIA:
-    case LOGIC_AUFLRA:
-    case LOGIC_AUFLIRA:
-    case LOGIC_AUFNIA:
-    case LOGIC_AUFNRA:
-    case LOGIC_AUFNIRA:
-    case LOGIC_QF_AX:
-    case LOGIC_QF_BV:
-    case LOGIC_QF_IDL:
-    case LOGIC_QF_LIA:
-    case LOGIC_QF_LRA:
-    case LOGIC_QF_LIRA:
-    case LOGIC_QF_NIA:
-    case LOGIC_QF_NRA:
-    case LOGIC_QF_NIRA:
-    case LOGIC_QF_RDL:
-    case LOGIC_QF_UF:
-    case LOGIC_QF_ABV:
-    case LOGIC_QF_ALIA:
-    case LOGIC_QF_ALRA:
-    case LOGIC_QF_ALIRA:
-    case LOGIC_QF_ANIA:
-    case LOGIC_QF_ANRA:
-    case LOGIC_QF_ANIRA:
-    case LOGIC_QF_AUF:
-    case LOGIC_QF_UFBV:
-    case LOGIC_QF_UFBVLIA:
-    case LOGIC_QF_UFIDL:
-    case LOGIC_QF_UFLIA:
-    case LOGIC_QF_UFLRA:
-    case LOGIC_QF_UFLIRA:
-    case LOGIC_QF_UFNIA:
-    case LOGIC_QF_UFNRA:
-    case LOGIC_QF_UFNIRA:
-    case LOGIC_QF_UFRDL:
-    case LOGIC_QF_AUFBV:
-    case LOGIC_QF_AUFBVLIA:
-    case LOGIC_QF_AUFBVNIA:
-    case LOGIC_QF_AUFLIA:
-    case LOGIC_QF_AUFLRA:
-    case LOGIC_QF_AUFLIRA:
-    case LOGIC_QF_AUFNIA:
-    case LOGIC_QF_AUFNRA:
-    case LOGIC_QF_AUFNIRA:
-    case LOGIC_NONE:
-    case LOGIC_ALL:
-    case LOGIC_UNKNOWN:
-    default:
-        break;
+    if (!logic_is_supported[type]) {
+        PRINT_ERROR("unsupported logic '%s'", logic->name);
+        return false;
     }
 
-    /*
-     * Base logics (with quantifiers)
-     */
+    reset_symbols(ctx);
+
+    if (logic_has_ints[type]) {
+        activate_int_symbols(ctx);
+    }
+    if (logic_has_bitvectors[type]) {
+        activate_bitvec_symbols(ctx);
+    }
+
+    return true;
 }
-
-

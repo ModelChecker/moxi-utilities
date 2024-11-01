@@ -11,14 +11,25 @@ FILE_DIR = pathlib.Path(__file__).parent
 TOKEN_H_PATH = FILE_DIR.parent / "src" / "parse" / "token.h"
 
 """
-We have state/token/state triples. We call a state/token pair an "action". 
-The parser includes a stack of states.
+We have state/token/state triples. We call a state/token pair an "action". The
+parser includes a stack of states.
 
-The parser uses multiple automata to parse input and uses a stack of states to determine which automata to use at a given time. Initially the parser begins in the "command" automata with an empty stack. The parser computes an action code given the current state/token pair, executes that action's code, sets the next state, then does some stack management. If the current state is "done", this means the current automata is complete. At which point, if the stack is empty, the program is done parsing. Otherwise, we pop the top of the stack off and continue parsing from that state. 
+The parser uses multiple automata to parse input and uses a stack of states to
+determine which automata to use at a given time. Initially the parser begins in
+the "command" automata with an empty stack. The parser computes an action code
+given the current state/token pair, executes that action's code, sets the next
+state, then does some stack management. If the current state is "done", this
+means the current automata is complete. At which point, if the stack is empty,
+the program is done parsing. Otherwise, we pop the top of the stack off and
+continue parsing from that state. 
 
-Implementing the parse tables:
-For a lazy lookup table, we could allocate an array `lookup` of size NUM_STATES * NUM_TOKENS and do a lookup in a single check such as in `lookup[state][token]`. But in our case we have ~100 states and ~100 tokens, which results in an array of size ~10,000, which is a bit too big for my liking. The fact that we know our full set of states/tokens ahead of time and most state/token pairs are invalid means we can afford to do some stupid computation ahead of time when building the parse tables.
-
+Implementing the parse tables: For a lazy lookup table, we could allocate an
+array `lookup` of size NUM_STATES * NUM_TOKENS and do a lookup in a single check
+such as in `lookup[state][token]`. But in our case we have ~100 states and ~100
+tokens, which results in an array of size ~10,000, which is a bit too big. The
+fact that we know our full set of states/tokens ahead of time and most
+state/token pairs are invalid means we can afford to do some stupid computation
+ahead of time when building the parse tables.
 """
 
 State = NewType("State", str)
@@ -55,20 +66,18 @@ C_PREAMBLE = """
 #include "parse/parse.h"
 
 /**
- * Initializes `parser` to use `filename` as input.
- * 
- * Returns 0 on success, the result of `init_file_lexer` otherwise.
-*/
+ * Initializes `parser` to use `filename` as input. Returns 0 on success, the 
+ * result of `init_file_lexer` otherwise.
+ */
 int init_parser(parser_t *parser, const char *filename)
 {
-	int status;
-    status = init_file_lexer(&parser->lex, filename);
+	int status = init_file_lexer(&parser->lex, filename);
 	if (status) {
 		return status;
 	}
 
     init_int_stack(&parser->sstack);
-    init_pstack(&parser->pstack);
+    init_pstack(&parser->pstack, filename);
     init_context(&parser->ctx);
 	parser->filename = filename;
 	return 0;
@@ -99,16 +108,16 @@ parse_action_t get_action(parse_state_t state, token_type_t token)
 int parse_moxi(parser_t *parser) 
 {
     lexer_t *lex;
-    string_buffer_t *str;
+    char_buffer_t *str;
     const char *filename;
     token_type_t token;
-    int_stack_t *sstack;
+    int_stack_t *sstack; // state stack
     parse_state_t state;
     parse_action_t action;
-    uint64_t lineno;
-    uint64_t col;
-    pstack_t *pstack;
+    loc_t loc;
+    pstack_t *pstack; // parse stack
     context_t *ctx;
+    int exception;
 
     lex = &parser->lex;
     str = &lex->buffer;
@@ -123,37 +132,35 @@ int parse_moxi(parser_t *parser)
 consume:
     if (state == """
     + str(DONE_STATE)
-    + """ && sstack->top == 0) {
+    + """ && sstack->size == 0) {
+		pstack_eval_frame(pstack, ctx);
 		return token == TOK_EOF ? 1 : 0;
 	}
 
     lexer_next_token(lex);
 	token = lex->tok_type;
-    lineno = lex->lineno;
-    col = lex->col;
+    loc = lex->loc;
 
 skip:
+    exception = setjmp(pstack->env);
+    if (exception != 0) {
+        return exception;
+    }
+    
     if (state == """
     + str(DEFAULT_ERROR_STATE)
     + """) {
-        return 1;
+        return -1;
     } 
     
     if (state == """
     + str(DONE_STATE)
     + """) {
-        if (sstack->top == 0) {
+		pstack_eval_frame(pstack, ctx);
+		if (sstack->size == 0) {
             return token == TOK_EOF ? 1 : 0;
-        }
+		}
         state = int_stack_pop(sstack);
-        pstack_eval_frame(pstack, ctx);
-    }
-
-    if (pstack->status) {
-        print_error("type check error");
-		int tmp = pstack->status;
-        pstack_reset(pstack);
-        return tmp;
     }
 
     action = get_action(state, token);
@@ -273,7 +280,7 @@ def find_base(
 
 def gen_states(states: list[State]) -> str:
     return (
-        "typedef enum parse_state {\n"
+        "typedef enum parse_state {\n\t"
         + "\n\t".join([str(s) + "," for s in states])
         + "\n} parse_state_t;\n\n"
     )
@@ -281,7 +288,7 @@ def gen_states(states: list[State]) -> str:
 
 def gen_actions(actions: list[Action]) -> str:
     return (
-        "typedef enum parse_action {\n"
+        "typedef enum parse_action {\n\t"
         + "\n\t".join([str(a) + "," for a in actions])
         + "\n} parse_action_t;\n\n"
     )
@@ -299,7 +306,7 @@ def gen_base(states: list[State], base: dict[State, int]) -> str:
     return (
         "const int base["
         + str(len(base_array))
-        + "] = {\n"
+        + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in base_array])
         + "\n};\n\n"
     )
@@ -313,7 +320,7 @@ def gen_default(states: list[State], default: dict[State, Action]) -> str:
     return (
         "const int def["
         + str(len(default_array))
-        + "] = {\n"
+        + "] = {\n\t"
         + "\n\t".join([str(d) + "," for d in default_array])
         + "\n};\n\n"
     )
@@ -339,7 +346,7 @@ def gen_check(
     return (
         "const int check["
         + str(len(check_array))
-        + "] = {\n"
+        + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in check_array])
         + "\n};\n\n"
     )
@@ -370,7 +377,7 @@ def gen_value(
     return (
         "const int value["
         + str(len(value_array))
-        + "] = {\n"
+        + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in value_array])
         + "\n};\n\n"
     )
@@ -429,7 +436,7 @@ def gen_table(content: str, tokens: list[Token]) -> str:
 
     error_case = (
         f"\t\tcase {DEFAULT_ERROR_ACTION}:\n"
-        + "\t\t\tprint_error_with_loc(filename, lineno, col, \"syntax error\");\n"
+        + "\t\t\tPRINT_ERROR_LOC(filename, loc, \"syntax error\");\n"
         + f"\t\t\tstate = {DEFAULT_ERROR_STATE};\n"
         + "\t\t\tgoto skip;\n\n"
     )

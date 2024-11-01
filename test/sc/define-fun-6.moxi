@@ -1,0 +1,3 @@
+(define-fun f ((x Bool) (y Bool)) Bool (and x false))
+(define-fun g ((x Bool) (y Bool)) Bool (f y true))
+(define-fun h ((x Bool) (y Bool)) Bool (g (f x y) (g x y)))

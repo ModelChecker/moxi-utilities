@@ -1,23 +1,10 @@
-/**
- * 
-*/
 #ifndef __PRINT_H__
 #define __PRINT_H__
 
-#include <stdint.h>
+#define PRINT_ERROR_LOC(filename, loc, fmt, ...)                       \
+    fprintf(stderr, "%s:%llu:%llu: error: " fmt "\n", filename, loc.lineno, loc.col,   \
+            ##__VA_ARGS__)
 
-#ifndef EXECUTABLE_NAME 
-#define EXECUTABLE_NAME ""
-#endif
-
-void print_error_with_loc(
-    const char *filename,
-    uint64_t lineno, 
-    uint64_t col, 
-    const char *format, 
-    ...
-);
-void print_error(const char *format, ...);
-
+#define PRINT_ERROR(fmt, ...) fprintf(stderr, "error: " fmt "\n", ##__VA_ARGS__)
 
 #endif

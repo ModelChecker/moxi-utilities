@@ -7,16 +7,17 @@ SRC_DIR := src
 OBJ_DIR := obj
 BIN := moxisc
 
-DBGFLAGS := -g -O0 -fdata-sections -ffunction-sections -fno-common -fsanitize=undefined -fsanitize=address -pedantic -Waggregate-return -Wall -Wbad-function-cast -Wcast-align -Wcast-qual -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat-truncation -Wformat-y2k -Wformat=2 -Wimplicit -Wimport -Winit-self -Winline -Winvalid-pch -Wlogical-op -Wlong-long -Wmisleading-indentation -Wmissing-declarations -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-noreturn -Wmissing-prototypes -Wnested-externs -Wnull-dereference -Wodr -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstack-protector -Wstrict-aliasing=2 -Wstrict-overflow=5 -Wstrict-prototypes -Wswitch-default -Wundef -Wundef -Wunreachable-code -Wunused -Wunused-parameter -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wno-switch-enum -Wno-unknown-warning-option -Wno-gnu-binary-literal --coverage
+DBGFLAGS := -g -O0 -DDEBUG -DDEBUG_PARSER -DDEBUG_PSTACK -fdata-sections -ffunction-sections -fno-common -fsanitize=undefined -fsanitize=address -pedantic -Waggregate-return -Wall -Wbad-function-cast -Wcast-align -Wcast-qual -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat-truncation -Wformat-y2k -Wformat=2 -Wimplicit -Wimport -Winit-self -Winline -Winvalid-pch -Wlogical-op -Wlong-long -Wmisleading-indentation -Wmissing-declarations -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-noreturn -Wmissing-prototypes -Wnested-externs -Wnull-dereference -Wodr -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstack-protector -Wstrict-aliasing=2 -Wstrict-overflow=5 -Wstrict-prototypes -Wswitch-default -Wundef -Wundef -Wunreachable-code -Wunused -Wunused-parameter -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wno-switch-enum -Wno-unknown-warning-option -Wno-gnu-binary-literal --coverage
 
 CPPFLAGS := 
-CFLAGS := -Wall -I$(SRC_DIR) -I/usr/local/include $(CPPFLAGS) -DDEBUG_PARSER -g
+CFLAGS := -Wall -Wno-deprecated-non-prototype -I$(SRC_DIR) -I/usr/local/include $(CPPFLAGS) -DDEBUG_PARSER -DDEBUG_PSTACK -g -fsanitize=undefined -fsanitize=address
 
 LIB :=
 
 # Token hashing
 gperf_generated := $(SRC_DIR)/parse/hash_token.h \
-				   $(SRC_DIR)/parse/hash_symbol.h
+				   $(SRC_DIR)/parse/hash_symbol.h \
+				   $(SRC_DIR)/moxi/hash_logic.h
 
 # Parser generation
 python_generated := $(SRC_DIR)/parse/parse.c
@@ -50,6 +51,10 @@ $(SRC_DIR)/parse/hash_symbol.h: $(SRC_DIR)/parse/symbol.gperf
 	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/parse/hash_symbol.h --lookup-function-name=in_moxi_sym \
 		--hash-function=hash_sym $(SRC_DIR)/parse/symbol.gperf
 
+$(SRC_DIR)/moxi/hash_logic.h: $(SRC_DIR)/moxi/logic.gperf
+	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/moxi/hash_logic.h --lookup-function-name=in_moxi_logic \
+		--hash-function=hash_logic $(SRC_DIR)/moxi/logic.gperf
+
 $(SRC_DIR)/parse/parse.c: $(TOOLS_DIR)/moxi.tbl $(TOOLS_DIR)/parse_table.py
 	$(PYTHON) $(TOOLS_DIR)/parse_table.py $(TOOLS_DIR)/moxi.tbl > $(SRC_DIR)/parse/parse.c
 
@@ -68,7 +73,7 @@ include $(DEP_FILES)
 endif
 
 $(BIN): $(gperf_generated) $(OBJ_FILES) $(DEP_FILES)
-	$(CC) $(CFLAGS) -o $@ $(OBJ_FILES) $(LIB)
+	$(CC) -g $(CFLAGS) -o $@ $(OBJ_FILES) $(LIB)
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIRS)

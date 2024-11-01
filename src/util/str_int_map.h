@@ -7,16 +7,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct string_int_map_entry string_int_map_entry_t;
+typedef struct str_int_map_entry str_int_map_entry_t;
 
 /**
  * Each entry in the string map stores the string, an integer value, and the
  * next entry in the bucket.
  */
-struct string_int_map_entry {
+struct str_int_map_entry {
     char *string;
     int value;
-    string_int_map_entry_t *next;
+    str_int_map_entry_t *next;
 };
 
 /**
@@ -28,17 +28,17 @@ struct string_int_map_entry {
  * ...
  * map[size] = <"C",value> -> <"D",value> -> ...
  */
-typedef struct string_int_map {
-    string_int_map_entry_t **data;
-    uint32_t size;
-} string_int_map_t;
+typedef struct str_int_map {
+    str_int_map_entry_t **data;
+    uint32_t capacity;
+} str_int_map_t;
 
 #define DEFAULT_SYMBOL_TABLE_SIZE 1024
 
-void init_string_int_map(string_int_map_t *map, uint32_t size);
-void delete_string_int_map(string_int_map_t *map);
-int string_int_map_find(string_int_map_t *map, char *string);
-void string_int_map_add(string_int_map_t *map, char *string, int value);
-int string_int_map_remove(string_int_map_t *map, char *string);
+void init_str_int_map(str_int_map_t *map, uint32_t size);
+void delete_str_int_map(str_int_map_t *map);
+int str_int_map_find(str_int_map_t *map, char *string);
+void str_int_map_add(str_int_map_t *map, char *string, size_t n, int value);
+int str_int_map_remove(str_int_map_t *map, char *string);
 
 #endif

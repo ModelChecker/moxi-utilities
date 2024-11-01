@@ -31,6 +31,8 @@ Real,              SYM_REAL
 div,               SYM_DIV
 mod,               SYM_MOD
 abs,               SYM_ABS
+to_real,           SYM_TO_REAL
+to_int,            SYM_TO_INT
 BitVec,            SYM_BITVEC
 concat,            SYM_CONCAT
 extract,           SYM_EXTRACT

@@ -7,8 +7,8 @@
 #include <stdint.h>
 
 typedef struct int_stack {
+    uint32_t capacity;
     uint32_t size;
-    uint32_t top;
     int *data;
 } int_stack_t;
 

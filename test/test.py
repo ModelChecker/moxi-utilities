@@ -21,7 +21,7 @@ for file in FILE_DIR.rglob("*.moxi"):
     command = [str(EXECUTABLE), str(file)]
     proc = subprocess.run(command, text=True, capture_output=True)
 
-    actually_fails = proc.returncode != 0
+    actually_fails = (proc.returncode != 0)
 
     if actually_fails and not should_fail:
         print(f"[FAIL] {file}")
