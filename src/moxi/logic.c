@@ -140,7 +140,7 @@ bool logic_is_supported[NUM_LOGICS] = {
     true, // QF_BV
     false, // QF_IDL
     true,  // QF_LIA
-    false, // QF_LRA
+    true, // QF_LRA
     false, // QF_LIRA
     false, // QF_NIA
     false, // QF_NRA

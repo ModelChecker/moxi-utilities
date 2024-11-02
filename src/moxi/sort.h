@@ -28,8 +28,7 @@ typedef enum {
     uninterpreted_sort // User-declared sort
 } base_sort_t;
 
-// A hash-consed sort
-typedef uint32_t sort_t;
+typedef uint32_t sort_t;   // A hash-consed sort
 extern sort_t cur_sort_id; // A counter for creating new sort IDs
 
 /**
@@ -76,11 +75,6 @@ sort_t sort_table_get(int_map_t *sort_table, sort_obj_t *sort);
 sort_t get_bitvec_sort(int_map_t *sort_table, uint64_t width);
 sort_t get_array_sort(int_map_t *sort_table, sort_t index, sort_t elem);
 
-bool is_bool_sort(int_map_t *sort_table, sort_t sort);
-bool is_int_sort(int_map_t *sort_table, sort_t sort);
-bool is_real_sort(int_map_t *sort_table, sort_t sort);
-bool is_bitvec_sort(int_map_t *sort_table, sort_t sort);
-bool is_array_sort(int_map_t *sort_table, sort_t sort);
 base_sort_t get_base_sort(int_map_t *sort_table, sort_t sort);
 
 uint64_t get_bitvec_width(int_map_t *sort_table, sort_t sort);

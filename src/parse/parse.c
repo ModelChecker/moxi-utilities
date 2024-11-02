@@ -1238,7 +1238,7 @@ skip:
 
  		case TRM0_DECIMAL_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
-			pstack_push_error(pstack, loc);
+			pstack_push_decimal(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
@@ -1326,7 +1326,7 @@ skip:
 			goto consume;
 
  		case TRM3b_RP_TRM0:
-			int_stack_push(sstack, R0);
+			int_stack_push(sstack, TRM2);
 			state = TRM0;
 			goto consume;
 
@@ -1394,8 +1394,6 @@ skip:
 			goto skip;
 
  		case TRM7_RW_UNDERSCORE_TRM3:
-			int_stack_push(sstack, TRM7a);
-			int_stack_push(sstack, TRM0);
 			state = TRM3;
 			goto consume;
 

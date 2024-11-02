@@ -1,0 +1,1 @@
+(define-fun || () Bool true)

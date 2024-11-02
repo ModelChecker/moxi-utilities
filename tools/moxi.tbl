@@ -194,7 +194,7 @@ CMD12d0     TOK_RP      DONE       consume      _
 
 // Start
 TRM0       TOK_NUMERAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_numeral(pstack, str, loc); }
-TRM0       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
+TRM0       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_decimal(pstack, str, loc); }
 TRM0       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
 TRM0       TOK_BINARY      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
 TRM0       TOK_STRING      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
@@ -210,15 +210,15 @@ TRM1       TOK_RW_FORALL        TRM6       consume     _
 TRM1       TOK_RW_EXISTS        TRM6       consume     _
 TRM1       TOK_LP               TRM7       consume     _
 
-// Term arguments   
+// Term arguments
 TRM2       TOK_RP          DONE        consume     _
 TRM2       *               TRM0        pass        TRM2
 
 // After '(_'
-TRM3        TOK_SYMBOL      TRM3a       consume     _       { pstack_push_symbol(pstack, str, loc); }
-TRM3a       TOK_NUMERAL     TRM3b       consume     _       { pstack_push_numeral(pstack, str, loc); }
-TRM3b       TOK_NUMERAL     TRM3b       consume     _       { pstack_push_numeral(pstack, str, loc); }
-TRM3b       TOK_RP          TRM0        consume     R0
+TRM3        TOK_SYMBOL      TRM3a       consume     _           { pstack_push_symbol(pstack, str, loc); }
+TRM3a       TOK_NUMERAL     TRM3b       consume     _           { pstack_push_numeral(pstack, str, loc); }
+TRM3b       TOK_NUMERAL     TRM3b       consume     _           { pstack_push_numeral(pstack, str, loc); }
+TRM3b       TOK_RP          TRM0        consume     TRM2
 
 // After '( as'
 TRM4        TOK_SYMBOL          SRT0        consume     R0
@@ -243,7 +243,7 @@ TRM5d       TOK_RP          TRM0        consume     R0
 TRM6        TOK_LP      SVL0a       pass        R0,TRM0     { pstack_set_vars_logic(pstack); }
 
 // After '(('   
-TRM7        TOK_RW_UNDERSCORE   TRM3       consume     TRM7a,TRM0
+TRM7        TOK_RW_UNDERSCORE   TRM3       consume     _
 TRM7        TOK_RW_AS           TRM4       consume     TRM7a,TRM0
 TRM7a       TOK_RP              DONE       consume     _
 TRM7a       *                   TRM0       pass        _

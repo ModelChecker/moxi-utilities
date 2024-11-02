@@ -124,6 +124,7 @@ typedef struct pstack_elem {
         frame_type_t frame_type;
         sort_t sort;
         int64_t numeral;
+        double decimal;
         char *symbol;
     } value;
     uint32_t frame; // Current stack frame ID

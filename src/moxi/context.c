@@ -88,6 +88,7 @@ void activate_int_symbols(context_t *ctx)
 
 void activate_real_symbols(context_t *ctx)
 {
+    fprintf(stderr, "activating real symbols\n");
     ctx->active_symbols[SYM_REAL] = true;
     ctx->active_symbols[SYM_PLUS] = true;
     ctx->active_symbols[SYM_MINUS] = true;
@@ -239,9 +240,57 @@ bool set_current_logic(context_t *ctx, char *symbol, size_t n)
     if (logic_has_ints[type]) {
         activate_int_symbols(ctx);
     }
+    if (logic_has_reals[type]) {
+        activate_real_symbols(ctx);
+    }
     if (logic_has_bitvectors[type]) {
         activate_bitvec_symbols(ctx);
+    }
+    if (logic_has_arrays[type]) {
+        activate_array_symbols(ctx);
     }
 
     return true;
 }
+
+bool is_bool_sort(context_t *ctx, sort_t term)
+{
+    return term == bool_sort;
+}
+
+bool is_int_sort(context_t *ctx, sort_t term)
+{
+    return term == int_sort;
+}
+
+bool is_real_sort(context_t *ctx, sort_t term)
+{
+    return term == real_sort;
+}
+
+bool is_bitvec_sort(context_t *ctx, sort_t term)
+{
+    sort_obj_t *sort_obj = int_map_find(&ctx->sort_table, term);
+    if (sort_obj == NULL) {
+        return false;
+    }
+    return sort_obj->base == bitvec_sort;
+}
+
+// bool is_bitvec_sort(context_t *ctx, sort_t term)
+// {
+//     sort_obj_t *sort_obj = int_map_find(&ctx->sort_table, term);
+//     if (sort_obj == NULL) {
+//         return false;
+//     }
+//     return sort_obj->base == bitvec_sort;
+// }
+
+// bool is_array_sort(context_t *ctx, sort_t term)
+// {
+//     sort_obj_t *sort_obj = int_map_find(sort_table, sort);
+//     if (sort_obj == NULL) {
+//         return false;
+//     }
+//     return sort_obj->base == array_sort;
+// }

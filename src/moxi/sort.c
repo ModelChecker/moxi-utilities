@@ -124,7 +124,7 @@ void delete_sort_table(int_map_t *sort_table)
 sort_t sort_table_get(int_map_t *sort_table, sort_obj_t *sort)
 {
     uint32_t hash = sort_hash(sort);
-    
+
     // Find an unused hash in the sort table. We just increment the hash until
     // we find an empty spot -- should be good enough for now.
     sort_obj_t *old = int_map_find(sort_table, hash);
@@ -164,47 +164,6 @@ sort_t get_array_sort(int_map_t *sort_table, sort_t index, sort_t elem)
     sort_obj->data = array_sort_obj;
 
     return sort_table_get(sort_table, sort_obj);
-}
-
-bool is_bool_sort(int_map_t *sort_table, sort_t sort)
-{
-    return sort == bool_sort;
-}
-
-bool is_int_sort(int_map_t *sort_table, sort_t sort)
-{
-    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
-    if (sort_obj == NULL) {
-        return false;
-    }
-    return sort_obj->base == int_sort;
-}
-
-bool is_real_sort(int_map_t *sort_table, sort_t sort)
-{
-    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
-    if (sort_obj == NULL) {
-        return false;
-    }
-    return sort_obj->base == real_sort;
-}
-
-bool is_bitvec_sort(int_map_t *sort_table, sort_t sort)
-{
-    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
-    if (sort_obj == NULL) {
-        return false;
-    }
-    return sort_obj->base == bitvec_sort;
-}
-
-bool is_array_sort(int_map_t *sort_table, sort_t sort)
-{
-    sort_obj_t *sort_obj = int_map_find(sort_table, sort);
-    if (sort_obj == NULL) {
-        return false;
-    }
-    return sort_obj->base == array_sort;
 }
 
 uint64_t get_bitvec_width(int_map_t *sort_table, sort_t sort)

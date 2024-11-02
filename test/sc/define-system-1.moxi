@@ -1,0 +1,4 @@
+(define-system S
+  :local ((l Bool))
+  :inv (= l true)
+)

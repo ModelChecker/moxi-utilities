@@ -1,0 +1,4 @@
+(define-system S 
+    :input ((a'bc Bool)) 
+    :trans (= a'bc a'bc)
+)

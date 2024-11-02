@@ -2,10 +2,7 @@ import pathlib
 import subprocess
 import sys
 
-# FILE_DIR = /path/to/moxisc/test
 FILE_DIR = pathlib.Path(__file__).parent
-
-# EXECUTABLE = /path/to/moxisc/moxisc
 EXECUTABLE = FILE_DIR.parent / "moxisc"
 
 if not EXECUTABLE.is_file():

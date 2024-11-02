@@ -81,4 +81,10 @@ void context_reset_var_symbols(context_t *ctx);
 
 bool set_current_logic(context_t *ctx, char *symbol, size_t n);
 
+bool is_bool_sort(context_t *ctx, sort_t term);
+bool is_int_sort(context_t *ctx, sort_t term);
+bool is_real_sort(context_t *ctx, sort_t term);
+bool is_bitvec_sort(context_t *ctx, sort_t term);
+// bool is_array_sort(context_t *ctx, sort_t term);
+
 #endif

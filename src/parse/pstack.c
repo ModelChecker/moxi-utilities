@@ -167,10 +167,19 @@ void pstack_push_numeral(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     elem = &pstack->data[pstack->size];
     pstack_incr_top(pstack);
 
-    int64_t numeral = atol(str->data);
-
     elem->tag = TAG_NUMERAL;
-    elem->value.numeral = numeral;
+    elem->value.numeral = atol(str->data);
+    elem->loc = loc;
+}
+
+void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc)
+{
+    pstack_elem_t *elem;
+    elem = &pstack->data[pstack->size];
+    pstack_incr_top(pstack);
+
+    elem->tag = TAG_DECIMAL;
+    elem->value.decimal = atof(str->data);
     elem->loc = loc;
 }
 
@@ -288,7 +297,7 @@ void check_frame_size_eq(pstack_t *pstack, uint32_t n)
     }
 }
 
-void check_frame_size_gte(pstack_t *pstack, uint32_t n)
+void check_frame_size_geq(pstack_t *pstack, uint32_t n)
 {
     uint32_t frame_size = pstack_top_frame_size(pstack);
     if (frame_size < n) {
@@ -307,6 +316,17 @@ void check_elem_tag(pstack_t *pstack, uint32_t n, tag_t tag)
         PRINT_ERROR_LOC(pstack->filename, loc, "expected %s, got %s",
                         tag_str[tag], tag_str[target]);
         longjmp(pstack->env, BAD_TAG);
+    }
+}
+
+void check_elem_sort(pstack_t *pstack, uint32_t n, sort_t sort)
+{
+    sort_t target = get_elem_sort(pstack, n);
+    if (sort != target) {
+        loc_t loc = get_elem_loc(pstack, n);
+        PRINT_ERROR_LOC(pstack->filename, loc, "expected sort %d, got %d", sort,
+                        target);
+        longjmp(pstack->env, BAD_SORT);
     }
 }
 
@@ -334,7 +354,7 @@ void eval_bool_sort(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * ["BitVec", N]
+ * [ "BitVec" <numeral> ]
  */
 void eval_bitvec_sort(pstack_t *pstack, context_t *ctx)
 {
@@ -350,7 +370,7 @@ void eval_bitvec_sort(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * ["Array", <index-sort>, <elem-sort>]
+ * [ "Array" <index-sort> <elem-sort> ]
  */
 void eval_array_sort(pstack_t *pstack, context_t *ctx)
 {
@@ -368,7 +388,7 @@ void eval_array_sort(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * ["Int"]
+ * [ "Int" ]
  */
 void eval_int_sort(pstack_t *pstack, context_t *ctx)
 {
@@ -381,7 +401,7 @@ void eval_int_sort(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * ["Real"]
+ * [ "Real" ]
  */
 void eval_real_sort(pstack_t *pstack, context_t *ctx)
 {
@@ -571,7 +591,7 @@ void eval_not_term(pstack_t *pstack, context_t *ctx)
     check_elem_tag(pstack, 2, TAG_TERM);
 
     term_t t = get_elem_term(pstack, 2);
-    if (!is_bool_sort(&ctx->sort_table, t)) {
+    if (t != bool_sort) {
         longjmp(pstack->env, BAD_SORT);
     }
 
@@ -580,30 +600,96 @@ void eval_not_term(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * Logical binary operators include: `and`, `or`, `xor`, and `=>`
- * 
- * [ <logic-bin-op> <bool-term> <bool-term> ]
+ * An equality operator is either `=` or `distinct` and takes two or more terms
+ * of the same sort as arguments.
+ *
+ * [ <eq-op> <term> <term>+ ]
  */
-void eval_logic_bin_term(pstack_t *pstack, context_t *ctx)
+void eval_eq_term(pstack_t *pstack, context_t *ctx)
 {
 #ifdef DEBUG_PSTACK
-    fprintf(stderr, "pstack: evaluating logical binary term\n");
+    fprintf(stderr, "pstack: evaluating equality term\n");
 #endif
-
     loc_t loc = pstack_top_frame_loc(pstack);
-    char *op = get_elem_symbol(pstack, 1);
 
-    check_frame_size_eq(pstack, 3);
+    check_frame_size_geq(pstack, 3);
     check_elem_tag(pstack, 2, TAG_TERM);
     check_elem_tag(pstack, 3, TAG_TERM);
 
     term_t lhs, rhs;
     lhs = get_elem_term(pstack, 2);
     rhs = get_elem_term(pstack, 3);
-    if (!is_bool_sort(&ctx->sort_table, lhs) || !is_bool_sort(&ctx->sort_table, rhs)) {
-        PRINT_ERROR("'%s' term requires bool arguments", op);
+    if (rhs != lhs) {
+        PRINT_ERROR("equality term requires arguments of same sort");
         longjmp(pstack->env, BAD_SORT);
     }
+
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, bool_sort, loc);
+}
+
+/**
+ * An ite term is a conditional term that takes a boolean term followed by two
+ * terms of the same sort.
+ *
+ * [ "ite" <bool-term> <term> <term> ]
+ */
+void eval_ite_term(pstack_t *pstack, context_t *ctx)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating ite term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    check_elem_tag(pstack, 4, TAG_TERM);
+
+    term_t cond, lhs, rhs;
+    cond = get_elem_term(pstack, 2);
+    lhs = get_elem_term(pstack, 3);
+    rhs = get_elem_term(pstack, 4);
+
+    if (cond != bool_sort) {
+        PRINT_ERROR("ite term requires bool condition");
+        longjmp(pstack->env, BAD_SORT);
+    }
+
+    if (lhs != rhs) {
+        PRINT_ERROR("ite term requires arguments of same sort");
+        longjmp(pstack->env, BAD_SORT);
+    }
+
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, lhs, loc);
+}
+
+/**
+ * Logical operators include: `and`, `or`, `xor`, and `=>`
+ * 
+ * [ <logic-bin-op> <bool-term> <bool-term>+ ]
+ */
+void eval_logic_bin_term(pstack_t *pstack, context_t *ctx)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating logical term\n");
+#endif
+
+    loc_t loc = pstack_top_frame_loc(pstack);
+    char *op = get_elem_symbol(pstack, 1);
+
+    check_frame_size_geq(pstack, 3);
+
+    term_t cur;
+    for (size_t i = 2; i <= pstack_top_frame_size(pstack); ++i) {
+        check_elem_tag(pstack, i, TAG_TERM);
+        cur = get_elem_term(pstack, i);
+        if (cur != bool_sort) {
+            PRINT_ERROR("'%s' term requires bool arguments", op);
+            longjmp(pstack->env, BAD_SORT);
+        }
+    }   
 
     pstack_pop_frame(pstack);
     pstack_push_term(pstack, bool_sort, loc);
@@ -645,7 +731,7 @@ void eval_bvextract_term(pstack_t *pstack, context_t *ctx)
         PRINT_ERROR("bad extract indices");
         longjmp(pstack->env, BAD_BVEXTRACT_IDX);
     }
-    if (!is_bitvec_sort(&ctx->sort_table, t)) {
+    if (!is_bitvec_sort(ctx, t)) {
         PRINT_ERROR("extract requires bitvector argument");
         longjmp(pstack->env, BAD_SORT);
     }
@@ -661,39 +747,43 @@ void eval_bvextract_term(pstack_t *pstack, context_t *ctx)
 }
 
 /**
- * Arithmetic binary operators include `+`, `-`, `*`, and `/`
+ * Arithmetic operators include `+`, `-`, `*`, and `/`
+ * 
+ * `eval_arith_minus_term` calls this in the case it is not unary.
  * 
  * [ <arith-bin-op> <int-term> <int-term>+ ]
  * [ <arith-bin-op> <real-term> <real-term>+ ]
  */
-void eval_arith_bin_term(pstack_t *pstack, context_t *ctx)
+void eval_arith_term(pstack_t *pstack, context_t *ctx)
 {
 #ifdef DEBUG_PSTACK
-    fprintf(stderr, "pstack: evaluating arithmetic binary term\n");
+    fprintf(stderr, "pstack: evaluating arithmetic term\n");
 #endif
     loc_t loc = pstack_top_frame_loc(pstack);
     char *op = get_elem_symbol(pstack, 1);
     term_t t;
 
-    check_frame_size_gte(pstack, 3);
+    check_frame_size_geq(pstack, 3);
     check_elem_tag(pstack, 2, TAG_TERM);
 
     t = get_elem_term(pstack, 2);
     bool is_int = true;
-    if (is_int_sort(&ctx->sort_table, t)) {
+    if (t == int_sort) {
         is_int = true;
-    } else if (is_real_sort(&ctx->sort_table, t)) {
+    } else if (t == real_sort) {
         is_int = false;
     } else {
-        PRINT_ERROR_LOC(pstack->filename, loc, "'%s' term requires int or real arguments", op);
+        PRINT_ERROR_LOC(pstack->filename, loc,
+                        "'%s' term requires Int or Real arguments", op);
         longjmp(pstack->env, BAD_SORT);
     }
 
-    for (size_t i = 3; i < pstack_top_frame_size(pstack); ++i) {
+    for (size_t i = 3; i <= pstack_top_frame_size(pstack); ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         t = get_elem_term(pstack, i);
-        if (is_int ? !is_int_sort(&ctx->sort_table, t) : !is_real_sort(&ctx->sort_table, t)) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "'%s' term requires int or real arguments", op);
+        if (is_int ? t != int_sort : t != real_sort) {
+            PRINT_ERROR_LOC(pstack->filename, loc,
+                            "'%s' term requires Int or Real arguments", op);
             longjmp(pstack->env, BAD_SORT);
         }
     }
@@ -701,6 +791,40 @@ void eval_arith_bin_term(pstack_t *pstack, context_t *ctx)
     term_t new = is_int ? int_sort : real_sort;
     pstack_pop_frame(pstack);
     pstack_push_term(pstack, new, loc);
+}
+
+/**
+ * A minus term is either unary or multi-arity.
+ * 
+ * [ "-" <int-term> ]
+ * [ "-" <real-term> ]
+ * [ "-" <int-term> <int-term>+ ]
+ * [ "-" <real-term> <real-term>+ ]
+ */
+void eval_arith_minus_term(pstack_t *pstack, context_t *ctx)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating arithmetic minus term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+
+    uint32_t frame_size = pstack_top_frame_size(pstack);
+    if (frame_size > 2) { // then treat as non-unary operator
+        eval_arith_term(pstack, ctx);
+        return;
+    }
+    // else treat as unary operator
+    check_frame_size_eq(pstack, 2);
+    check_elem_tag(pstack, 2, TAG_TERM);
+
+    term_t t = get_elem_term(pstack, 2);
+    if (t != int_sort && t != real_sort) {
+        PRINT_ERROR("minus term requires Int or Real argument");
+        longjmp(pstack->env, BAD_SORT);
+    }
+
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, t, loc);
 }
 
 /**
@@ -726,13 +850,10 @@ void eval_arith_rel_term(pstack_t *pstack, context_t *ctx)
     rhs = get_elem_term(pstack, 3);
     
     if (
-        (is_int_sort(&ctx->sort_table, lhs) && is_int_sort(&ctx->sort_table, rhs)) || 
-        (is_real_sort(&ctx->sort_table, lhs) && is_real_sort(&ctx->sort_table, rhs))
+        !((lhs == int_sort && rhs == int_sort) || 
+          (lhs == real_sort && rhs == real_sort))
     ) {
-        pstack_pop_frame(pstack);
-        pstack_push_term(pstack, bool_sort, loc);
-    } else {
-        PRINT_ERROR_LOC(pstack->filename, loc, "'%s' term requires int or real arguments", op);
+        PRINT_ERROR_LOC(pstack->filename, loc, "'%s' term requires Int or Real arguments", op);
         longjmp(pstack->env, BAD_SORT);
     }
 
@@ -754,7 +875,7 @@ void eval_term(pstack_t *pstack, context_t *ctx)
     loc_t loc = pstack_top_frame_loc(pstack);
     logic_type_t logic = ctx->logic->type;
 
-    check_frame_size_gte(pstack, 1);
+    check_frame_size_geq(pstack, 1);
     tag_t tag = get_elem_tag(pstack, 1);
     switch (tag)
     {
@@ -775,7 +896,7 @@ void eval_term(pstack_t *pstack, context_t *ctx)
     case TAG_NUMERAL:
     {
         if (!logic_has_ints[logic]) {
-            PRINT_ERROR("int literals require int logic");
+            PRINT_ERROR("Int literals require Int logic");
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 1);
@@ -786,7 +907,7 @@ void eval_term(pstack_t *pstack, context_t *ctx)
     case TAG_DECIMAL:
     {
         if (!logic_has_reals[logic]) {
-            PRINT_ERROR("real literals require real logic");
+            PRINT_ERROR("Real literals require Real logic");
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 1);
@@ -912,7 +1033,7 @@ void eval_define_fun(pstack_t *pstack, context_t *ctx)
 #endif
     loc_t loc = pstack_top_frame_loc(pstack);
 
-    check_frame_size_gte(pstack, 3);
+    check_frame_size_geq(pstack, 3);
     uint32_t nargs, i;
     nargs = pstack_top_frame_size(pstack) - 3;
 
@@ -974,7 +1095,7 @@ void eval_declare_fun(pstack_t *pstack, context_t *ctx)
         longjmp(pstack->env, BAD_LOGIC);
     }
 
-    check_frame_size_gte(pstack, 2);
+    check_frame_size_geq(pstack, 2);
     uint32_t nargs, i;
     nargs = pstack_top_frame_size(pstack) - 2;
 
@@ -1085,36 +1206,36 @@ void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, context_t *) = {
 };
 
 void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, context_t *) = {
-    eval_bad_term, // BOOL
-    eval_true_term, // TRUE
-    eval_false_term, // FALSE
-    eval_not_term, // NOT
-    eval_bad_term, // IMPLIES
-    eval_logic_bin_term, // AND
-    eval_bad_term, // OR
-    eval_bad_term, // XOR
-    eval_bad_term, // EQ
-    eval_bad_term, // DISTINCT
-    eval_bad_term, // ITE
-    eval_bad_term, // ARRAY
+    eval_bad_term,          // BOOL
+    eval_true_term,         // TRUE
+    eval_false_term,        // FALSE
+    eval_not_term,          // NOT
+    eval_logic_bin_term,    // IMPLIES
+    eval_logic_bin_term,    // AND
+    eval_logic_bin_term,    // OR
+    eval_logic_bin_term,    // XOR
+    eval_eq_term,           // EQ
+    eval_eq_term,           // DISTINCT
+    eval_ite_term,          // ITE
+    eval_bad_term,          // ARRAY
     eval_bad_term, // SELECT
     eval_bad_term, // STORE
-    eval_bad_term, // INT
-    eval_bad_term, // REAL
-    eval_bad_term, // MINUS
-    eval_arith_bin_term, // PLUS
-    eval_bad_term, // TIMES
-    eval_bad_term, // DIVIDES
-    eval_arith_rel_term, // LE
-    eval_arith_rel_term, // LT
-    eval_arith_rel_term, // GE
-    eval_arith_rel_term, // GT
-    eval_bad_term, // DIV
-    eval_bad_term, // MOD
+    eval_bad_term,          // INT
+    eval_bad_term,          // REAL
+    eval_arith_minus_term,  // MINUS
+    eval_arith_term,    // PLUS
+    eval_arith_term,    // TIMES
+    eval_arith_term,    // DIVIDES
+    eval_arith_rel_term,    // LE
+    eval_arith_rel_term,    // LT
+    eval_arith_rel_term,    // GE
+    eval_arith_rel_term,    // GT
+    eval_arith_term,    // DIV
+    eval_bad_term,          // MOD
     eval_bad_term, // ABS
     eval_bad_term, // TO_REAL
     eval_bad_term, // TO_INT
-    eval_bad_term, // BITVEC
+    eval_bad_term,          // BITVEC
     eval_bad_term, // CONCAT
     eval_bvextract_term, // EXTRACT
     eval_bad_term, // REPEAT
