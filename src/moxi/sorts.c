@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h> 
 
-#include "moxi/sort.h"
+#include "moxi/sorts.h"
 
 sort_t cur_sort_id = 3; // Start at 3 since 0, 1, and 2 
                         // are reserved for bool, int, and real
@@ -33,7 +33,7 @@ uint32_t sort_hash(sort_obj_t *sort_obj)
                 jenkins_hash_uint32(sort->index) ^ 
                 jenkins_hash_uint32(sort->element);
     }
-    case uninterpreted_sort:
+    case declared_sort:
     {
         decl_sort_obj_t *sort = sort_obj->data;
         uint32_t hash = djb2_hash_string("DeclSort");
@@ -73,7 +73,7 @@ bool sort_eq(sort_obj_t *so1, sort_obj_t *so2)
         return array_obj_1->index == array_obj_2->index && 
                 array_obj_1->element == array_obj_2->element;
     }
-    case uninterpreted_sort:
+    case declared_sort:
     {
         decl_sort_obj_t *decl_obj_1 = so1->data;
         decl_sort_obj_t *decl_obj_2 = so2->data;

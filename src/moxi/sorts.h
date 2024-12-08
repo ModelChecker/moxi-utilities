@@ -1,5 +1,5 @@
-#ifndef __SORT_H__
-#define __SORT_H__
+#ifndef __SORTS_H__
+#define __SORTS_H__
 
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +25,7 @@ typedef enum {
     real_sort,
     bitvec_sort,
     array_sort,
-    uninterpreted_sort // User-declared sort
+    declared_sort // User-declared sort
 } base_sort_t;
 
 typedef uint32_t sort_t;   // A hash-consed sort
@@ -74,9 +74,7 @@ sort_t sort_table_get(int_map_t *sort_table, sort_obj_t *sort);
 
 sort_t get_bitvec_sort(int_map_t *sort_table, uint64_t width);
 sort_t get_array_sort(int_map_t *sort_table, sort_t index, sort_t elem);
-
 base_sort_t get_base_sort(int_map_t *sort_table, sort_t sort);
-
 uint64_t get_bitvec_width(int_map_t *sort_table, sort_t sort);
 
 // A rank is a list of sorts with the last element being the return sort.

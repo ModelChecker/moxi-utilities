@@ -1,1 +1,0 @@
-(check-system Sys :local ((X Int) (Y (Array Int Int))))

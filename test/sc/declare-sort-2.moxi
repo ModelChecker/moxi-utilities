@@ -1,0 +1,2 @@
+(declare-sort A 2)
+(define-fun f (x (A Bool Bool)) (A Bool Bool) x)

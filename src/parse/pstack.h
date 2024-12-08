@@ -9,7 +9,7 @@
 
 #include "io/file_reader.h"
 #include "moxi/context.h"
-#include "moxi/sort.h"
+#include "moxi/sorts.h"
 #include "util/char_buffer.h"
 
 /**

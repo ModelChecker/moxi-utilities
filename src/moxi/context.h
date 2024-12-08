@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 #include "moxi/logic.h"
-#include "moxi/sort.h"
+#include "moxi/sorts.h"
 #include "parse/token.h"
 #include "util/str_int_map.h"
 #include "util/str_map.h"
@@ -65,7 +65,7 @@ bool context_add_fun_symbol(context_t *ctx, char *symbol, rank_t *rank);
 bool context_add_const_symbol(context_t *ctx, char *symbol, sort_t sort);
 
 bool context_remove_symbol(context_t *ctx, char *symbol);
-bool context_add_sort_symbol(context_t *ctx, char *symbol);
+bool context_add_declared_sort_symbol(context_t *ctx, char *symbol, uint64_t arity);
 bool context_add_system_symbol(context_t *ctx, char *symbol);
 
 /**

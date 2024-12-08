@@ -33,7 +33,7 @@ typedef struct str_int_map {
     uint32_t capacity;
 } str_int_map_t;
 
-#define DEFAULT_SYMBOL_TABLE_SIZE 1024
+#define DEFAULT_STR_INT_MAP_SIZE 1024
 
 void init_str_int_map(str_int_map_t *map, uint32_t size);
 void delete_str_int_map(str_int_map_t *map);

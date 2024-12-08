@@ -1,1 +1,0 @@
-(declare-enum-sort State (Start Active Done))

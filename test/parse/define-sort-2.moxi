@@ -1,1 +1,0 @@
-(define-sort A (X Y) (Array (Array X (_ BitVec 10)) Y))

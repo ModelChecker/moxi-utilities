@@ -1,4 +1,8 @@
 (define-system S
+  :input ((i Bool))
+  :output ((o Bool))
   :local ((l Bool))
+  :init o
+  :trans (= o' i)
   :inv (= l true)
 )

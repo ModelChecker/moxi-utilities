@@ -1,1 +1,0 @@
-(define-fun f () bv8 ((_ extract 7 0) #b11111111))

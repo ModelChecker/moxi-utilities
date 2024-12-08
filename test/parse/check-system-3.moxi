@@ -1,1 +1,0 @@
-(check-system Sys :output ((X Int)))

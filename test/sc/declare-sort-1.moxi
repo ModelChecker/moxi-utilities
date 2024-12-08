@@ -1,0 +1,2 @@
+(declare-sort A 0)
+(define-fun f (x A) A x)

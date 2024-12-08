@@ -456,7 +456,8 @@ void eval_sort(pstack_t *pstack, context_t *ctx)
         eval_array_sort(pstack, ctx);
         break;
     default:
-        // TODO: user-defined sort
+        // TODO: user-defined sort FIXME: this could be either a user-defined
+        // sort or a sort variable as part of a define-sort cmd
         PRINT_ERROR_LOC(pstack->filename, loc, "unkown sort '%s'", name);
         longjmp(pstack->env, BAD_SORT);
         break;
@@ -965,10 +966,62 @@ void eval_set_logic(pstack_t *pstack, context_t *ctx)
     pstack_pop_frame(pstack);
 }
 
-void eval_define_system(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_COMMAND); }
+/**
+ * [ <symbol> <> ]
+ */
+void eval_define_sort(pstack_t *pstack, context_t *ctx) 
+{ 
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating define-sort\n");
+#endif
+    check_frame_size_eq(pstack, 2);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+
+    char *symbol = get_elem_symbol(pstack, 1);
+    uint64_t arity = get_elem_numeral(pstack, 2);
+
+    context_add_sort_symbol(ctx, symbol, arity);
+    pstack_pop_frame(pstack);
+}
+
+/**
+ * [ <symbol> <numeral> ]
+ */
+void eval_declare_sort(pstack_t *pstack, context_t *ctx)
+{ 
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating declare-sort\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+
+    check_frame_size_eq(pstack, 2);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+
+    char *symbol = get_elem_symbol(pstack, 1);
+    uint64_t arity = get_elem_numeral(pstack, 2);
+
+    context_add_declared_sort_symbol(ctx, symbol, arity);
+    pstack_pop_frame(pstack);
+}
+
+/**
+ * [ <symbol> <define-system-attr>+ ]
+ */
+void eval_define_system(pstack_t *pstack, context_t *ctx) 
+{ 
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating define-system\n");
+#endif
+    check_frame_size_geq(pstack, 1);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+
+    // TODO: Dispatch to corresponding function based on the frame type for each
+    // attribute, then add system to context
+}
+
 void eval_check_system(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_COMMAND); }
-void eval_define_sort(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_COMMAND); }
-void eval_declare_sort(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_COMMAND); }
 void eval_declare_enum_sort(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_COMMAND); }
 
 void eval_declare_const(pstack_t *pstack, context_t *ctx) 
@@ -1159,17 +1212,11 @@ void eval_var_decl(pstack_t *pstack, context_t *ctx)
 
 void eval_term_binder(pstack_t *pstack, context_t *ctx) { longjmp(pstack->env, BAD_TERM); }
 
-/**
- * Pops the current frame from the pstack.
- */
 void eval_noop_pop_frame(pstack_t *pstack, context_t *ctx) 
 {
     pstack_pop_frame(pstack);
 }
 
-/**
- * 
- */
 void eval_noop(pstack_t *pstack, context_t *ctx) 
 { 
     pstack_pop_frame_keep(pstack);

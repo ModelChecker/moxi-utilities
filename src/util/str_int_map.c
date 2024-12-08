@@ -19,18 +19,8 @@ uint32_t compute_str_int_map_entry_hash(str_int_map_t *map, char *symbol)
 
 void init_str_int_map(str_int_map_t *map, uint32_t size)
 {
-    if (size <= 0) {
-        map->capacity = DEFAULT_SYMBOL_TABLE_SIZE;
-    } else {
-        map->capacity = size;
-    }
-
-    map->data = malloc(map->capacity * sizeof(str_int_map_entry_t *));
-
-    uint32_t i;
-    for (i = 0; i < map->capacity; ++i) {
-        map->data[i] = NULL;
-    }
+    map->capacity = size <= 0 ? DEFAULT_STR_INT_MAP_SIZE : size; 
+    map->data = calloc(map->capacity, sizeof(str_int_map_entry_t *));
 }
 
 void delete_str_int_map(str_int_map_t *map)

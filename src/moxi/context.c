@@ -104,8 +104,6 @@ void activate_real_symbols(context_t *ctx)
 
 void activate_int_real_symbols(context_t *ctx)
 {
-    activate_int_symbols(ctx);
-    activate_real_symbols(ctx);
     ctx->active_symbols[SYM_TO_REAL] = true;
     ctx->active_symbols[SYM_TO_INT] = true;
 }
@@ -163,8 +161,6 @@ bool context_add_fun_symbol(context_t *ctx, char *symbol, rank_t *rank)
     fun_table = &ctx->fun_table;
     str_int_map_add(symbol_table, symbol, strlen(symbol), SYM_KIND_TERM);
     str_map_add(fun_table, symbol, strlen(symbol), (void *)rank);
-    // int i = str_int_map_find(symbol_table, symbol);
-    // fprintf(stderr, "%d\n", i);
     return true;
 }
 
@@ -180,8 +176,27 @@ bool context_add_const_symbol(context_t *ctx, char *symbol, sort_t sort)
     return context_add_fun_symbol(ctx, symbol, rank);
 }
 
-// bool context_add_sort_symbol(context_t *ctx, char *symbol);
-// bool context_add_system_symbol(context_t *ctx, char *symbol);
+bool context_add_declared_sort_symbol(context_t *ctx, char *symbol, uint64_t arity)
+{
+    str_int_map_t *symbol_table;
+    int_map_t *sort_table;
+
+    symbol_table = &ctx->symbol_table;
+    if (str_int_map_find(symbol_table, symbol) >= 0) {
+        return false;
+    }
+
+    sort_table = &ctx->sort_table;
+    sort_obj_t *sort_obj = malloc(sizeof(sort_obj_t));
+    sort_obj->base = declared_sort;
+    sort_obj->id = cur_sort_id++;
+    decl_sort_obj_t *decl_sort_obj = malloc(sizeof(decl_sort_obj_t));
+    decl_sort_obj->num_params = arity;
+    decl_sort_obj->params = malloc(sizeof(sort_t) * arity);
+    sort_obj->data = decl_sort_obj;
+
+    return false;
+}
 
 bool context_add_var_symbol(context_t *ctx, char *symbol, var_kind_t kind,
                             sort_t sort)
@@ -242,6 +257,9 @@ bool set_current_logic(context_t *ctx, char *symbol, size_t n)
     }
     if (logic_has_reals[type]) {
         activate_real_symbols(ctx);
+    }
+    if (logic_has_ints[type] && logic_has_reals[type]) {
+        activate_int_real_symbols(ctx);
     }
     if (logic_has_bitvectors[type]) {
         activate_bitvec_symbols(ctx);

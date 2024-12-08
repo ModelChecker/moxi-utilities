@@ -1,1 +1,0 @@
-(define-system Sys :init (and true false))

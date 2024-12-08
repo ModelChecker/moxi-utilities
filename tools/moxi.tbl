@@ -80,12 +80,17 @@ CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0    { pstack_set
 CMD4        *               ERR_SYM     pass        _
 
 // declare-fun
-CMD5        TOK_SYMBOL      SL0         consume     R0,SRT0         { pstack_push_symbol(pstack, str, loc); }
+CMD5        TOK_SYMBOL      CMD5a       consume     _       { pstack_push_symbol(pstack, str, loc); }
+CMD5a       TOK_LP          CMD5b       consume     _       
+CMD5b       TOK_RP          STR0        consume     R0
+CMD5b       *               SRT0        pass        CMD5b
 CMD5        *               ERR_SYM     pass        _
 
 // define-sort
-CMD6        TOK_SYMBOL      CMD6a       consume     _           { pstack_push_symbol(pstack, str, loc); }
-CMD6a       TOK_LP          SL0         pass        R0,SRT0
+CMD6        TOK_SYMBOL      CMD6a       consume     _       { pstack_push_symbol(pstack, str, loc); }
+CMD6a       TOK_LP          CMD6b       consume     _       
+CMD6b       TOK_SYMBOL      CMD6b       consume     _       { pstack_push_symbol(pstack, str, loc); }
+CMD6b       TOK_RP          CMD6c       consume     R0
 
 // declare-sort
 CMD7        TOK_SYMBOL      CMD7a       consume     _           { pstack_push_symbol(pstack, str, loc); }
@@ -266,10 +271,10 @@ SVL3        TOK_RP          SVL1        consume     _       { pstack_eval_frame(
 
 // Sort lists
 // Example: '(sort1 sort2)'
-// Can be empty or non-empty
-SL0     TOK_LP      SL1     consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
-SL1     TOK_RP      DONE    consume     _
-SL1     *           SRT0    pass        SL1
+// Can be empty
+SRTL0     TOK_LP      SRTL1     consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
+SRTL1     TOK_RP      DONE      consume     _
+SRTL1     *           SRT0      pass        SRTL1
 
 
 // Sorts
