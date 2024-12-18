@@ -72,37 +72,42 @@ CMD2        TOK_STRING      R0          consume     _
 CMD2        *               ERR_STR     pass        _
 
 // set-logic
-CMD3        TOK_SYMBOL      R0          consume     _               { pstack_push_symbol(pstack, str, loc); }
+CMD3        TOK_SYMBOL      R0          consume     _               { pstack_push_string(pstack, str, loc); }
 CMD3        *               ERR_SYM     pass        _
 
 // define-fun
-CMD4        TOK_SYMBOL      SVL0        consume     R0,TRM0,SRT0    { pstack_set_vars_logic(pstack); pstack_push_symbol(pstack, str, loc); }
+CMD4        TOK_SYMBOL      DONE        consume     R0,TRM0,SRT0,SVL0    { pstack_set_vars_logic(pstack); pstack_push_string(pstack, str, loc); pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
 CMD4        *               ERR_SYM     pass        _
 
 // declare-fun
-CMD5        TOK_SYMBOL      SL0         consume     R0,SRT0         { pstack_push_symbol(pstack, str, loc); }
+CMD5        TOK_SYMBOL      CMD5a       consume     _       { pstack_push_string(pstack, str, loc); }
+CMD5a       TOK_LP          CMD5b       consume     _       
+CMD5b       TOK_RP          SRT0        consume     R0
+CMD5b       *               SRT0        pass        CMD5b
 CMD5        *               ERR_SYM     pass        _
 
 // define-sort
-CMD6        TOK_SYMBOL      CMD6a       consume     _           { pstack_push_symbol(pstack, str, loc); }
-CMD6a       TOK_LP          SL0         pass        R0,SRT0
+CMD6        TOK_SYMBOL      CMD6a       consume     _       { pstack_push_string(pstack, str, loc); }
+CMD6a       TOK_LP          CMD6b       consume     _       
+CMD6b       TOK_SYMBOL      CMD6b       consume     _       { pstack_push_string(pstack, str, loc); }
+CMD6b       TOK_RP          SRT0        consume     R0
 
 // declare-sort
-CMD7        TOK_SYMBOL      CMD7a       consume     _           { pstack_push_symbol(pstack, str, loc); }
-CMD7a       TOK_NUMERAL     R0          consume     _
+CMD7        TOK_SYMBOL      CMD7a       consume     _           { pstack_push_string(pstack, str, loc); }
+CMD7a       TOK_NUMERAL     R0          consume     _           { pstack_push_numeral(pstack, str, loc); }
 
 // declare-enum-sort
-CMD8        TOK_SYMBOL      CMD8a       consume     _           { pstack_push_symbol(pstack, str, loc); }
+CMD8        TOK_SYMBOL      CMD8a       consume     _           { pstack_push_string(pstack, str, loc); }
 CMD8a       TOK_LP          CMD8b       consume     _
 CMD8b       TOK_SYMBOL      CMD8c       consume     _
 CMD8c       TOK_SYMBOL      CMD8c       consume     _
 CMD8c       TOK_RP          R0          consume     _
 
 // declare-const
-CMD9        TOK_SYMBOL      SRT0       consume     R0           { pstack_push_symbol(pstack, str, loc); }
+CMD9        TOK_SYMBOL      SRT0       consume     R0           { pstack_push_string(pstack, str, loc); }
 
 // define-const
-CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_symbol(pstack, str, loc); }
+CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_string(pstack, str, loc); }
 
 //   <define-sys-attr> ::=
 //              :input  <sorted-var-list> <define-sys-attr>
@@ -114,12 +119,12 @@ CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_sy
 //            | :subsys ( <symbol> ( <symbol>* ) ) <define-sys-attr>
 //            | )
 //
-CMD11       TOK_SYMBOL      CMD11a     consume     _
+CMD11       TOK_SYMBOL      DONE       consume     CMD11a   { pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
 CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   { pstack_set_vars_input(pstack); }
 CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a   { pstack_set_vars_output(pstack); }
 CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a   { pstack_set_vars_local(pstack); }
 CMD11a      TOK_KW_INIT     TRM0       consume     CMD11a
-CMD11a      TOK_KW_TRANS    TRM0       consume     CMD11a
+CMD11a      TOK_KW_TRANS    TRM0next   consume     CMD11a
 CMD11a      TOK_KW_INV      TRM0       consume     CMD11a
 CMD11a      TOK_KW_SUBSYS   CMD11b     consume     CMD11a
 CMD11a      TOK_RP          DONE       consume     _
@@ -141,7 +146,7 @@ CMD11e      TOK_RP          R0         consume     _
 //            | :queries ( ( <symbol> ( <symbol>+ ) )+ ) <check-sys-attr>
 //            | )
 //
-CMD12       TOK_SYMBOL          CMD12a      consume     _
+CMD12       TOK_SYMBOL          DONE        consume     CMD12a  { pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
 CMD12a      TOK_KW_INPUT        SVL0        consume     CMD12a  { pstack_set_vars_input(pstack); }
 CMD12a      TOK_KW_OUTPUT       SVL0        consume     CMD12a  { pstack_set_vars_output(pstack); }
 CMD12a      TOK_KW_LOCAL        SVL0        consume     CMD12a  { pstack_set_vars_local(pstack); }
@@ -193,60 +198,63 @@ CMD12d0     TOK_RP      DONE       consume      _
 // [NOT IMPL] | ( ! <term> <attribute>+ ) 
 
 // Start
-TRM0       TOK_NUMERAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_numeral(pstack, str, loc); }
-TRM0       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_decimal(pstack, str, loc); }
-TRM0       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
-TRM0       TOK_BINARY      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
-TRM0       TOK_STRING      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
-TRM0       TOK_SYMBOL      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_symbol(pstack, str, loc); }
-TRM0       TOK_LP          TRM1        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); }
+TRM0next     *                TRM1        pass        _        { pstack_enable_next_vars(pstack); }
+TRM0         *                TRM1        pass        _        { pstack_disable_next_vars(pstack); }
+
+TRM1       TOK_NUMERAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_numeral(pstack, str, loc); }
+TRM1       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_decimal(pstack, str, loc); }
+TRM1       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
+TRM1       TOK_BINARY      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
+TRM1       TOK_STRING      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
+TRM1       TOK_SYMBOL      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_string(pstack, str, loc); }
+TRM1       TOK_LP          TRM2        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); }
 
 // After '('
-TRM1       TOK_SYMBOL           TRM0       consume     TRM2     { pstack_push_symbol(pstack, str, loc); }
-TRM1       TOK_RW_UNDERSCORE    TRM3       consume     _
-TRM1       TOK_RW_AS            TRM4       consume     _
-TRM1       TOK_RW_LET           TRM5       consume     _
-TRM1       TOK_RW_FORALL        TRM6       consume     _
-TRM1       TOK_RW_EXISTS        TRM6       consume     _
-TRM1       TOK_LP               TRM7       consume     _
+TRM2       TOK_SYMBOL           TRM1       consume     TRM3     { pstack_push_string(pstack, str, loc); }
+TRM2       TOK_RW_UNDERSCORE    TRM4       consume     _
+TRM2       TOK_RW_AS            TRM5       consume     _
+TRM2       TOK_RW_LET           TRM6       consume     _
+TRM2       TOK_RW_FORALL        TRM7       consume     _
+TRM2       TOK_RW_EXISTS        TRM7       consume     _
+TRM2       TOK_LP               TRM8       consume     _
 
 // Term arguments
-TRM2       TOK_RP          DONE        consume     _
-TRM2       *               TRM0        pass        TRM2
+TRM3       TOK_RP          DONE        consume     _
+TRM3       *               TRM1        pass        TRM3
 
 // After '(_'
-TRM3        TOK_SYMBOL      TRM3a       consume     _           { pstack_push_symbol(pstack, str, loc); }
-TRM3a       TOK_NUMERAL     TRM3b       consume     _           { pstack_push_numeral(pstack, str, loc); }
-TRM3b       TOK_NUMERAL     TRM3b       consume     _           { pstack_push_numeral(pstack, str, loc); }
-TRM3b       TOK_RP          TRM0        consume     TRM2
+TRM4        TOK_SYMBOL      TRM4a       consume     _           { pstack_push_string(pstack, str, loc); }
+TRM4a       TOK_NUMERAL     TRM4b       consume     _           { pstack_push_numeral(pstack, str, loc); }
+TRM4b       TOK_NUMERAL     TRM4b       consume     _           { pstack_push_numeral(pstack, str, loc); }
+TRM4b       TOK_RP          TRM1        consume     TRM3
 
 // After '( as'
-TRM4        TOK_SYMBOL          SRT0        consume     R0
-TRM4        TOK_LP              TRM4a       consume     _
-TRM4a       TOK_RW_UNDERSCORE   TRM4b       consume     _
-TRM4b       TOK_SYMBOL          TRM4c       consume     _
-TRM4c       TOK_NUMERAL         TRM4d       consume     _
-TRM4d       TOK_NUMERAL         TRM4d       consume     _
-TRM4d       TOK_RP              SRT0        consume     R0
+TRM5        TOK_SYMBOL          SRT0        consume     R0
+TRM5        TOK_LP              TRM5a       consume     _
+TRM5a       TOK_RW_UNDERSCORE   TRM5b       consume     _
+TRM5b       TOK_SYMBOL          TRM5c       consume     _
+TRM5c       TOK_NUMERAL         TRM5d       consume     _
+TRM5d       TOK_NUMERAL         TRM5d       consume     _
+TRM5d       TOK_RP              SRT0        consume     R0
 
 // After '( let'
 // Example: '(let ((t1 <term>) (<t2 term>)) <term>)'
-TRM5        TOK_LP          TRM5a       consume     _
-TRM5a       TOK_LP          TRM5b       consume     _
-TRM5b       TOK_SYMBOL      TRM0        consume     TRM5c
-TRM5c       TOK_RP          TRM5d       consume     _
-TRM5d       TOK_LP          TRM5b       consume     _
-TRM5d       TOK_RP          TRM0        consume     R0
+TRM6        TOK_LP          TRM6a       consume     _
+TRM6a       TOK_LP          TRM6b       consume     _
+TRM6b       TOK_SYMBOL      TRM1        consume     TRM6c
+TRM6c       TOK_RP          TRM6d       consume     _
+TRM6d       TOK_LP          TRM6b       consume     _
+TRM6d       TOK_RP          TRM1        consume     R0
 
 // After '( forall' or '( exists'
 // Example: '(exists ((x Int) (y Int)) (> x y))'
-TRM6        TOK_LP      SVL0a       pass        R0,TRM0     { pstack_set_vars_logic(pstack); }
+TRM7        TOK_LP      SVL0a       pass        R0,TRM1     { pstack_set_vars_logic(pstack); }
 
 // After '(('   
-TRM7        TOK_RW_UNDERSCORE   TRM3       consume     _
-TRM7        TOK_RW_AS           TRM4       consume     TRM7a,TRM0
-TRM7a       TOK_RP              DONE       consume     _
-TRM7a       *                   TRM0       pass        _
+TRM8        TOK_RW_UNDERSCORE   TRM4       consume     _
+TRM8        TOK_RW_AS           TRM5       consume     TRM8a,TRM1
+TRM8a       TOK_RP              DONE       consume     _
+TRM8a       *                   TRM1       pass        _
 
 
 // Sorted variable lists (SVL)
@@ -254,22 +262,22 @@ TRM7a       *                   TRM0       pass        _
 // This automata has two entry points:
 //   - SVL0 accepts an empty list
 //   - SVL0a requires at least one element
-// Upon entry, should call some 'pstack_set_*' command to set var kind (input, output, local, logic)
+// Upon entry, should call some 'pstack_set_' command to set var kind (input, output, local, logic)
 SVL0        TOK_LP          SVL1        consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
 SVL0a       TOK_LP          SVL0b       consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
 SVL0b       TOK_LP          SVL2        consume     _
 SVL1        TOK_LP          SVL2        consume     _       { pstack_push_frame(pstack, FRM_VAR_DECL, loc); }
 SVL1        TOK_RP          DONE        consume     _
-SVL2        *               SRT0        consume     SVL3    { pstack_push_symbol(pstack, str, loc); }
+SVL2        *               SRT0        consume     SVL3    { pstack_push_string(pstack, str, loc); }
 SVL3        TOK_RP          SVL1        consume     _       { pstack_eval_frame(pstack, ctx); }
 
 
 // Sort lists
 // Example: '(sort1 sort2)'
-// Can be empty or non-empty
-SL0     TOK_LP      SL1     consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
-SL1     TOK_RP      DONE    consume     _
-SL1     *           SRT0    pass        SL1
+// Can be empty
+SRTL0     TOK_LP      SRTL1     consume     _       
+SRTL1     TOK_RP      DONE      consume     _
+SRTL1     *           SRT0      pass        SRTL1
 
 
 // Sorts
@@ -281,11 +289,11 @@ SL1     *           SRT0    pass        SL1
 //           | ( (_ <symbol> <numeral>+ ) <sort>+ )
 
 // Start
-SRT0        TOK_SYMBOL          DONE        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); pstack_push_symbol(pstack, str, loc); }
+SRT0        TOK_SYMBOL          DONE        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); pstack_push_string(pstack, str, loc); }
 SRT0        TOK_LP              SRT1        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); }
 
 // After '('
-SRT1        TOK_SYMBOL          SRT0        consume     SRT2    { pstack_push_frame(pstack, FRM_SORT, loc); pstack_push_symbol(pstack, str, loc); }
+SRT1        TOK_SYMBOL          SRT0        consume     SRT2    { pstack_push_frame(pstack, FRM_SORT, loc); pstack_push_string(pstack, str, loc); }
 SRT1        TOK_RW_UNDERSCORE   SRT3        consume     _
 SRT1        TOK_LP              SRT4        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); }
 
@@ -294,13 +302,13 @@ SRT2        TOK_RP              DONE        consume     _
 SRT2        *                   SRT0        pass        SRT2
 
 // After '(_'
-SRT3        TOK_SYMBOL          SRT3a        consume     _      { pstack_push_symbol(pstack, str, loc); }
+SRT3        TOK_SYMBOL          SRT3a        consume     _      { pstack_push_string(pstack, str, loc); }
 SRT3a       TOK_NUMERAL         SRT3b        consume     _      { pstack_push_numeral(pstack, str, loc); }
 SRT3b       TOK_NUMERAL         SRT3b        consume     _      { pstack_push_numeral(pstack, str, loc); }
 SRT3b       TOK_RP              DONE         consume     _
 
 // After '((_'
-SRT4        TOK_SYMBOL          SRT4a        consume     _      { pstack_push_symbol(pstack, str, loc); }
+SRT4        TOK_SYMBOL          SRT4a        consume     _      { pstack_push_string(pstack, str, loc); }
 SRT4a       TOK_NUMERAL         SRT4b        consume     _      { pstack_push_numeral(pstack, str, loc); }
 SRT4b       TOK_NUMERAL         SRT4b        consume     _      { pstack_push_numeral(pstack, str, loc); }
 SRT4b       TOK_RP              SRT0         consume     SRT2

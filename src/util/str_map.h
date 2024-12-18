@@ -31,12 +31,14 @@ struct str_map_entry {
 typedef struct str_map {
     str_map_entry_t **data;
     uint32_t capacity;
+    void (*delete_value)(void *);
 } str_map_t;
 
-#define DEFAULT_SYMBOL_TABLE_SIZE 1024
+#define DEFAULT_STR_MAP_SIZE 1024
 
-void init_str_map(str_map_t *map, uint32_t size);
+void init_str_map(str_map_t *map, uint32_t size, void (*delete_value)(void *));
 void delete_str_map(str_map_t *map);
+void str_map_reset(str_map_t *map);
 void *str_map_find(str_map_t *map, char *string);
 void str_map_add(str_map_t *map, char *string, size_t n, void *value);
 void *str_map_remove(str_map_t *map, char *string);

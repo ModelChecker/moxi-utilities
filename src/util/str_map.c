@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "util/hash.h"
 #include "util/str_map.h"
@@ -14,38 +15,37 @@ uint32_t compute_str_map_entry_hash(str_map_t *map, char *symbol)
     return mask & djb2_hash_string(symbol);
 }
 
-void init_str_map(str_map_t *map, uint32_t size)
+void init_str_map(str_map_t *map, uint32_t size, void (*delete_value)(void *))
 {
-    if (size <= 0) {
-        map->capacity = DEFAULT_SYMBOL_TABLE_SIZE;
-    } else {
-        map->capacity = size;
-    }
-
-    map->data = malloc(map->capacity * sizeof(str_map_entry_t));
+    map->capacity = size <= 0 ? DEFAULT_STR_MAP_SIZE : size; 
+    map->data = calloc(map->capacity, sizeof(str_map_entry_t*));
+    map->delete_value = delete_value;
 }
 
 void delete_str_map(str_map_t *map)
 {
+    str_map_reset(map);
+    free(map->data);
+}
+
+void str_map_reset(str_map_t *map)
+{
     uint32_t i;
     str_map_entry_t *cur, *next;
-
     for (i = 0; i < map->capacity; ++i) {
         cur = map->data[i];
         if (cur == NULL) {
             continue;
         }
-
         next = cur->next;
         while (cur != NULL) {
+            map->delete_value(cur->value);
             free(cur->string);
             free(cur);
             cur = next;
             next = next->next;
         }
     }
-
-    free(map->data);
 }
 
 /**
@@ -55,20 +55,16 @@ void delete_str_map(str_map_t *map)
 void *str_map_find(str_map_t *map, char *symbol)
 {
     uint32_t hash;
-
     hash = compute_str_map_entry_hash(map, symbol);
-
     if (map->data[hash] == NULL) {
         return NULL;
     }
-
     str_map_entry_t *cur;
     for (cur = map->data[hash]; cur != NULL; cur = cur->next) {
         if (!strcmp(cur->string, symbol)) {
             return cur->value;
         }
     }
-
     return NULL;
 }
 
@@ -105,26 +101,19 @@ void str_map_add(str_map_t *map, char *symbol, size_t n, void *value)
 void *str_map_remove(str_map_t *map, char *symbol)
 {
     uint32_t hash;
-
     hash = compute_str_map_entry_hash(map, symbol);
-
     if (map->data[hash] == NULL) {
         return NULL;
     }
-
     str_map_entry_t **cur, *prev;
     void *value;
-
     prev = NULL;
-
     for (cur = &map->data[hash]; *cur != NULL;
-         prev = *cur, cur = &(*cur)->next) {
+        prev = *cur, cur = &(*cur)->next) {
         if (strcmp((*cur)->string, symbol)) {
             continue;
         }
-
         value = (*cur)->value;
-
         if (prev == NULL) {
             *cur = NULL;
         } else {
@@ -132,7 +121,6 @@ void *str_map_remove(str_map_t *map, char *symbol)
             free((*cur)->string);
             free(*cur);
         }
-
         return value;
     }
 

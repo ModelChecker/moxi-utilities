@@ -1,1 +1,0 @@
-(define-sort A (X Y) (Array X Y))

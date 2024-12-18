@@ -9,7 +9,6 @@
 
 #include "io/file_reader.h"
 #include "moxi/context.h"
-#include "moxi/sort.h"
 #include "util/char_buffer.h"
 
 /**
@@ -80,6 +79,7 @@ extern const char *tag_str[NUM_TAGS];
  */
 typedef enum frame_type {
     FRM_NOOP,
+    FRM_PUSH_SCOPE,
     FRM_SORT,
     FRM_TERM,
     FRM_EXIT,
@@ -96,6 +96,12 @@ typedef enum frame_type {
     FRM_DEFINE_SORT,
     FRM_DEFINE_CONST,
     FRM_DEFINE_FUN,
+    FRM_INPUT_ATTR,
+    FRM_OUTPUT_ATTR,
+    FRM_LOCAL_ATTR,
+    FRM_INIT_ATTR,
+    FRM_TRANS_ATTR,
+    FRM_INV_ATTR,
     FRM_VAR_DECL,
     FRM_TERM_BIND,
     FRM_ERROR
@@ -115,17 +121,13 @@ typedef enum pstack_error_type {
     BAD_COMMAND = -8
 } pstack_error_type_t;
 
-// Terms are represented by their sorts
-typedef sort_t term_t;
-
 typedef struct pstack_elem {
     tag_t tag;
     union {
         frame_type_t frame_type;
         sort_t sort;
         int64_t numeral;
-        double decimal;
-        char *symbol;
+        char *str;
     } value;
     uint32_t frame; // Current stack frame ID
     loc_t loc;
@@ -142,6 +144,7 @@ typedef struct pstack {
     uint32_t frame; // Index of top frame element
     int status;
     var_kind_t cur_var_kind; // Used for var declarations
+    bool next_vars_enabled;    // Allow next variables in current term
     jmp_buf env;
 } pstack_t;
 
@@ -157,9 +160,10 @@ void pstack_reset(pstack_t *pstack);
  */
 void pstack_extend(pstack_t *pstack, uint32_t size);
 
+// Returns the number of elements top frame of `pstack`
 static inline uint32_t pstack_top_frame_size(pstack_t *pstack)
 {
-    return pstack->size - pstack->frame - 1;
+    return pstack->size - pstack->frame;
 }
 
 static inline pstack_elem_t *pstack_top_frame(pstack_t *pstack)
@@ -175,7 +179,7 @@ static inline loc_t pstack_top_frame_loc(pstack_t *pstack)
 void pstack_push_frame(pstack_t *pstack, frame_type_t ftype, loc_t loc);
 void pstack_push_term(pstack_t *pstack, term_t term, loc_t loc);
 void pstack_push_sort(pstack_t *pstack, sort_t sort, loc_t loc);
-void pstack_push_symbol(pstack_t *pstack, char_buffer_t *str, loc_t loc);
+void pstack_push_string(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_numeral(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_error(pstack_t *pstack, loc_t loc);
@@ -200,6 +204,16 @@ static inline void pstack_set_vars_logic(pstack_t *pstack)
     pstack->cur_var_kind = LOGIC_VAR;
 }
 
+static inline void pstack_enable_next_vars(pstack_t *pstack)
+{
+    pstack->next_vars_enabled = true;
+}
+
+static inline void pstack_disable_next_vars(pstack_t *pstack)
+{
+    pstack->next_vars_enabled = false;
+}
+
 /**
  * Pops `n` elements from `pstack`.
  */
@@ -211,14 +225,14 @@ static inline void pstack_set_vars_logic(pstack_t *pstack)
 // void pstack_pop_frame(pstack_t *pstack);
 
 // Function tables for parse table management
-extern void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, context_t *);
-extern void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, context_t *);
+extern void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *);
+extern void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, moxi_context_t *);
 
 /**
  * Executes top frame of `pstack` according to the function defined in
  * `frame_eval_table`.
  */
-void pstack_eval_frame(pstack_t *pstack, context_t *ctx);
+void pstack_eval_frame(pstack_t *pstack, moxi_context_t *ctx);
 
 void pstack_print_frame(pstack_t *pstack);
 

@@ -5,19 +5,8 @@
 
 void init_int_map(int_map_t *map, uint32_t size)
 {
-    if (size <= 0) {
-        map->capacity = DEFAULT_INT_MAP_SIZE;
-    } else {
-        map->capacity = size;
-    }
-
-    map->data = malloc(map->capacity * sizeof(int_map_entry_t));
-
-    size_t i;
-    for (i = 0; i < map->capacity; ++i) {
-        map->data[i].key = 0;
-        map->data[i].value = NULL;
-    }
+    map->capacity = size <= 0 ? DEFAULT_INT_MAP_SIZE : size; 
+    map->data = calloc(map->capacity, sizeof(int_map_entry_t));
 }
 
 void delete_int_map(int_map_t *map)

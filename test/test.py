@@ -10,7 +10,7 @@ if not EXECUTABLE.is_file():
 
 status = 0
 
-for file in FILE_DIR.rglob("*.moxi"):
+for file in (FILE_DIR).rglob("*.moxi"):
     # A file is expected to fail if the last char is 'X'
     # Example: "test_fileX.moxi"
     should_fail = (file.stem[-1] == "X")

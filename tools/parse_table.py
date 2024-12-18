@@ -116,7 +116,7 @@ int parse_moxi(parser_t *parser)
     parse_action_t action;
     loc_t loc;
     pstack_t *pstack; // parse stack
-    context_t *ctx;
+    moxi_context_t *ctx;
     int exception;
 
     lex = &parser->lex;

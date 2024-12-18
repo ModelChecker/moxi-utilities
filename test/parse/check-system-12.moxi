@@ -1,1 +1,0 @@
-(check-system Sys :queries ((q (r f)) (p (a b c)))) 
