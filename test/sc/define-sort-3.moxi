@@ -1,3 +1,0 @@
-(set-logic AUF)
-(define-sort A (X Y) (Array X Y))
-(define-fun f ((x (A Bool Bool))) (A Bool Bool) (store x true true))

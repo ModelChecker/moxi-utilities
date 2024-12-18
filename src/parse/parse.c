@@ -61,7 +61,6 @@ typedef enum parse_state {
 	CMD6,
 	CMD6a,
 	CMD6b,
-	CMD6c,
 	CMD7,
 	CMD7a,
 	CMD8,
@@ -88,7 +87,6 @@ typedef enum parse_state {
 	SRT4b,
 	SRTL0,
 	SRTL1,
-	STR0,
 	SVL0,
 	SVL0a,
 	SVL0b,
@@ -96,24 +94,26 @@ typedef enum parse_state {
 	SVL2,
 	SVL3,
 	TRM0,
+	TRM0next,
 	TRM1,
 	TRM2,
 	TRM3,
-	TRM3a,
-	TRM3b,
 	TRM4,
 	TRM4a,
 	TRM4b,
-	TRM4c,
-	TRM4d,
 	TRM5,
 	TRM5a,
 	TRM5b,
 	TRM5c,
 	TRM5d,
 	TRM6,
+	TRM6a,
+	TRM6b,
+	TRM6c,
+	TRM6d,
 	TRM7,
-	TRM7a,
+	TRM8,
+	TRM8a,
 } parse_state_t;
 
 typedef enum parse_action {
@@ -121,21 +121,21 @@ typedef enum parse_action {
 	CMD0_LP_CMD1,
 	CMD0_WC_ERR_LP_EOF,
 	CMD10_SYMBOL_SRT0,
-	CMD11_SYMBOL_CMD11a,
+	CMD11_SYMBOL_DONE,
 	CMD11a_KW_INIT_TRM0,
 	CMD11a_KW_INPUT_SVL0,
 	CMD11a_KW_INV_TRM0,
 	CMD11a_KW_LOCAL_SVL0,
 	CMD11a_KW_OUTPUT_SVL0,
 	CMD11a_KW_SUBSYS_CMD11b,
-	CMD11a_KW_TRANS_TRM0,
+	CMD11a_KW_TRANS_TRM0next,
 	CMD11a_RP_DONE,
 	CMD11b_LP_CMD11c,
 	CMD11c_SYMBOL_CMD11d,
 	CMD11d_LP_CMD11e,
 	CMD11e_RP_R0,
 	CMD11e_SYMBOL_CMD11e,
-	CMD12_SYMBOL_CMD12a,
+	CMD12_SYMBOL_DONE,
 	CMD12a_KW_ASSUME_CMD12b,
 	CMD12a_KW_CURRENT_CMD12b,
 	CMD12a_KW_FAIR_CMD12b,
@@ -176,16 +176,16 @@ typedef enum parse_action {
 	CMD2_WC_ERR_STR,
 	CMD3_SYMBOL_R0,
 	CMD3_WC_ERR_SYM,
-	CMD4_SYMBOL_SVL0,
+	CMD4_SYMBOL_DONE,
 	CMD4_WC_ERR_SYM,
 	CMD5_SYMBOL_CMD5a,
 	CMD5_WC_ERR_SYM,
 	CMD5a_LP_CMD5b,
-	CMD5b_RP_STR0,
+	CMD5b_RP_SRT0,
 	CMD5b_WC_SRT0,
 	CMD6_SYMBOL_CMD6a,
 	CMD6a_LP_CMD6b,
-	CMD6b_RP_CMD6c,
+	CMD6b_RP_SRT0,
 	CMD6b_SYMBOL_CMD6b,
 	CMD7_SYMBOL_CMD7a,
 	CMD7a_NUMERAL_R0,
@@ -228,44 +228,46 @@ typedef enum parse_action {
 	SVL1_RP_DONE,
 	SVL2_WC_SRT0,
 	SVL3_RP_SVL1,
-	TRM0_BINARY_DONE,
-	TRM0_DECIMAL_DONE,
-	TRM0_HEX_DONE,
-	TRM0_LP_TRM1,
-	TRM0_NUMERAL_DONE,
-	TRM0_STRING_DONE,
-	TRM0_SYMBOL_DONE,
-	TRM1_LP_TRM7,
-	TRM1_RW_AS_TRM4,
-	TRM1_RW_EXISTS_TRM6,
-	TRM1_RW_FORALL_TRM6,
-	TRM1_RW_LET_TRM5,
-	TRM1_RW_UNDERSCORE_TRM3,
-	TRM1_SYMBOL_TRM0,
-	TRM2_RP_DONE,
-	TRM2_WC_TRM0,
-	TRM3_SYMBOL_TRM3a,
-	TRM3a_NUMERAL_TRM3b,
-	TRM3b_NUMERAL_TRM3b,
-	TRM3b_RP_TRM0,
-	TRM4_LP_TRM4a,
-	TRM4_SYMBOL_SRT0,
-	TRM4a_RW_UNDERSCORE_TRM4b,
-	TRM4b_SYMBOL_TRM4c,
-	TRM4c_NUMERAL_TRM4d,
-	TRM4d_NUMERAL_TRM4d,
-	TRM4d_RP_SRT0,
+	TRM0_WC_TRM1,
+	TRM0next_WC_TRM1,
+	TRM1_BINARY_DONE,
+	TRM1_DECIMAL_DONE,
+	TRM1_HEX_DONE,
+	TRM1_LP_TRM2,
+	TRM1_NUMERAL_DONE,
+	TRM1_STRING_DONE,
+	TRM1_SYMBOL_DONE,
+	TRM2_LP_TRM8,
+	TRM2_RW_AS_TRM5,
+	TRM2_RW_EXISTS_TRM7,
+	TRM2_RW_FORALL_TRM7,
+	TRM2_RW_LET_TRM6,
+	TRM2_RW_UNDERSCORE_TRM4,
+	TRM2_SYMBOL_TRM1,
+	TRM3_RP_DONE,
+	TRM3_WC_TRM1,
+	TRM4_SYMBOL_TRM4a,
+	TRM4a_NUMERAL_TRM4b,
+	TRM4b_NUMERAL_TRM4b,
+	TRM4b_RP_TRM1,
 	TRM5_LP_TRM5a,
-	TRM5a_LP_TRM5b,
-	TRM5b_SYMBOL_TRM0,
-	TRM5c_RP_TRM5d,
-	TRM5d_LP_TRM5b,
-	TRM5d_RP_TRM0,
-	TRM6_LP_SVL0a,
-	TRM7_RW_AS_TRM4,
-	TRM7_RW_UNDERSCORE_TRM3,
-	TRM7a_RP_DONE,
-	TRM7a_WC_TRM0,
+	TRM5_SYMBOL_SRT0,
+	TRM5a_RW_UNDERSCORE_TRM5b,
+	TRM5b_SYMBOL_TRM5c,
+	TRM5c_NUMERAL_TRM5d,
+	TRM5d_NUMERAL_TRM5d,
+	TRM5d_RP_SRT0,
+	TRM6_LP_TRM6a,
+	TRM6a_LP_TRM6b,
+	TRM6b_SYMBOL_TRM1,
+	TRM6c_RP_TRM6d,
+	TRM6d_LP_TRM6b,
+	TRM6d_RP_TRM1,
+	TRM7_LP_SVL0a,
+	TRM8_RW_AS_TRM5,
+	TRM8_RW_UNDERSCORE_TRM4,
+	TRM8a_RP_DONE,
+	TRM8a_WC_TRM1,
 } parse_action_t;
 
 const int def[82] = {
@@ -307,7 +309,6 @@ const int def[82] = {
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
-	ERR_WC_ERR,
 	ERR_CMD_WC_ERR,
 	ERR_LP_EOF_WC_ERR,
 	ERR_RP_WC_ERR,
@@ -329,17 +330,13 @@ const int def[82] = {
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
-	ERR_WC_ERR,
 	SVL2_WC_SRT0,
 	ERR_WC_ERR,
+	TRM0_WC_TRM1,
+	TRM0next_WC_TRM1,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
-	TRM2_WC_TRM0,
-	ERR_WC_ERR,
-	ERR_WC_ERR,
-	ERR_WC_ERR,
-	ERR_WC_ERR,
-	ERR_WC_ERR,
+	TRM3_WC_TRM1,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
@@ -350,7 +347,12 @@ const int def[82] = {
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
-	TRM7a_WC_TRM0,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	TRM8a_WC_TRM1,
 };
 
 const int base[82] = {
@@ -383,7 +385,6 @@ const int base[82] = {
 	12,
 	15,
 	15,
-	0,
 	13,
 	15,
 	14,
@@ -410,13 +411,14 @@ const int base[82] = {
 	72,
 	76,
 	82,
-	0,
 	84,
 	85,
 	87,
 	90,
 	0,
 	87,
+	0,
+	0,
 	92,
 	100,
 	92,
@@ -457,7 +459,7 @@ const int check[180] = {
 	25,
 	27,
 	28,
-	31,
+	30,
 	1,
 	1,
 	1,
@@ -480,12 +482,12 @@ const int check[180] = {
 	4,
 	4,
 	10,
-	33,
-	35,
+	32,
+	34,
+	43,
 	44,
-	45,
-	47,
-	49,
+	46,
+	48,
 	2,
 	3,
 	6,
@@ -499,39 +501,39 @@ const int check[180] = {
 	22,
 	23,
 	26,
-	30,
-	32,
+	29,
+	31,
 	28,
-	34,
-	36,
-	46,
-	48,
-	50,
+	33,
+	35,
+	45,
+	47,
+	49,
+	49,
 	50,
 	51,
+	10,
+	10,
+	10,
 	52,
-	10,
-	10,
-	10,
-	53,
-	53,
-	46,
-	54,
-	10,
-	10,
-	10,
-	10,
-	10,
-	10,
-	55,
-	57,
-	58,
-	35,
-	59,
-	62,
+	52,
 	45,
+	53,
+	10,
+	10,
+	10,
+	10,
+	10,
+	10,
+	54,
+	55,
+	56,
+	34,
+	57,
 	60,
-	60,
+	44,
+	58,
+	58,
 	63,
 	65,
 	63,
@@ -550,7 +552,7 @@ const int check[180] = {
 	72,
 	73,
 	73,
-	46,
+	45,
 	64,
 	74,
 	75,
@@ -715,93 +717,93 @@ const int value[180] = {
 	87,
 	107,
 	108,
-	114,
-	125,
-	115,
-	112,
-	111,
-	113,
 	116,
 	127,
+	117,
+	114,
+	113,
+	115,
 	118,
-	128,
-	130,
 	129,
+	120,
+	130,
+	132,
 	131,
 	133,
-	134,
 	135,
-	137,
 	136,
-	90,
-	123,
-	138,
+	137,
 	139,
-	119,
-	122,
-	120,
-	121,
+	138,
+	90,
+	125,
 	140,
 	141,
+	121,
+	124,
+	122,
+	123,
 	142,
 	143,
 	144,
-	146,
-	147,
-	38,
 	145,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	117,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	124,
-	38,
-	38,
-	38,
-	132,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
+	146,
+	148,
+	149,
+	37,
+	147,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	119,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	126,
+	37,
+	37,
+	37,
+	134,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
+	37,
 };
 
 
@@ -827,7 +829,7 @@ int parse_moxi(parser_t *parser)
     parse_action_t action;
     loc_t loc;
     pstack_t *pstack; // parse stack
-    context_t *ctx;
+    moxi_context_t *ctx;
     int exception;
 
     lex = &parser->lex;
@@ -1003,7 +1005,7 @@ skip:
 			goto skip;
 
  		case CMD3_SYMBOL_R0:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = R0;
 			goto consume;
 
@@ -1011,13 +1013,15 @@ skip:
 			state = ERR_SYM;
 			goto skip;
 
- 		case CMD4_SYMBOL_SVL0:
+ 		case CMD4_SYMBOL_DONE:
 			pstack_set_vars_logic(pstack);
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
+			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
 			int_stack_push(sstack, R0);
 			int_stack_push(sstack, TRM0);
 			int_stack_push(sstack, SRT0);
-			state = SVL0;
+			int_stack_push(sstack, SVL0);
+			state = DONE;
 			goto consume;
 
  		case CMD4_WC_ERR_SYM:
@@ -1025,7 +1029,7 @@ skip:
 			goto skip;
 
  		case CMD5_SYMBOL_CMD5a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = CMD5a;
 			goto consume;
 
@@ -1033,9 +1037,9 @@ skip:
 			state = CMD5b;
 			goto consume;
 
- 		case CMD5b_RP_STR0:
+ 		case CMD5b_RP_SRT0:
 			int_stack_push(sstack, R0);
-			state = STR0;
+			state = SRT0;
 			goto consume;
 
  		case CMD5b_WC_SRT0:
@@ -1048,7 +1052,7 @@ skip:
 			goto skip;
 
  		case CMD6_SYMBOL_CMD6a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = CMD6a;
 			goto consume;
 
@@ -1057,26 +1061,27 @@ skip:
 			goto consume;
 
  		case CMD6b_SYMBOL_CMD6b:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = CMD6b;
 			goto consume;
 
- 		case CMD6b_RP_CMD6c:
+ 		case CMD6b_RP_SRT0:
 			int_stack_push(sstack, R0);
-			state = CMD6c;
+			state = SRT0;
 			goto consume;
 
  		case CMD7_SYMBOL_CMD7a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = CMD7a;
 			goto consume;
 
  		case CMD7a_NUMERAL_R0:
+			pstack_push_numeral(pstack, str, loc);
 			state = R0;
 			goto consume;
 
  		case CMD8_SYMBOL_CMD8a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = CMD8a;
 			goto consume;
 
@@ -1097,20 +1102,22 @@ skip:
 			goto consume;
 
  		case CMD9_SYMBOL_SRT0:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, R0);
 			state = SRT0;
 			goto consume;
 
  		case CMD10_SYMBOL_SRT0:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, R0);
 			int_stack_push(sstack, TRM0);
 			state = SRT0;
 			goto consume;
 
- 		case CMD11_SYMBOL_CMD11a:
-			state = CMD11a;
+ 		case CMD11_SYMBOL_DONE:
+			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
+			int_stack_push(sstack, CMD11a);
+			state = DONE;
 			goto consume;
 
  		case CMD11a_KW_INPUT_SVL0:
@@ -1136,9 +1143,9 @@ skip:
 			state = TRM0;
 			goto consume;
 
- 		case CMD11a_KW_TRANS_TRM0:
+ 		case CMD11a_KW_TRANS_TRM0next:
 			int_stack_push(sstack, CMD11a);
-			state = TRM0;
+			state = TRM0next;
 			goto consume;
 
  		case CMD11a_KW_INV_TRM0:
@@ -1175,8 +1182,10 @@ skip:
 			state = R0;
 			goto consume;
 
- 		case CMD12_SYMBOL_CMD12a:
-			state = CMD12a;
+ 		case CMD12_SYMBOL_DONE:
+			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
+			int_stack_push(sstack, CMD12a);
+			state = DONE;
 			goto consume;
 
  		case CMD12a_KW_INPUT_SVL0:
@@ -1278,132 +1287,117 @@ skip:
 			state = DONE;
 			goto consume;
 
- 		case TRM0_NUMERAL_DONE:
+ 		case TRM0next_WC_TRM1:
+			pstack_enable_next_vars(pstack);
+			state = TRM1;
+			goto skip;
+
+ 		case TRM0_WC_TRM1:
+			pstack_disable_next_vars(pstack);
+			state = TRM1;
+			goto skip;
+
+ 		case TRM1_NUMERAL_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
 			pstack_push_numeral(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_DECIMAL_DONE:
+ 		case TRM1_DECIMAL_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
 			pstack_push_decimal(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_HEX_DONE:
+ 		case TRM1_HEX_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
 			pstack_push_error(pstack, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_BINARY_DONE:
+ 		case TRM1_BINARY_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
 			pstack_push_error(pstack, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_STRING_DONE:
+ 		case TRM1_STRING_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
 			pstack_push_error(pstack, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_SYMBOL_DONE:
+ 		case TRM1_SYMBOL_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
- 		case TRM0_LP_TRM1:
+ 		case TRM1_LP_TRM2:
 			pstack_push_frame(pstack, FRM_TERM, loc);
+			state = TRM2;
+			goto consume;
+
+ 		case TRM2_SYMBOL_TRM1:
+			pstack_push_string(pstack, str, loc);
+			int_stack_push(sstack, TRM3);
 			state = TRM1;
 			goto consume;
 
- 		case TRM1_SYMBOL_TRM0:
-			pstack_push_symbol(pstack, str, loc);
-			int_stack_push(sstack, TRM2);
-			state = TRM0;
-			goto consume;
-
- 		case TRM1_RW_UNDERSCORE_TRM3:
-			state = TRM3;
-			goto consume;
-
- 		case TRM1_RW_AS_TRM4:
+ 		case TRM2_RW_UNDERSCORE_TRM4:
 			state = TRM4;
 			goto consume;
 
- 		case TRM1_RW_LET_TRM5:
+ 		case TRM2_RW_AS_TRM5:
 			state = TRM5;
 			goto consume;
 
- 		case TRM1_RW_FORALL_TRM6:
+ 		case TRM2_RW_LET_TRM6:
 			state = TRM6;
 			goto consume;
 
- 		case TRM1_RW_EXISTS_TRM6:
-			state = TRM6;
-			goto consume;
-
- 		case TRM1_LP_TRM7:
+ 		case TRM2_RW_FORALL_TRM7:
 			state = TRM7;
 			goto consume;
 
- 		case TRM2_RP_DONE:
+ 		case TRM2_RW_EXISTS_TRM7:
+			state = TRM7;
+			goto consume;
+
+ 		case TRM2_LP_TRM8:
+			state = TRM8;
+			goto consume;
+
+ 		case TRM3_RP_DONE:
 			state = DONE;
 			goto consume;
 
- 		case TRM2_WC_TRM0:
-			int_stack_push(sstack, TRM2);
-			state = TRM0;
+ 		case TRM3_WC_TRM1:
+			int_stack_push(sstack, TRM3);
+			state = TRM1;
 			goto skip;
 
- 		case TRM3_SYMBOL_TRM3a:
-			pstack_push_symbol(pstack, str, loc);
-			state = TRM3a;
-			goto consume;
-
- 		case TRM3a_NUMERAL_TRM3b:
-			pstack_push_numeral(pstack, str, loc);
-			state = TRM3b;
-			goto consume;
-
- 		case TRM3b_NUMERAL_TRM3b:
-			pstack_push_numeral(pstack, str, loc);
-			state = TRM3b;
-			goto consume;
-
- 		case TRM3b_RP_TRM0:
-			int_stack_push(sstack, TRM2);
-			state = TRM0;
-			goto consume;
-
- 		case TRM4_SYMBOL_SRT0:
-			int_stack_push(sstack, R0);
-			state = SRT0;
-			goto consume;
-
- 		case TRM4_LP_TRM4a:
+ 		case TRM4_SYMBOL_TRM4a:
+			pstack_push_string(pstack, str, loc);
 			state = TRM4a;
 			goto consume;
 
- 		case TRM4a_RW_UNDERSCORE_TRM4b:
+ 		case TRM4a_NUMERAL_TRM4b:
+			pstack_push_numeral(pstack, str, loc);
 			state = TRM4b;
 			goto consume;
 
- 		case TRM4b_SYMBOL_TRM4c:
-			state = TRM4c;
+ 		case TRM4b_NUMERAL_TRM4b:
+			pstack_push_numeral(pstack, str, loc);
+			state = TRM4b;
 			goto consume;
 
- 		case TRM4c_NUMERAL_TRM4d:
-			state = TRM4d;
+ 		case TRM4b_RP_TRM1:
+			int_stack_push(sstack, TRM3);
+			state = TRM1;
 			goto consume;
 
- 		case TRM4d_NUMERAL_TRM4d:
-			state = TRM4d;
-			goto consume;
-
- 		case TRM4d_RP_SRT0:
+ 		case TRM5_SYMBOL_SRT0:
 			int_stack_push(sstack, R0);
 			state = SRT0;
 			goto consume;
@@ -1412,51 +1406,76 @@ skip:
 			state = TRM5a;
 			goto consume;
 
- 		case TRM5a_LP_TRM5b:
+ 		case TRM5a_RW_UNDERSCORE_TRM5b:
 			state = TRM5b;
 			goto consume;
 
- 		case TRM5b_SYMBOL_TRM0:
-			int_stack_push(sstack, TRM5c);
-			state = TRM0;
+ 		case TRM5b_SYMBOL_TRM5c:
+			state = TRM5c;
 			goto consume;
 
- 		case TRM5c_RP_TRM5d:
+ 		case TRM5c_NUMERAL_TRM5d:
 			state = TRM5d;
 			goto consume;
 
- 		case TRM5d_LP_TRM5b:
-			state = TRM5b;
+ 		case TRM5d_NUMERAL_TRM5d:
+			state = TRM5d;
 			goto consume;
 
- 		case TRM5d_RP_TRM0:
+ 		case TRM5d_RP_SRT0:
 			int_stack_push(sstack, R0);
-			state = TRM0;
+			state = SRT0;
 			goto consume;
 
- 		case TRM6_LP_SVL0a:
+ 		case TRM6_LP_TRM6a:
+			state = TRM6a;
+			goto consume;
+
+ 		case TRM6a_LP_TRM6b:
+			state = TRM6b;
+			goto consume;
+
+ 		case TRM6b_SYMBOL_TRM1:
+			int_stack_push(sstack, TRM6c);
+			state = TRM1;
+			goto consume;
+
+ 		case TRM6c_RP_TRM6d:
+			state = TRM6d;
+			goto consume;
+
+ 		case TRM6d_LP_TRM6b:
+			state = TRM6b;
+			goto consume;
+
+ 		case TRM6d_RP_TRM1:
+			int_stack_push(sstack, R0);
+			state = TRM1;
+			goto consume;
+
+ 		case TRM7_LP_SVL0a:
 			pstack_set_vars_logic(pstack);
 			int_stack_push(sstack, R0);
-			int_stack_push(sstack, TRM0);
+			int_stack_push(sstack, TRM1);
 			state = SVL0a;
 			goto skip;
 
- 		case TRM7_RW_UNDERSCORE_TRM3:
-			state = TRM3;
-			goto consume;
-
- 		case TRM7_RW_AS_TRM4:
-			int_stack_push(sstack, TRM7a);
-			int_stack_push(sstack, TRM0);
+ 		case TRM8_RW_UNDERSCORE_TRM4:
 			state = TRM4;
 			goto consume;
 
- 		case TRM7a_RP_DONE:
+ 		case TRM8_RW_AS_TRM5:
+			int_stack_push(sstack, TRM8a);
+			int_stack_push(sstack, TRM1);
+			state = TRM5;
+			goto consume;
+
+ 		case TRM8a_RP_DONE:
 			state = DONE;
 			goto consume;
 
- 		case TRM7a_WC_TRM0:
-			state = TRM0;
+ 		case TRM8a_WC_TRM1:
+			state = TRM1;
 			goto skip;
 
  		case SVL0_LP_SVL1:
@@ -1483,7 +1502,7 @@ skip:
 			goto consume;
 
  		case SVL2_WC_SRT0:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, SVL3);
 			state = SRT0;
 			goto consume;
@@ -1494,7 +1513,6 @@ skip:
 			goto consume;
 
  		case SRTL0_LP_SRTL1:
-			pstack_push_frame(pstack, FRM_NOOP, loc);
 			state = SRTL1;
 			goto consume;
 
@@ -1509,7 +1527,7 @@ skip:
 
  		case SRT0_SYMBOL_DONE:
 			pstack_push_frame(pstack, FRM_SORT, loc);
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
@@ -1520,7 +1538,7 @@ skip:
 
  		case SRT1_SYMBOL_SRT0:
 			pstack_push_frame(pstack, FRM_SORT, loc);
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, SRT2);
 			state = SRT0;
 			goto consume;
@@ -1544,7 +1562,7 @@ skip:
 			goto skip;
 
  		case SRT3_SYMBOL_SRT3a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = SRT3a;
 			goto consume;
 
@@ -1563,7 +1581,7 @@ skip:
 			goto consume;
 
  		case SRT4_SYMBOL_SRT4a:
-			pstack_push_symbol(pstack, str, loc);
+			pstack_push_string(pstack, str, loc);
 			state = SRT4a;
 			goto consume;
 

@@ -1,2 +1,0 @@
-(define-sort A (x) x)
-(define-fun f ((x (A Bool))) (A Bool) (and x true))

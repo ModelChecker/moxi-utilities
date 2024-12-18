@@ -2,6 +2,7 @@
  * 
 */
 #include <stdio.h>
+#include <yices.h>
 
 #include "io/print.h"
 #include "parse/token.h"
@@ -28,11 +29,14 @@ int main(int argc, char *argv[])
         return status;
     }
 
+    yices_init();
+
     while (status == 0) {
         status = parse_moxi(&parser);
     }
     
     delete_parser(&parser);
+    yices_exit();
     
     return status < 0;
 }

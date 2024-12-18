@@ -1,3 +1,0 @@
-(set-logic ABV)
-(define-sort A (X) (Array X (_ BitVec 8)))
-(define-fun f ((x (A Bool))) (_ BitVec 8) (select (store x true #b00000001) true))

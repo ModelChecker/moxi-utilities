@@ -1,5 +1,5 @@
-/* C code produced by gperf version 3.0.3 */
-/* Command-line: /Library/Developer/CommandLineTools/usr/bin/gperf -C -E -t --output-file=src/moxi/hash_logic.h --lookup-function-name=in_moxi_logic --hash-function=hash_logic src/moxi/logic.gperf  */
+/* ANSI-C code produced by gperf version 3.1 */
+/* Command-line: gperf -C -E -t --output-file=src/moxi/hash_logic.h --lookup-function-name=in_moxi_logic --hash-function=hash_logic src/moxi/logic.gperf  */
 /* Computed positions: -k'1-9' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -26,7 +26,7 @@
       && ('w' == 119) && ('x' == 120) && ('y' == 121) && ('z' == 122) \
       && ('{' == 123) && ('|' == 124) && ('}' == 125) && ('~' == 126))
 /* The character set is not based on ISO-646.  */
-error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
+#error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gperf@gnu.org>."
 #endif
 
 #line 1 "src/moxi/logic.gperf"
@@ -45,9 +45,7 @@ inline
 #endif
 #endif
 static unsigned int
-hash_logic (str, len)
-     register const char *str;
-     register unsigned int len;
+hash_logic (register const char *str, register size_t len)
 {
   static const unsigned char asso_values[] =
     {
@@ -114,9 +112,7 @@ hash_logic (str, len)
 }
 
 const struct logic *
-in_moxi_logic (str, len)
-     register const char *str;
-     register unsigned int len;
+in_moxi_logic (register const char *str, register size_t len)
 {
   enum
     {
@@ -336,7 +332,7 @@ in_moxi_logic (str, len)
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
     {
-      unsigned int key = hash_logic (str, len);
+      register unsigned int key = hash_logic (str, len);
 
       if (key <= MAX_HASH_VALUE)
         {

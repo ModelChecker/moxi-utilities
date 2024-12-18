@@ -25,6 +25,12 @@ void init_str_int_map(str_int_map_t *map, uint32_t size)
 
 void delete_str_int_map(str_int_map_t *map)
 {
+    str_int_map_reset(map);
+    free(map->data);
+}
+
+void str_int_map_reset(str_int_map_t *map)
+{
     uint32_t i;
     str_int_map_entry_t *cur, *next;
 
@@ -42,8 +48,6 @@ void delete_str_int_map(str_int_map_t *map)
             next = next->next;
         }
     }
-
-    free(map->data);
 }
 
 /**

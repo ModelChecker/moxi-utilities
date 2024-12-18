@@ -24,7 +24,8 @@ void delete_int_stack(int_stack_t *stack)
 
 int int_stack_top(int_stack_t *stack)
 {
-    return stack->data[stack->size];
+    assert(stack->size > 0);
+    return stack->data[stack->size-1];
 }
 
 

@@ -154,41 +154,35 @@ typedef enum symbol_type {
     SYM_BVSLE,
     SYM_BVSGT,
     SYM_BVSGE,
-    SYM_SYMBOL,
+    SYM_VAR,
     SYM_UNKNOWN,
 } symbol_type_t;
 
 #define NUM_SYMBOLS (SYM_UNKNOWN+1)
 
-typedef struct symbol {
-    char *name;
-    symbol_type_t type;
-} symbol_t;
-
-typedef enum symbol_kind_ {
+// A symbol kind defines whether a symbol is a sort, term, variable, or system
+// symbol in the context.
+typedef enum symbol_kind {
     SYM_KIND_SORT,
     SYM_KIND_TERM,
-    SYM_KIND_VARIABLE,
+    SYM_KIND_VAR,
     SYM_KIND_SYSTEM,
     SYM_KIND_NONE
 } symbol_kind_t;
 
-// Lookup table for string representations of symbols
-extern const char *symbol_type_str[NUM_SYMBOLS];
+typedef struct symbol {
+    char *name;
+    uint32_t len;
+    symbol_type_t type;
+    symbol_kind_t kind;
+} symbol_t;
 
-// Lookup table for required number of indices for symbols
-extern uint8_t symbol_num_indices[NUM_SYMBOLS];
+// Returns symbol_t for `symbol` using gperf function. This is essentially a
+// wrapper for `get_moxi_sym`.
+const symbol_t *get_symbol(const char *name, uint32_t len);
 
-// Returns number of expected indices for `symbol`
-uint8_t get_num_indices(const char *symbol);
-
-// Returns symbol_t for `symbol` using gperf function, NULL if `symbol` is not a theory symbol.
-const symbol_t *get_symbol(const char *symbol);
-
-// Returns true if `symbol` is a theory symbol
-bool is_theory_symbol(const char *symbol);
-
-// Lookup table for kind of symbol
-extern symbol_kind_t symbol_kind[NUM_SYMBOLS];
+void init_symbol(symbol_t *symbol, const char *name, uint32_t len, symbol_type_t type, symbol_kind_t kind);
+symbol_t *new_symbol(const char *name, uint32_t len, symbol_type_t type, symbol_kind_t kind);
+void delete_symbol(symbol_t *symbol);
 
 #endif

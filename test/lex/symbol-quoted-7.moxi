@@ -1,4 +1,4 @@
 (define-system S 
-    :input ((|abc| Bool)) 
+    :local ((|abc| Bool)) 
     :trans (= |abc|' |abc|)
 )

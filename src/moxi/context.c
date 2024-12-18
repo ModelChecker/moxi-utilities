@@ -7,7 +7,27 @@
 #include "moxi/context.h"
 #include "moxi/hash_logic.h"
 
-void activate_core_symbols(context_t *ctx)
+static void default_delete_entry(void *entry) { }
+
+static void delete_var_stack_entry(void *entry) 
+{ 
+    str_vector_t *vec = (str_vector_t *)entry;
+    delete_str_vector(vec);
+}
+
+static void delete_symbol_table_entry(void *entry) 
+{ 
+    symbol_t *symbol = (symbol_t *) entry;
+    delete_symbol(symbol);
+}
+
+static void delete_system_table_entry(void *entry) 
+{ 
+    system_t *sys = (symbol_t *) entry;
+    free(sys);
+}
+
+void activate_core_symbols(moxi_context_t *ctx)
 {
     ctx->active_symbols[SYM_BOOL] = true;
     ctx->active_symbols[SYM_TRUE] = true;
@@ -22,7 +42,7 @@ void activate_core_symbols(context_t *ctx)
     ctx->active_symbols[SYM_ITE] = true;
 }
 
-void activate_bitvec_symbols(context_t *ctx)
+void activate_bitvec_symbols(moxi_context_t *ctx)
 {
     ctx->active_symbols[SYM_BITVEC] = true;
     ctx->active_symbols[SYM_CONCAT] = true;
@@ -64,14 +84,14 @@ void activate_bitvec_symbols(context_t *ctx)
     ctx->active_symbols[SYM_BVSGE] = true;
 }
 
-void activate_array_symbols(context_t *ctx)
+void activate_array_symbols(moxi_context_t *ctx)
 {
     ctx->active_symbols[SYM_ARRAY] = true;
     ctx->active_symbols[SYM_SELECT] = true;
     ctx->active_symbols[SYM_STORE] = true;
 }
 
-void activate_int_symbols(context_t *ctx)
+void activate_int_symbols(moxi_context_t *ctx)
 {
     ctx->active_symbols[SYM_INT] = true;
     ctx->active_symbols[SYM_PLUS] = true;
@@ -86,7 +106,7 @@ void activate_int_symbols(context_t *ctx)
     ctx->active_symbols[SYM_LE] = true;
 }
 
-void activate_real_symbols(context_t *ctx)
+void activate_real_symbols(moxi_context_t *ctx)
 {
     fprintf(stderr, "activating real symbols\n");
     ctx->active_symbols[SYM_REAL] = true;
@@ -102,7 +122,7 @@ void activate_real_symbols(context_t *ctx)
     ctx->active_symbols[SYM_LE] = true;
 }
 
-void activate_int_real_symbols(context_t *ctx)
+void activate_int_real_symbols(moxi_context_t *ctx)
 {
     ctx->active_symbols[SYM_TO_REAL] = true;
     ctx->active_symbols[SYM_TO_INT] = true;
@@ -111,7 +131,7 @@ void activate_int_real_symbols(context_t *ctx)
 /**
  * Sets all non-core symbols in `active_symbols` to `false`.
  */
-void reset_symbols(context_t *ctx)
+void reset_symbols(moxi_context_t *ctx)
 {
     size_t i;
     for (i = 0; i < NUM_SYMBOLS; ++i) {
@@ -120,125 +140,37 @@ void reset_symbols(context_t *ctx)
     activate_core_symbols(ctx);
 }
 
-void init_context(context_t *ctx)
+void init_context(moxi_context_t *ctx)
 {
-    init_str_int_map(&ctx->symbol_table, 0);
-    init_str_map(&ctx->var_table, 0);
-    init_str_map(&ctx->fun_table, 0);
-    init_sort_table(&ctx->sort_table);
-
+    init_str_map(&ctx->sort_table, 0, delete_symbol_table_entry);
+    init_str_map(&ctx->term_table, 0, delete_symbol_table_entry);
+    init_str_map(&ctx->var_table, 0, default_delete_entry);
+    init_str_map(&ctx->sys_table, 0, default_delete_entry);
+    init_stack(&ctx->scope_stack, delete_var_stack_entry);
     ctx->logic = &no_logic;
     activate_core_symbols(ctx);
 }
 
-void delete_context(context_t *ctx)
+void delete_context(moxi_context_t *ctx)
 {
-    delete_str_int_map(&ctx->symbol_table);
+    delete_str_map(&ctx->sort_table);
+    delete_str_map(&ctx->term_table);
     delete_str_map(&ctx->var_table);
-    delete_sort_table(&ctx->sort_table);
+    delete_str_map(&ctx->sys_table);
+    delete_stack(&ctx->scope_stack);
 }
 
-symbol_kind_t context_find(context_t *ctx, char *name)
-{
-    const symbol_t *symbol = get_symbol(name);
-    if (symbol != NULL && ctx->active_symbols[symbol->type]) {
-        return symbol_kind[symbol->type];
-    }
-    int ret = str_int_map_find(&ctx->symbol_table, name);
-    return ret < 0 ? SYM_KIND_NONE : ret;
-}
-
-bool context_add_fun_symbol(context_t *ctx, char *symbol, rank_t *rank)
-{
-    str_int_map_t *symbol_table;
-    str_map_t *fun_table;
-
-    symbol_table = &ctx->symbol_table;
-    if (str_int_map_find(symbol_table, symbol) >= 0) {
-        return false;
-    }
-
-    fun_table = &ctx->fun_table;
-    str_int_map_add(symbol_table, symbol, strlen(symbol), SYM_KIND_TERM);
-    str_map_add(fun_table, symbol, strlen(symbol), (void *)rank);
-    return true;
-}
-
-bool context_add_const_symbol(context_t *ctx, char *symbol, sort_t sort)
-{
-    sort_t *sort_list = malloc(sizeof(sort_t));
-    sort_list[0] = sort;
-
-    rank_t *rank = malloc(sizeof(rank_t));
-    rank->sorts = sort_list;
-    rank->len = 1;
-
-    return context_add_fun_symbol(ctx, symbol, rank);
-}
-
-bool context_add_declared_sort_symbol(context_t *ctx, char *symbol, uint64_t arity)
-{
-    str_int_map_t *symbol_table;
-    int_map_t *sort_table;
-
-    symbol_table = &ctx->symbol_table;
-    if (str_int_map_find(symbol_table, symbol) >= 0) {
-        return false;
-    }
-
-    sort_table = &ctx->sort_table;
-    sort_obj_t *sort_obj = malloc(sizeof(sort_obj_t));
-    sort_obj->base = declared_sort;
-    sort_obj->id = cur_sort_id++;
-    decl_sort_obj_t *decl_sort_obj = malloc(sizeof(decl_sort_obj_t));
-    decl_sort_obj->num_params = arity;
-    decl_sort_obj->params = malloc(sizeof(sort_t) * arity);
-    sort_obj->data = decl_sort_obj;
-
-    return false;
-}
-
-bool context_add_var_symbol(context_t *ctx, char *symbol, var_kind_t kind,
-                            sort_t sort)
-{
-    str_int_map_t *symbol_table;
-    str_map_t *var_table;
-
-    symbol_table = &ctx->symbol_table;
-    if (str_int_map_find(symbol_table, symbol) >= 0) {
-        return false;
-    }
-    str_int_map_add(symbol_table, symbol, strlen(symbol), SYM_KIND_VARIABLE);
-
-    var_table = &ctx->var_table;
-    var_table_entry_t *entry = malloc(sizeof(var_table_entry_t));
-    entry->kind = kind;
-    entry->sort = sort;
-    str_map_add(var_table, symbol, strlen(symbol), entry);
-    return true;
-}
-
-bool context_remove_symbol(context_t *ctx, char *symbol)
-{
-    return false;
-}
-
-var_table_entry_t *context_find_var_symbol(context_t *ctx, char *symbol)
-{
-    return str_map_find(&ctx->var_table, symbol);
-}
-
-void context_reset_var_symbols(context_t *ctx) {}
 
 /**
  * Sets the logic in `ctx` to the one defined by `symbol`. Returns true if
  * `symbol` is a valid logic, `false` otherwise.
  */
-bool set_current_logic(context_t *ctx, char *symbol, size_t n)
+bool set_current_logic(moxi_context_t *ctx, char *str)
 {
-    const logic_t *logic = in_moxi_logic(symbol, n);
+    size_t len = strlen(str);
+    const logic_t *logic = in_moxi_logic(str, len);
     if (logic == NULL) {
-        PRINT_ERROR("unknown logic '%s'", symbol);
+        PRINT_ERROR("unknown logic '%s'", str);
         ctx->logic = &unkown_logic;
         return false;
     }
@@ -271,44 +203,176 @@ bool set_current_logic(context_t *ctx, char *symbol, size_t n)
     return true;
 }
 
-bool is_bool_sort(context_t *ctx, sort_t term)
-{
-    return term == bool_sort;
-}
 
-bool is_int_sort(context_t *ctx, sort_t term)
+bool moxi_declare_fun(moxi_context_t *ctx, char *str, uint32_t nargs,
+                     sort_t *args, sort_t ret)
 {
-    return term == int_sort;
-}
-
-bool is_real_sort(context_t *ctx, sort_t term)
-{
-    return term == real_sort;
-}
-
-bool is_bitvec_sort(context_t *ctx, sort_t term)
-{
-    sort_obj_t *sort_obj = int_map_find(&ctx->sort_table, term);
-    if (sort_obj == NULL) {
+    const symbol_t *theory_symbol = moxi_find_term(ctx, str);
+    if (theory_symbol != NULL) {
         return false;
     }
-    return sort_obj->base == bitvec_sort;
+
+    size_t len = strlen(str);
+    symbol_t *symbol = new_symbol(str, len, SYM_UNKNOWN, SYM_KIND_TERM);
+    str_map_add(&ctx->term_table, str, len, symbol);
+
+    type_t type;
+    if (nargs == 0) {
+        type = ret;
+    } else {
+        type = yices_function_type(nargs, args, ret);
+    }
+    term_t term = yices_new_uninterpreted_term(type);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        return false;
+    }
+    yices_set_term_name(term, str);
+    return true;
 }
 
-// bool is_bitvec_sort(context_t *ctx, sort_t term)
-// {
-//     sort_obj_t *sort_obj = int_map_find(&ctx->sort_table, term);
-//     if (sort_obj == NULL) {
-//         return false;
-//     }
-//     return sort_obj->base == bitvec_sort;
-// }
 
-// bool is_array_sort(context_t *ctx, sort_t term)
-// {
-//     sort_obj_t *sort_obj = int_map_find(sort_table, sort);
-//     if (sort_obj == NULL) {
-//         return false;
-//     }
-//     return sort_obj->base == array_sort;
-// }
+bool moxi_define_fun(moxi_context_t *ctx, char *str, uint32_t nargs,
+                     sort_t *args, sort_t ret, term_t body)
+{
+    // Since we are only doing sort checking, we can safely ignore the body of
+    // the function definition. The body is checked in `pstack.c`.
+    return moxi_declare_fun(ctx, str, nargs, args, ret);
+}
+
+
+const symbol_t *moxi_find_term(moxi_context_t *ctx, char *str)
+{
+    size_t len = strlen(str);
+    const symbol_t *symbol = get_symbol(str, len);
+    if (symbol != NULL && ctx->active_symbols[symbol->type] &&
+        symbol->kind == SYM_KIND_TERM) {
+        return symbol;
+    }
+    if (str_is_primed(str, len)) {
+        char *base_str = strndup(str, len - 1);
+        return str_map_find(&ctx->term_table, base_str);
+    }
+    return str_map_find(&ctx->term_table, str);
+}
+
+
+void moxi_push_scope(moxi_context_t *ctx)
+{
+    str_vector_t *vec = malloc(sizeof(str_vector_t));
+    init_str_vector(vec, 16);
+    stack_push(&ctx->scope_stack, vec);
+}
+
+
+void moxi_pop_scope(moxi_context_t *ctx)
+{
+    str_vector_t *vec = stack_pop(&ctx->scope_stack);
+    uint32_t i;
+    for (i = 0; i < vec->size; ++i) {
+        str_map_remove(&ctx->term_table, vec->data[i]);
+        str_map_remove(&ctx->var_table, vec->data[i]);
+    }
+    delete_str_vector(vec);
+    free(vec);
+}
+
+
+bool moxi_add_var(moxi_context_t *ctx, char *str, var_kind_t kind,
+                     term_t var)
+{
+    const symbol_t *theory_symbol = moxi_find_term(ctx, str);
+    if (theory_symbol != NULL) {
+        return false;
+    }
+
+    size_t len = strlen(str);
+    symbol_t *symbol = new_symbol(str, len, SYM_VAR, SYM_KIND_VAR);
+    str_map_add(&ctx->term_table, str, len, symbol);
+
+    var_table_entry_t *entry = malloc(sizeof(var_table_entry_t));
+    entry->kind = kind;
+    entry->var = var;
+    str_map_add(&ctx->var_table, str, len, entry);
+
+    str_vector_t *vec = stack_top(&ctx->scope_stack);
+    str_vector_append(vec, str);
+
+    return true;
+}
+
+
+var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *str)
+{
+    size_t len = strlen(str);
+    if (str_is_primed(str, len)) {
+        char *base_str = strndup(str, len - 1);
+        return str_map_find(&ctx->var_table, base_str);
+    }
+    return str_map_find(&ctx->var_table, str);
+}
+
+
+bool moxi_declare_sort(moxi_context_t *ctx, char *str, uint32_t arity)
+{
+    const symbol_t *theory_symbol = moxi_find_sort(ctx, str);
+    if (theory_symbol != NULL) {
+        return false;
+    }
+
+    if (arity != 0) {
+        return false;
+    }
+
+    size_t len = strlen(str);
+    symbol_t *symbol = new_symbol(str, len, SYM_UNKNOWN, SYM_KIND_SORT);
+    str_map_add(&ctx->sort_table, str, len, symbol);
+
+    sort_t sort = yices_new_uninterpreted_type();
+    yices_set_type_name(sort, str);
+    return true;
+}
+
+
+const symbol_t *moxi_find_sort(moxi_context_t *ctx, char *str)
+{
+    size_t len = strlen(str);
+    const symbol_t *symbol = get_symbol(str, len);
+    if (symbol != NULL && ctx->active_symbols[symbol->type] && symbol->kind == SYM_KIND_SORT) {
+        return symbol;
+    }
+    return str_map_find(&ctx->sort_table, str);
+}
+
+
+bool moxi_define_system(moxi_context_t *ctx, char *str, uint32_t ninput,
+                        sort_t *input, uint32_t noutput, sort_t *output,
+                        uint32_t nlocal, sort_t *local, term_t init,
+                        term_t trans, term_t inv)
+{
+    system_t *sys = moxi_find_system(ctx, str);
+    if (sys != NULL) {
+        return false;
+    }
+
+    sys = malloc(sizeof(system_t));
+    sys->name = malloc((strlen(str) + 1) * sizeof(char));
+    strcpy(sys->name, str);
+
+    sys->ninput = ninput;
+    sys->input = malloc(ninput * sizeof(sort_t));
+    memcpy(sys->input, input, ninput * sizeof(sort_t));
+
+    sys->noutput = noutput;
+    sys->output = malloc(noutput * sizeof(sort_t));
+    memcpy(sys->output, output, noutput * sizeof(sort_t));
+
+    str_map_add(&ctx->sys_table, str, strlen(str), sys);
+    return true;
+}
+
+
+system_t *moxi_find_system(moxi_context_t *ctx, char *str)
+{
+    return str_map_find(&ctx->sys_table, str);
+}
