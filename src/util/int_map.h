@@ -10,7 +10,7 @@
 typedef struct int_map_entry int_map_entry_t;
 
 /**
- * Each entry in the string map stores the int key and a void pointer value.
+ * Each entry in the map stores the int key and a void pointer value.
  */
 struct int_map_entry {
     uint32_t key;

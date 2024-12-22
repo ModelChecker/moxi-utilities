@@ -5,7 +5,6 @@
 #define __PARSER_H__
 
 #include "util/int_stack.h"
-#include "parse/token.h"
 #include "parse/lexer.h"
 #include "parse/pstack.h"
 #include "moxi/context.h"

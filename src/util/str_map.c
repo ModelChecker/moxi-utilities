@@ -40,7 +40,7 @@ void str_map_reset(str_map_t *map)
         next = cur->next;
         while (cur != NULL) {
             map->delete_value(cur->value);
-            free(cur->string);
+            free(cur->str);
             free(cur);
             cur = next;
             next = next->next;
@@ -61,7 +61,7 @@ void *str_map_find(str_map_t *map, char *symbol)
     }
     str_map_entry_t *cur;
     for (cur = map->data[hash]; cur != NULL; cur = cur->next) {
-        if (!strcmp(cur->string, symbol)) {
+        if (!strcmp(cur->str, symbol)) {
             return cur->value;
         }
     }
@@ -77,8 +77,8 @@ void str_map_add(str_map_t *map, char *symbol, size_t n, void *value)
     uint32_t hash;
 
     entry = malloc(sizeof(str_map_entry_t));
-    entry->string = malloc(sizeof(char) * n + 1);
-    strncpy(entry->string, symbol, n + 1);
+    entry->str = malloc(sizeof(char) * n + 1);
+    strncpy(entry->str, symbol, n + 1);
     entry->value = value;
     entry->next = NULL;
 
@@ -110,7 +110,7 @@ void *str_map_remove(str_map_t *map, char *symbol)
     prev = NULL;
     for (cur = &map->data[hash]; *cur != NULL;
         prev = *cur, cur = &(*cur)->next) {
-        if (strcmp((*cur)->string, symbol)) {
+        if (strcmp((*cur)->str, symbol)) {
             continue;
         }
         value = (*cur)->value;
@@ -118,7 +118,7 @@ void *str_map_remove(str_map_t *map, char *symbol)
             *cur = NULL;
         } else {
             prev->next = (*cur)->next;
-            free((*cur)->string);
+            free((*cur)->str);
             free(*cur);
         }
         return value;

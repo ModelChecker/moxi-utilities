@@ -7,10 +7,9 @@ SRC_DIR := src
 OBJ_DIR := obj
 BIN := moxisc
 
-DBGFLAGS := -g -O0 -DDEBUG -DDEBUG_PARSER -DDEBUG_PSTACK -fdata-sections -ffunction-sections -fno-common -fsanitize=undefined -fsanitize=address -pedantic -Waggregate-return -Wall -Wbad-function-cast -Wcast-align -Wcast-qual -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wextra -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat-truncation -Wformat-y2k -Wformat=2 -Wimplicit -Wimport -Winit-self -Winline -Winvalid-pch -Wlogical-op -Wlong-long -Wmisleading-indentation -Wmissing-declarations -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs -Wmissing-noreturn -Wmissing-prototypes -Wnested-externs -Wnull-dereference -Wodr -Wpacked -Wpedantic -Wpointer-arith -Wredundant-decls -Wshadow -Wsign-conversion -Wstack-protector -Wstrict-aliasing=2 -Wstrict-overflow=5 -Wstrict-prototypes -Wswitch-default -Wundef -Wundef -Wunreachable-code -Wunused -Wunused-parameter -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wno-switch-enum -Wno-unknown-warning-option -Wno-gnu-binary-literal --coverage
+DBGFLAGS := -g -O0 -DDEBUG -DDEBUG_PARSER -DDEBUG_PSTACK -fsanitize=undefined -fsanitize=address -Waggregate-return -Wbad-function-cast -Wcast-align -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat=2 -Wimplicit -Wlong-long -Wmisleading-indentation  -Wmissing-include-dirs -Wpacked -Wpedantic -Wshadow -Wsign-conversion  -Wswitch-default -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic  -Wpointer-arith -Wcast-qual  -Wno-deprecated-non-prototype
 
-CPPFLAGS := 
-CFLAGS := -Wall -Wno-deprecated-non-prototype -I$(SRC_DIR) -I/usr/local/include  $(CPPFLAGS) -DDEBUG_PARSER -DDEBUG_PSTACK -g -fsanitize=undefined -fsanitize=address
+CFLAGS := -Wall -I$(SRC_DIR) -I/usr/local/include -std=c99 
 
 LIB := -lyices
 
@@ -44,15 +43,18 @@ DEP_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .d, $(basename $(subst $(SRC_D
 default: $(BIN)
 
 $(SRC_DIR)/parse/hash_token.h: $(SRC_DIR)/parse/token.gperf
-	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/parse/hash_token.h --lookup-function-name=in_moxi_tok \
+	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/parse/hash_token.h \
+		--lookup-function-name=find_moxi_tok \
 		--hash-function=hash_tok $(SRC_DIR)/parse/token.gperf
 
 $(SRC_DIR)/parse/hash_symbol.h: $(SRC_DIR)/parse/symbol.gperf
-	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/parse/hash_symbol.h --lookup-function-name=in_moxi_sym \
+	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/parse/hash_symbol.h \
+		--lookup-function-name=find_moxi_thy_sym \
 		--hash-function=hash_sym $(SRC_DIR)/parse/symbol.gperf
 
 $(SRC_DIR)/moxi/hash_logic.h: $(SRC_DIR)/moxi/logic.gperf
-	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/moxi/hash_logic.h --lookup-function-name=in_moxi_logic \
+	$(GPERF) -C -E -t --output-file=$(SRC_DIR)/moxi/hash_logic.h \
+	 --lookup-function-name=find_moxi_logic \
 		--hash-function=hash_logic $(SRC_DIR)/moxi/logic.gperf
 
 $(SRC_DIR)/parse/parse.c: $(TOOLS_DIR)/moxi.tbl $(TOOLS_DIR)/parse_table.py
@@ -63,7 +65,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 
 $(OBJ_DIR)/%.d: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@set -e; rm -f $@; echo Building dependency file $@ ; \
-		$(CC) -MM -MG -MT $*.o $(CFLAGS) $(CPPFLAGS) $< > $@.$$$$ ; \
+		$(CC) -MM -MG -MT $*.o $(CFLAGS) $< > $@.$$$$ ; \
 		sed 's,\($*\).o[ :]*,$(OBJ_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@ ; \
 		sed 's, \($*\).h, $(SRC_DIR)/\1.h,g' < $@.$$$$ > $@ ; \
 		rm -f $@.$$$$
@@ -79,6 +81,9 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIRS)
 
 bin: $(BIN)
+
+debug: CFLAGS += $(DBGFLAGS)
+debug: $(BIN)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN) $(gperf_generated) $(python_generated)

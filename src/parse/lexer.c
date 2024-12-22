@@ -6,10 +6,9 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "parse/hash_token.h"
 #include "parse/token.h"
 #include "parse/lexer.h"
-
+#include "parse/hash_token.h"
 
 /**
  * Returns `true` if `c` is a tab (`\t`), space (` `), line break (`\n`), or carriage return (`\r`).
@@ -384,7 +383,7 @@ token_type_t read_symbol(lexer_t *lex)
         if (buffer->len == 1) {
             return TOK_INVALID_KEYWORD;
         }
-        tok = in_moxi_tok(buffer->data, buffer->len);
+        tok = find_moxi_tok(buffer->data, buffer->len);
         if (tok != NULL) {
             return tok->type;
         }
@@ -397,7 +396,7 @@ token_type_t read_symbol(lexer_t *lex)
         file_reader_next_char(&lex->reader);
     }
 
-    tok = in_moxi_tok(buffer->data, buffer->len);
+    tok = find_moxi_tok(buffer->data, buffer->len);
     if (tok != NULL) {
         return tok->type;
     } 
@@ -435,7 +434,7 @@ token_type_t read_keyword(lexer_t *lex)
         return TOK_INVALID_KEYWORD;
     }
 
-    tok = in_moxi_tok(buffer->data, buffer->len);
+    tok = find_moxi_tok(buffer->data, buffer->len);
     if (tok != NULL) {
         return tok->type;
     } 
@@ -478,29 +477,23 @@ void lexer_next_token(lexer_t *lex)
     case EOF:
         tok_type = TOK_EOF;
         break;
-
     case '(':
         tok_type = TOK_LP;
         file_reader_next_char(reader);
         break;
-
     case ')':
         tok_type = TOK_RP;
         file_reader_next_char(reader);
         break;
-
     case '#':
         tok_type = read_constant(lex);
         break;
-
     case '"':
         tok_type = read_string(lex);
         break;
-
     case '|':
         tok_type = read_quoted_symbol(lex);
         break;
-
     case '0':
     case '1':
     case '2':
@@ -513,16 +506,13 @@ void lexer_next_token(lexer_t *lex)
     case '9':
         tok_type = read_numeral(lex);
         break;
-
     default:
         if (is_simple_char(ch) || ch == ':') {
             tok_type = read_symbol(lex);
             break;
         } 
-
         file_reader_next_char(reader);
         tok_type = TOK_INVALID_SYMBOL;
     }
-
     lex->tok_type = tok_type;
 }

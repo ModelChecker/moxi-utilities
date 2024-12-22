@@ -2,72 +2,72 @@
 #include <string.h>
 #include "token.h"
 %}
-struct symbol;
+struct theory_symbol;
 %%
-Bool,          4,    SYM_BOOL,            SYM_KIND_SORT
-true,          4,    SYM_TRUE,            SYM_KIND_TERM
-false,         5,    SYM_FALSE,           SYM_KIND_TERM
-not,           3,    SYM_NOT,             SYM_KIND_TERM
-=>,            2,    SYM_IMPLIES,         SYM_KIND_TERM
-and,           3,    SYM_AND,             SYM_KIND_TERM
-or,            2,    SYM_OR,              SYM_KIND_TERM
-xor,           3,    SYM_XOR,             SYM_KIND_TERM
-=,             1,    SYM_EQ,              SYM_KIND_TERM
-distinct,      8,    SYM_DISTINCT,        SYM_KIND_TERM
-ite,           3,    SYM_ITE,             SYM_KIND_TERM
-Array,         5,    SYM_ARRAY,           SYM_KIND_SORT
-select,        6,    SYM_SELECT,          SYM_KIND_TERM
-store,         5,    SYM_STORE,           SYM_KIND_TERM
-Int,           3,    SYM_INT,             SYM_KIND_SORT
-Real,          4,    SYM_REAL,            SYM_KIND_SORT
--,             1,    SYM_MINUS,           SYM_KIND_TERM
-+,             1,    SYM_PLUS,            SYM_KIND_TERM
-*,             1,    SYM_TIMES,           SYM_KIND_TERM
-/,             1,    SYM_DIVIDES,         SYM_KIND_TERM
-<=,            2,    SYM_LE,              SYM_KIND_TERM
-<,             1,    SYM_LT,              SYM_KIND_TERM
->=,            2,    SYM_GE,              SYM_KIND_TERM
->,             1,    SYM_GT,              SYM_KIND_TERM
-div,           3,    SYM_DIV,             SYM_KIND_TERM
-mod,           3,    SYM_MOD,             SYM_KIND_TERM
-abs,           3,    SYM_ABS,             SYM_KIND_TERM
-to_real,       7,    SYM_TO_REAL,         SYM_KIND_TERM
-to_int,        6,    SYM_TO_INT,          SYM_KIND_TERM
-BitVec,        6,    SYM_BITVEC,          SYM_KIND_SORT
-concat,        6,    SYM_CONCAT,          SYM_KIND_TERM
-extract,       7,    SYM_EXTRACT,         SYM_KIND_TERM
-repeat,        6,    SYM_REPEAT,          SYM_KIND_TERM
-bvcomp,        6,    SYM_BVCOMP,          SYM_KIND_TERM
-bvredand,      8,    SYM_BVREDAND,        SYM_KIND_TERM
-bvredor,       7,    SYM_BVREDOR,         SYM_KIND_TERM
-bvnot,         5,    SYM_BVNOT,           SYM_KIND_TERM
-bvand,         5,    SYM_BVAND,           SYM_KIND_TERM
-bvor,          4,    SYM_BVOR,            SYM_KIND_TERM
-bvnand,        6,    SYM_BVNAND,          SYM_KIND_TERM
-bvnor,         5,    SYM_BVNOR,           SYM_KIND_TERM
-bvxor,         5,    SYM_BVXOR,           SYM_KIND_TERM
-bvxnor,        6,    SYM_BVXNOR,          SYM_KIND_TERM
-bvneg,         5,    SYM_BVNEG,           SYM_KIND_TERM
-bvadd,         5,    SYM_BVADD,           SYM_KIND_TERM
-bvsub,         5,    SYM_BVSUB,           SYM_KIND_TERM
-bvmul,         5,    SYM_BVMUL,           SYM_KIND_TERM
-bvudiv,        6,    SYM_BVUDIV,          SYM_KIND_TERM
-bvurem,        6,    SYM_BVUREM,          SYM_KIND_TERM
-bvsdiv,        6,    SYM_BVSDIV,          SYM_KIND_TERM
-bvsrem,        6,    SYM_BVSREM,          SYM_KIND_TERM
-bvsmod,        6,    SYM_BVSMOD,          SYM_KIND_TERM
-bvshl,         5,    SYM_BVSHL,           SYM_KIND_TERM
-bvlshr,        6,    SYM_BVLSHR,          SYM_KIND_TERM
-bvashr,        6,    SYM_BVASHR,          SYM_KIND_TERM
-zero_extend,   11,   SYM_ZERO_EXTEND,     SYM_KIND_TERM
-sign_extend,   11,   SYM_SIGN_EXTEND,     SYM_KIND_TERM
-rotate_left,   11,   SYM_ROTATE_LEFT,     SYM_KIND_TERM
-rotate_right,  12,   SYM_ROTATE_RIGHT,    SYM_KIND_TERM
-bvult,         5,    SYM_BVULT,           SYM_KIND_TERM
-bvule,         5,    SYM_BVULE,           SYM_KIND_TERM
-bvugt,         5,    SYM_BVUGT,           SYM_KIND_TERM
-bvuge,         5,    SYM_BVUGE,           SYM_KIND_TERM
-bvslt,         5,    SYM_BVSLT,           SYM_KIND_TERM
-bvsle,         5,    SYM_BVSLE,           SYM_KIND_TERM
-bvsgt,         5,    SYM_BVSGT,           SYM_KIND_TERM
-bvsge,         5,    SYM_BVSGE,           SYM_KIND_TERM
+Bool,          THY_SYM_BOOL,            SORT
+true,          THY_SYM_TRUE,            TERM
+false,         THY_SYM_FALSE,           TERM
+not,           THY_SYM_NOT,             TERM
+=>,            THY_SYM_IMPLIES,         TERM
+and,           THY_SYM_AND,             TERM
+or,            THY_SYM_OR,              TERM
+xor,           THY_SYM_XOR,             TERM
+=,             THY_SYM_EQ,              TERM
+distinct,      THY_SYM_DISTINCT,        TERM
+ite,           THY_SYM_ITE,             TERM
+Array,         THY_SYM_ARRAY,           SORT
+select,        THY_SYM_SELECT,          TERM
+store,         THY_SYM_STORE,           TERM
+Int,           THY_SYM_INT,             SORT
+Real,          THY_SYM_REAL,            SORT
+-,             THY_SYM_MINUS,           TERM
++,             THY_SYM_PLUS,            TERM
+*,             THY_SYM_TIMES,           TERM
+div,           THY_SYM_DIVIDE,          TERM
+<=,            THY_SYM_LE,              TERM
+<,             THY_SYM_LT,              TERM
+>=,            THY_SYM_GE,              TERM
+>,             THY_SYM_GT,              TERM
+divisible,     THY_SYM_DIVISIBLE,       TERM
+mod,           THY_SYM_MOD,             TERM
+abs,           THY_SYM_ABS,             TERM
+to_real,       THY_SYM_TO_REAL,         TERM
+to_int,        THY_SYM_TO_INT,          TERM
+BitVec,        THY_SYM_BITVEC,          SORT
+concat,        THY_SYM_CONCAT,          TERM
+extract,       THY_SYM_EXTRACT,         TERM
+repeat,        THY_SYM_REPEAT,          TERM
+bvcomp,        THY_SYM_BVCOMP,          TERM
+bvredand,      THY_SYM_BVREDAND,        TERM
+bvredor,       THY_SYM_BVREDOR,         TERM
+bvnot,         THY_SYM_BVNOT,           TERM
+bvand,         THY_SYM_BVAND,           TERM
+bvor,          THY_SYM_BVOR,            TERM
+bvnand,        THY_SYM_BVNAND,          TERM
+bvnor,         THY_SYM_BVNOR,           TERM
+bvxor,         THY_SYM_BVXOR,           TERM
+bvxnor,        THY_SYM_BVXNOR,          TERM
+bvneg,         THY_SYM_BVNEG,           TERM
+bvadd,         THY_SYM_BVADD,           TERM
+bvsub,         THY_SYM_BVSUB,           TERM
+bvmul,         THY_SYM_BVMUL,           TERM
+bvudiv,        THY_SYM_BVUDIV,          TERM
+bvurem,        THY_SYM_BVUREM,          TERM
+bvsdiv,        THY_SYM_BVSDIV,          TERM
+bvsrem,        THY_SYM_BVSREM,          TERM
+bvsmod,        THY_SYM_BVSMOD,          TERM
+bvshl,         THY_SYM_BVSHL,           TERM
+bvlshr,        THY_SYM_BVLSHR,          TERM
+bvashr,        THY_SYM_BVASHR,          TERM
+zero_extend,   THY_SYM_ZERO_EXTEND,     TERM
+sign_extend,   THY_SYM_SIGN_EXTEND,     TERM
+rotate_left,   THY_SYM_ROTATE_LEFT,     TERM
+rotate_right,  THY_SYM_ROTATE_RIGHT,    TERM
+bvult,         THY_SYM_BVULT,           TERM
+bvule,         THY_SYM_BVULE,           TERM
+bvugt,         THY_SYM_BVUGT,           TERM
+bvuge,         THY_SYM_BVUGE,           TERM
+bvslt,         THY_SYM_BVSLT,           TERM
+bvsle,         THY_SYM_BVSLE,           TERM
+bvsgt,         THY_SYM_BVSGT,           TERM
+bvsge,         THY_SYM_BVSGE,           TERM

@@ -6,6 +6,7 @@ A reference sort checker for MoXI. The following programs are required:
 - make
 - gperf
 - Python 3.9 or newer
+- [Yices2](https://yices.csl.sri.com/)
 
 To build, run
 

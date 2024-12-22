@@ -58,6 +58,7 @@
 typedef enum {
     TAG_BASE, // Bottom of stack
     TAG_FRAME,
+    TAG_ATTR,
     TAG_NUMERAL,
     TAG_SORT,
     TAG_SORT_CONSTRUCTOR,
@@ -96,12 +97,6 @@ typedef enum frame_type {
     FRM_DEFINE_SORT,
     FRM_DEFINE_CONST,
     FRM_DEFINE_FUN,
-    FRM_INPUT_ATTR,
-    FRM_OUTPUT_ATTR,
-    FRM_LOCAL_ATTR,
-    FRM_INIT_ATTR,
-    FRM_TRANS_ATTR,
-    FRM_INV_ATTR,
     FRM_VAR_DECL,
     FRM_TERM_BIND,
     FRM_ERROR
@@ -118,13 +113,15 @@ typedef enum pstack_error_type {
     BAD_BVEXTRACT_IDX = -5,
     BAD_LOGIC = -6,
     BAD_TERM = -7,
-    BAD_COMMAND = -8
+    BAD_COMMAND = -8,
+    BAD_ATTR = -9
 } pstack_error_type_t;
 
 typedef struct pstack_elem {
     tag_t tag;
     union {
         frame_type_t frame_type;
+        token_type_t attr;
         sort_t sort;
         int64_t numeral;
         char *str;
@@ -177,6 +174,7 @@ static inline loc_t pstack_top_frame_loc(pstack_t *pstack)
 }
 
 void pstack_push_frame(pstack_t *pstack, frame_type_t ftype, loc_t loc);
+void pstack_push_attr(pstack_t *pstack, token_type_t tok_type, loc_t loc);
 void pstack_push_term(pstack_t *pstack, term_t term, loc_t loc);
 void pstack_push_sort(pstack_t *pstack, sort_t sort, loc_t loc);
 void pstack_push_string(pstack_t *pstack, char_buffer_t *str, loc_t loc);
@@ -226,7 +224,7 @@ static inline void pstack_disable_next_vars(pstack_t *pstack)
 
 // Function tables for parse table management
 extern void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *);
-extern void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, moxi_context_t *);
+extern void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *, moxi_context_t *);
 
 /**
  * Executes top frame of `pstack` according to the function defined in

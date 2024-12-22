@@ -82,107 +82,94 @@ typedef enum token_type {
 extern const char *token_type_str[NUM_TOKENS];
 
 typedef struct token {
-    char *name;
+    const char *name;
     token_type_t type;
 } token_t;
 
-typedef enum symbol_type {
-    SYM_BOOL,
-    SYM_TRUE,
-    SYM_FALSE,
-    SYM_NOT,
-    SYM_IMPLIES,
-    SYM_AND,
-    SYM_OR,
-    SYM_XOR,
-    SYM_EQ,
-    SYM_DISTINCT,
-    SYM_ITE,
-    SYM_ARRAY,
-    SYM_SELECT,
-    SYM_STORE,
-    SYM_INT,
-    SYM_REAL,
-    SYM_MINUS,
-    SYM_PLUS,
-    SYM_TIMES,
-    SYM_DIVIDES,
-    SYM_LE,
-    SYM_LT,
-    SYM_GE,
-    SYM_GT,
-    SYM_DIV,
-    SYM_MOD,
-    SYM_ABS,
-    SYM_TO_REAL,
-    SYM_TO_INT,
-    SYM_BITVEC,
-    SYM_CONCAT,
-    SYM_EXTRACT,
-    SYM_REPEAT,
-    SYM_BVCOMP,
-    SYM_BVREDAND,
-    SYM_BVREDOR,
-    SYM_BVNOT,
-    SYM_BVAND,
-    SYM_BVOR,
-    SYM_BVNAND,
-    SYM_BVNOR,
-    SYM_BVXOR,
-    SYM_BVXNOR,
-    SYM_BVNEG,
-    SYM_BVADD,
-    SYM_BVSUB,
-    SYM_BVMUL,
-    SYM_BVUDIV,
-    SYM_BVUREM,
-    SYM_BVSDIV,
-    SYM_BVSREM,
-    SYM_BVSMOD,
-    SYM_BVSHL,
-    SYM_BVLSHR,
-    SYM_BVASHR,
-    SYM_ZERO_EXTEND,
-    SYM_SIGN_EXTEND,
-    SYM_ROTATE_LEFT,
-    SYM_ROTATE_RIGHT,
-    SYM_BVULT,
-    SYM_BVULE,
-    SYM_BVUGT,
-    SYM_BVUGE,
-    SYM_BVSLT,
-    SYM_BVSLE,
-    SYM_BVSGT,
-    SYM_BVSGE,
-    SYM_VAR,
-    SYM_UNKNOWN,
-} symbol_type_t;
+typedef enum theory_symbol_type {
+    THY_SYM_BOOL,
+    THY_SYM_TRUE,
+    THY_SYM_FALSE,
+    THY_SYM_NOT,
+    THY_SYM_IMPLIES,
+    THY_SYM_AND,
+    THY_SYM_OR,
+    THY_SYM_XOR,
+    THY_SYM_EQ,
+    THY_SYM_DISTINCT,
+    THY_SYM_ITE,
+    THY_SYM_ARRAY,
+    THY_SYM_SELECT,
+    THY_SYM_STORE,
+    THY_SYM_INT,
+    THY_SYM_REAL,
+    THY_SYM_MINUS,
+    THY_SYM_PLUS,
+    THY_SYM_TIMES,
+    THY_SYM_DIVIDE,
+    THY_SYM_LE,
+    THY_SYM_LT,
+    THY_SYM_GE,
+    THY_SYM_GT,
+    THY_SYM_DIVISIBLE,
+    THY_SYM_MOD,
+    THY_SYM_ABS,
+    THY_SYM_TO_REAL,
+    THY_SYM_TO_INT,
+    THY_SYM_BITVEC,
+    THY_SYM_CONCAT,
+    THY_SYM_EXTRACT,
+    THY_SYM_REPEAT,
+    THY_SYM_BVCOMP,
+    THY_SYM_BVREDAND,
+    THY_SYM_BVREDOR,
+    THY_SYM_BVNOT,
+    THY_SYM_BVAND,
+    THY_SYM_BVOR,
+    THY_SYM_BVNAND,
+    THY_SYM_BVNOR,
+    THY_SYM_BVXOR,
+    THY_SYM_BVXNOR,
+    THY_SYM_BVNEG,
+    THY_SYM_BVADD,
+    THY_SYM_BVSUB,
+    THY_SYM_BVMUL,
+    THY_SYM_BVUDIV,
+    THY_SYM_BVUREM,
+    THY_SYM_BVSDIV,
+    THY_SYM_BVSREM,
+    THY_SYM_BVSMOD,
+    THY_SYM_BVSHL,
+    THY_SYM_BVLSHR,
+    THY_SYM_BVASHR,
+    THY_SYM_ZERO_EXTEND,
+    THY_SYM_SIGN_EXTEND,
+    THY_SYM_ROTATE_LEFT,
+    THY_SYM_ROTATE_RIGHT,
+    THY_SYM_BVULT,
+    THY_SYM_BVULE,
+    THY_SYM_BVUGT,
+    THY_SYM_BVUGE,
+    THY_SYM_BVSLT,
+    THY_SYM_BVSLE,
+    THY_SYM_BVSGT,
+    THY_SYM_BVSGE,
+    THY_SYM_UNKNOWN,
+} theory_symbol_type_t;
 
-#define NUM_SYMBOLS (SYM_UNKNOWN+1)
+#define NUM_THEORY_SYMBOLS (THY_SYM_UNKNOWN+1)
 
-// A symbol kind defines whether a symbol is a sort, term, variable, or system
-// symbol in the context.
 typedef enum symbol_kind {
-    SYM_KIND_SORT,
-    SYM_KIND_TERM,
-    SYM_KIND_VAR,
-    SYM_KIND_SYSTEM,
-    SYM_KIND_NONE
+    TERM,
+    SORT,
+    SYSTEM,
+    NONE,
 } symbol_kind_t;
 
-typedef struct symbol {
-    char *name;
-    uint32_t len;
-    symbol_type_t type;
+typedef struct theory_symbol {
+    const char *name;
+    theory_symbol_type_t type;
     symbol_kind_t kind;
-} symbol_t;
-
-// Returns symbol_t for `symbol` using gperf function. This is essentially a
-// wrapper for `get_moxi_sym`.
-const symbol_t *get_symbol(const char *name, uint32_t len);
-
-void init_symbol(symbol_t *symbol, const char *name, uint32_t len, symbol_type_t type, symbol_kind_t kind);
-symbol_t *new_symbol(const char *name, uint32_t len, symbol_type_t type, symbol_kind_t kind);
-void delete_symbol(symbol_t *symbol);
+} theory_symbol_t;
 
 #endif

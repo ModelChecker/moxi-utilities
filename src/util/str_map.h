@@ -14,7 +14,7 @@ typedef struct str_map_entry str_map_entry_t;
  * next entry in the bucket.
  */
 struct str_map_entry {
-    char *string;
+    char *str;
     void *value;
     str_map_entry_t *next;
 };

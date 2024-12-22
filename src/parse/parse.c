@@ -1115,45 +1115,53 @@ skip:
 			goto consume;
 
  		case CMD11_SYMBOL_DONE:
+			pstack_push_string(pstack, str, loc);
 			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
 			int_stack_push(sstack, CMD11a);
 			state = DONE;
 			goto consume;
 
  		case CMD11a_KW_INPUT_SVL0:
+			pstack_push_attr(pstack, TOK_KW_INPUT, loc);
 			pstack_set_vars_input(pstack);
 			int_stack_push(sstack, CMD11a);
 			state = SVL0;
 			goto consume;
 
  		case CMD11a_KW_OUTPUT_SVL0:
+			pstack_push_attr(pstack, TOK_KW_OUTPUT, loc);
 			pstack_set_vars_output(pstack);
 			int_stack_push(sstack, CMD11a);
 			state = SVL0;
 			goto consume;
 
  		case CMD11a_KW_LOCAL_SVL0:
+			pstack_push_attr(pstack, TOK_KW_LOCAL, loc);
 			pstack_set_vars_local(pstack);
 			int_stack_push(sstack, CMD11a);
 			state = SVL0;
 			goto consume;
 
  		case CMD11a_KW_INIT_TRM0:
+			pstack_push_attr(pstack, TOK_KW_INIT, loc);
 			int_stack_push(sstack, CMD11a);
 			state = TRM0;
 			goto consume;
 
  		case CMD11a_KW_TRANS_TRM0next:
+			pstack_push_attr(pstack, TOK_KW_TRANS, loc);
 			int_stack_push(sstack, CMD11a);
 			state = TRM0next;
 			goto consume;
 
  		case CMD11a_KW_INV_TRM0:
+			pstack_push_attr(pstack, TOK_KW_INV, loc);
 			int_stack_push(sstack, CMD11a);
 			state = TRM0;
 			goto consume;
 
  		case CMD11a_KW_SUBSYS_CMD11b:
+			pstack_push_attr(pstack, TOK_KW_SUBSYS, loc);
 			int_stack_push(sstack, CMD11a);
 			state = CMD11b;
 			goto consume;

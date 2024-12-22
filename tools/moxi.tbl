@@ -119,14 +119,14 @@ CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_st
 //            | :subsys ( <symbol> ( <symbol>* ) ) <define-sys-attr>
 //            | )
 //
-CMD11       TOK_SYMBOL      DONE       consume     CMD11a   { pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
-CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   { pstack_set_vars_input(pstack); }
-CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a   { pstack_set_vars_output(pstack); }
-CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a   { pstack_set_vars_local(pstack); }
-CMD11a      TOK_KW_INIT     TRM0       consume     CMD11a
-CMD11a      TOK_KW_TRANS    TRM0next   consume     CMD11a
-CMD11a      TOK_KW_INV      TRM0       consume     CMD11a
-CMD11a      TOK_KW_SUBSYS   CMD11b     consume     CMD11a
+CMD11       TOK_SYMBOL      DONE       consume     CMD11a   { pstack_push_string(pstack, str, loc); pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);  }
+CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INPUT, loc); pstack_set_vars_input(pstack); }
+CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_OUTPUT, loc); pstack_set_vars_output(pstack); }
+CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_LOCAL, loc); pstack_set_vars_local(pstack); }
+CMD11a      TOK_KW_INIT     TRM0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INIT, loc); }
+CMD11a      TOK_KW_TRANS    TRM0next   consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_TRANS, loc); }
+CMD11a      TOK_KW_INV      TRM0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INV, loc); }
+CMD11a      TOK_KW_SUBSYS   CMD11b     consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_SUBSYS, loc); }
 CMD11a      TOK_RP          DONE       consume     _
 CMD11b      TOK_LP          CMD11c     consume     _
 CMD11c      TOK_SYMBOL      CMD11d     consume     _

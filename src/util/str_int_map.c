@@ -42,7 +42,7 @@ void str_int_map_reset(str_int_map_t *map)
 
         next = cur->next;
         while (cur != NULL) {
-            free(cur->string);
+            free(cur->str);
             free(cur);
             cur = next;
             next = next->next;
@@ -66,7 +66,7 @@ int str_int_map_find(str_int_map_t *map, char *symbol)
 
     str_int_map_entry_t *cur;
     for (cur = map->data[hash]; cur != NULL; cur = cur->next) {
-        if (!strcmp(cur->string, symbol)) {
+        if (!strcmp(cur->str, symbol)) {
             return cur->value;
         }
     }
@@ -83,8 +83,8 @@ void str_int_map_add(str_int_map_t *map, char *symbol, size_t n, int value)
     uint32_t hash;
 
     entry = malloc(sizeof(str_int_map_entry_t));
-    entry->string = malloc(sizeof(char) * n + 1);
-    strncpy(entry->string, symbol, n + 1);
+    entry->str = malloc(sizeof(char) * n + 1);
+    strncpy(entry->str, symbol, n + 1);
     entry->value = value;
     entry->next = NULL;
 
@@ -121,7 +121,7 @@ int str_int_map_remove(str_int_map_t *map, char *symbol)
 
     for (cur = &map->data[hash]; *cur != NULL;
          prev = *cur, cur = &(*cur)->next) {
-        if (strcmp((*cur)->string, symbol)) {
+        if (strcmp((*cur)->str, symbol)) {
             continue;
         }
 
@@ -131,7 +131,7 @@ int str_int_map_remove(str_int_map_t *map, char *symbol)
             *cur = NULL;
         } else {
             prev->next = (*cur)->next;
-            free((*cur)->string);
+            free((*cur)->str);
             free(*cur);
         }
 

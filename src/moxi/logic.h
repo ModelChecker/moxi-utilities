@@ -5,6 +5,7 @@
 #define __LOGIC_H__
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef enum logic_type {
     //  Base logics (with quantifiers)
@@ -126,7 +127,7 @@ typedef enum logic_type {
 
 // A temporary struct used for gperf functions
 typedef struct logic {
-    char *name;
+    const char *name;
     logic_type_t type;
 } logic_t;
 

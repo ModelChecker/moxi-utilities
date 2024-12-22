@@ -1,5 +1,5 @@
 /* ANSI-C code produced by gperf version 3.1 */
-/* Command-line: gperf -C -E -t --output-file=src/moxi/hash_logic.h --lookup-function-name=in_moxi_logic --hash-function=hash_logic src/moxi/logic.gperf  */
+/* Command-line: gperf -C -E -t --output-file=src/moxi/hash_logic.h --lookup-function-name=find_moxi_logic --hash-function=hash_logic src/moxi/logic.gperf  */
 /* Computed positions: -k'1-9' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -112,7 +112,7 @@ hash_logic (register const char *str, register size_t len)
 }
 
 const struct logic *
-in_moxi_logic (register const char *str, register size_t len)
+find_moxi_logic (register const char *str, register size_t len)
 {
   enum
     {

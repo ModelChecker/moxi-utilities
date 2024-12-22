@@ -10,12 +10,12 @@
 #include <yices.h>
 
 #include "io/print.h"
-#include "moxi/context.h"
 #include "parse/pstack.h"
 
 const char *tag_str[NUM_TAGS] = {
     "<base>",        // TAG_BASE
     "<frame>",       // TAG_FRAME
+    "<attr>",       // TAG_ATTR
     "<numeral>",     // TAG_NUMERAL
     "<sort>",        // TAG_SORT
     "<sort-constr>", // TAG_SORT_CONSTRUCTOR
@@ -47,12 +47,6 @@ const char *frame_str[NUM_FRM_TYPES] = {
     "[define-sort]",        // FRM_DEFINE_SORT
     "[define-const]",       // FRM_DEFINE_CONST
     "[define-fun]",         // FRM_DEFINE_FUN
-    "[input-attr]",         // FRM_INPUT_ATTR,
-    "[output-attr]",        // FRM_OUTPUT_ATTR,
-    "[local-attr]",         // FRM_LOCAL_ATTR,
-    "[init-attr]",          // FRM_INIT_ATTR,
-    "[trans-attr]",         // FRM_TRANS_ATTR,
-    "[inv-attr]",           // FRM_INV_ATTR,
     "[var-decl]",           // FRM_VAR_DECL
     "[term-bind]",          // FRM_TERM_BIND
     "[error]",              // FRM_ERROR
@@ -148,6 +142,19 @@ void pstack_push_frame(pstack_t *pstack, frame_type_t ftype, loc_t loc)
 
     elem->tag = TAG_FRAME;
     elem->value.frame_type = ftype;
+    elem->loc = loc;
+}
+
+void pstack_push_attr(pstack_t *pstack, token_type_t attr, loc_t loc)
+{
+    assert(attr >= TOK_KW_INPUT && attr <= TOK_KW_UNKNOWN);
+
+    pstack_elem_t *elem;
+    elem = &pstack->data[pstack->size];
+    pstack_incr_top(pstack);
+
+    elem->tag = TAG_ATTR;
+    elem->value.attr = attr;
     elem->loc = loc;
 }
 
@@ -275,6 +282,13 @@ tag_t get_elem_tag(pstack_t *pstack, uint32_t n)
     return pstack->data[pstack->frame + n].tag;
 }
 
+// Returns the attribute of the `n`th element of the current frame. Does not check
+// the tag of the element.
+token_type_t get_elem_attr(pstack_t *pstack, uint32_t n)
+{
+    return pstack->data[pstack->frame + n].value.attr;
+}
+
 // Returns the numeral of the `n`th element of the current frame. Does not check
 // the tag of the element.
 uint64_t get_elem_numeral(pstack_t *pstack, uint32_t n)
@@ -284,7 +298,7 @@ uint64_t get_elem_numeral(pstack_t *pstack, uint32_t n)
 
 // Returns the symbol of the `n`th element of the current frame. Does not check
 // the tag of the element.
-char *get_elem_string(pstack_t *pstack, uint32_t n)
+char *get_elem_symbol(pstack_t *pstack, uint32_t n)
 {
     return pstack->data[pstack->frame + n].value.str;
 }
@@ -370,7 +384,9 @@ void check_elem_sort(pstack_t *pstack, uint32_t n, sort_t sort)
  */
 void eval_bool_sort(pstack_t *pstack, moxi_context_t *ctx)
 {
-    fprintf(stderr, "pstack: evaluating bool sort\n");
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating Bool sort\n");
+#endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 2);
     pstack_pop_frame(pstack);
@@ -382,6 +398,9 @@ void eval_bool_sort(pstack_t *pstack, moxi_context_t *ctx)
  */
 void eval_bitvec_sort(pstack_t *pstack, moxi_context_t *ctx)
 {
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating BitVec sort\n");
+#endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 3);
     check_elem_tag(pstack, 2, TAG_NUMERAL);
@@ -396,6 +415,9 @@ void eval_bitvec_sort(pstack_t *pstack, moxi_context_t *ctx)
  */
 void eval_array_sort(pstack_t *pstack, moxi_context_t *ctx)
 {
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating Array sort\n");
+#endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 4);
     check_elem_tag(pstack, 2, TAG_SORT);
@@ -412,6 +434,9 @@ void eval_array_sort(pstack_t *pstack, moxi_context_t *ctx)
  */
 void eval_int_sort(pstack_t *pstack, moxi_context_t *ctx)
 {
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating Int sort\n");
+#endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 2);
     pstack_pop_frame(pstack);
@@ -423,6 +448,9 @@ void eval_int_sort(pstack_t *pstack, moxi_context_t *ctx)
  */
 void eval_real_sort(pstack_t *pstack, moxi_context_t *ctx)
 {
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating Real sort\n");
+#endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 2);
     pstack_pop_frame(pstack);
@@ -445,36 +473,35 @@ void eval_sort(pstack_t *pstack, moxi_context_t *ctx)
     fprintf(stderr, "pstack: evaluating sort\n");
 #endif
     loc_t loc = pstack_top_frame_loc(pstack);
-    char *str = get_elem_string(pstack, 1);
-    const symbol_t *symbol = moxi_find_sort(ctx, str);
-
-    if (symbol == NULL) {
-        PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort '%s'", str);
+    char *symbol = get_elem_symbol(pstack, 1);
+    if (!is_active_sort(ctx, symbol)) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort %s", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
     }
 
-    switch (symbol->type) {
-    case SYM_BOOL:
+    theory_symbol_type_t thy_sym_type = get_theory_symbol_type(ctx, symbol);
+    switch (thy_sym_type) {
+    case THY_SYM_BOOL:
         eval_bool_sort(pstack, ctx);
         break;
-    case SYM_INT:
+    case THY_SYM_INT:
         eval_int_sort(pstack, ctx);
         break;
-    case SYM_REAL:
+    case THY_SYM_REAL:
         eval_real_sort(pstack, ctx);
         break;
-    case SYM_BITVEC:
+    case THY_SYM_BITVEC:
         eval_bitvec_sort(pstack, ctx);
         break;
-    case SYM_ARRAY:
+    case THY_SYM_ARRAY:
         eval_array_sort(pstack, ctx);
         break;
     default:
     {
         // All we support currently are uninterpreted sorts with arity 0
-        sort_t sort = yices_get_type_by_name(str);
+        sort_t sort = yices_get_type_by_name(symbol);
         if (sort == NULL_TYPE) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort '%s'", str);
+            PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort %s", symbol);
             longjmp(pstack->env, BAD_SYMBOL_KIND);
         }
         pstack_pop_frame(pstack);
@@ -508,11 +535,11 @@ void eval_apply_term(pstack_t *pstack, moxi_context_t *ctx)
 #endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_geq(pstack, 2);
-    char *str = get_elem_string(pstack, 1);
+    char *symbol = get_elem_symbol(pstack, 1);
 
-    term_t app = yices_get_term_by_name(str);
+    term_t app = yices_get_term_by_name(symbol);
     if (app == NULL_TERM) {
-        PRINT_ERROR_LOC(pstack->filename, loc, "unknown symbol '%s'", str);
+        PRINT_ERROR_LOC(pstack->filename, loc, "unknown term %s", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
     }
 
@@ -551,20 +578,21 @@ void eval_var_term(pstack_t *pstack, moxi_context_t *ctx)
 #endif
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 2);
-    char *str = get_elem_string(pstack, 1);
-    var_table_entry_t *entry = moxi_find_var(ctx, str);
+    char *symbol = get_elem_symbol(pstack, 1);
+    const var_table_entry_t *entry = moxi_find_var(ctx, symbol);
+    assert(entry != NULL);
 
     // Primed variables must be:
     // - local or output variables
     // - in a :trans term (pstack->enable_next_vars will be set in parser)
-    size_t len = strlen(str);
-    if (str_is_primed(str, len)) {
+    size_t len = strlen(symbol);
+    if (symbol_is_primed(symbol, len)) {
         if (entry->kind != LOCAL_VAR && entry->kind != OUTPUT_VAR) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "primed variable '%s' must be local or output (%hu)", str, entry->kind);
+            PRINT_ERROR_LOC(pstack->filename, loc, "primed variable %s must be local or output (%hu)", symbol, entry->kind);
             longjmp(pstack->env, BAD_TERM);
         }
         if (!pstack->next_vars_enabled) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "primed variable '%s' must be in a transition term", str);
+            PRINT_ERROR_LOC(pstack->filename, loc, "primed variable %s must be in a transition term", symbol);
             longjmp(pstack->env, BAD_TERM);
         }
     }
@@ -963,7 +991,7 @@ void eval_term(pstack_t *pstack, moxi_context_t *ctx)
         }
         check_frame_size_eq(pstack, 2);
         check_elem_tag(pstack, 1, TAG_DECIMAL);
-        char *decimal = get_elem_string(pstack, 1);
+        char *decimal = get_elem_symbol(pstack, 1);
         pstack_pop_frame(pstack);
         term_t term = yices_parse_float(decimal);
         if (term == NULL_TERM) {
@@ -975,20 +1003,22 @@ void eval_term(pstack_t *pstack, moxi_context_t *ctx)
     }
     case TAG_SYMBOL:
     {
-        char *str = get_elem_string(pstack, 1);
-        const symbol_t *symbol = moxi_find_term(ctx, str);
-        if (symbol == NULL) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "unknown term %s", str);
+        char *symbol = get_elem_symbol(pstack, 1);
+        if (is_active_theory_term(ctx, symbol)) {
+            theory_symbol_type_t thy_sym_type = get_theory_symbol_type(ctx, symbol);
+            term_eval_table[thy_sym_type](pstack, ctx);
+            break;
+        }
+        term_t term = yices_get_term_by_name(symbol);
+        if (term == NULL_TERM) {
+            PRINT_ERROR_LOC(pstack->filename, loc, "unknown term %s", symbol);
             longjmp(pstack->env, BAD_SYMBOL_KIND);
         }
-        if (symbol->type == SYM_VAR) {
+        if (yices_term_constructor(term) == YICES_VARIABLE) {
             eval_var_term(pstack, ctx);
-            return;
+            break;
         }
-        // If this is a theory symbol, then we dispatch to the corresponding
-        // function. Otherwise, `symbol->type` is SYM_UNKNOWN, which calls
-        // `eval_apply_term`.
-        term_eval_table[symbol->type](pstack, ctx);
+        eval_apply_term(pstack, ctx);
         break;
     }
     default:
@@ -996,23 +1026,6 @@ void eval_term(pstack_t *pstack, moxi_context_t *ctx)
         longjmp(pstack->env, BAD_TAG);
     }
 }
-
-/*****************************************
- * Attribute evaluation
- ****************************************/
-
-/**
- * [ <input-var-frame> (<symbol> <sort>)* ]
- */
-void eval_input_var_attr(pstack_t *pstack, moxi_context_t *ctx) 
-{ 
-#ifdef DEBUG_PSTACK
-    fprintf(stderr, "pstack: declaring input vars\n");
-#endif
-    check_frame_size_geq(pstack, 1);
-    pstack_pop_frame(pstack);
-}
-
 
 /*****************************************
  * Command evaluation
@@ -1029,8 +1042,9 @@ void eval_set_logic(pstack_t *pstack, moxi_context_t *ctx)
     check_frame_size_eq(pstack, 2);
     check_elem_tag(pstack, 1, TAG_SYMBOL);
 
-    char *str = get_elem_string(pstack, 1);
-    if (!set_current_logic(ctx, str)) {
+    char *symbol = get_elem_symbol(pstack, 1);
+    moxi_set_logic(ctx, symbol);
+    if (ctx->status) {
         longjmp(pstack->env, BAD_LOGIC);
     }
 
@@ -1045,9 +1059,9 @@ void eval_define_sort(pstack_t *pstack, moxi_context_t *ctx)
 #ifdef DEBUG_PSTACK
     fprintf(stderr, "pstack: evaluating define-sort\n");
 #endif
+    // TODO: will require yices_extensions.c to implement
+    // (not supported by Yices' standard API, see 'yices_type_macro')
     PRINT_ERROR("define-sort not implemented");
-    PRINT_ERROR("will require yices_extensions.c to implement");
-    PRINT_ERROR("(not supported by Yices' standard API, see 'yices_type_macro')");
     longjmp(pstack->env, BAD_COMMAND);
 }
 
@@ -1059,26 +1073,33 @@ void eval_declare_sort(pstack_t *pstack, moxi_context_t *ctx)
 #ifdef DEBUG_PSTACK
     fprintf(stderr, "pstack: evaluating declare-sort\n");
 #endif
-    // loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 3);
     check_elem_tag(pstack, 1, TAG_SYMBOL);
     check_elem_tag(pstack, 2, TAG_NUMERAL);
 
-    char *str = get_elem_string(pstack, 1);
+    char *symbol = get_elem_symbol(pstack, 1);
     uint64_t arity = get_elem_numeral(pstack, 2);
 
     if (arity != 0) {
+        // TODO: will require yices_extensions.c to implement
+        // (not supported by Yices' standard API, see 'yices_type_constructor')
         PRINT_ERROR("uninterpreted sorts with arity >0 are not supported");
-        PRINT_ERROR("will require yices_extensions.c to implement");
-        PRINT_ERROR("(not supported by Yices' standard API, see 'yices_type_constructor')");
         longjmp(pstack->env, BAD_SORT);
     }
 
-    moxi_declare_sort(ctx, str, arity);
+    moxi_declare_sort(ctx, symbol, 0);
+    if (ctx->status) {
+        PRINT_ERROR("symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     pstack_pop_frame(pstack);
 }
 
 /**
+ * Only :init, :trans, and :inv attributes will appear here, :input, :output,
+ * and :local have all been dealt with via `eval_var_decl`.
+ *
  * [ <define-system-frame> <symbol> <define-system-attr>+ ]
  */
 void eval_define_system(pstack_t *pstack, moxi_context_t *ctx) 
@@ -1086,11 +1107,80 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
 #ifdef DEBUG_PSTACK
     fprintf(stderr, "pstack: evaluating define-system\n");
 #endif
-    PRINT_ERROR("define-system not implemented");
-    longjmp(pstack->env, BAD_COMMAND);
+    check_frame_size_geq(pstack, 2);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
 
-    // TODO: Dispatch to corresponding function based on the frame type for each
-    // attribute, then add system to context
+    term_t init = yices_true();
+    term_t trans = yices_true();
+    term_t inv = yices_true();
+
+    char *symbol = get_elem_symbol(pstack, 1);
+    uint32_t i = 2, j;
+    while (i < pstack_top_frame_size(pstack)) {
+        check_frame_size_geq(pstack, i+2);
+        check_elem_tag(pstack, i, TAG_ATTR);
+        token_type_t attr = get_elem_attr(pstack, i);
+        switch (attr) {
+        case TOK_KW_INPUT:
+        case TOK_KW_OUTPUT:
+        case TOK_KW_LOCAL:
+            i++;
+            while(get_elem_tag(pstack, i) != TAG_ATTR) { i++; }
+            break;
+        case TOK_KW_INIT:
+            // <init-attr> <term>
+            check_elem_tag(pstack, i+1, TAG_TERM);
+            init = yices_and2(init, get_elem_term(pstack, i+1));
+            if (init == NULL_TERM) {
+                PRINT_ERROR("bad init term");
+                longjmp(pstack->env, BAD_TERM);
+            }
+            i += 2;
+            break;
+        case TOK_KW_TRANS:
+            // <trans-attr> <term>
+            check_elem_tag(pstack, i+1, TAG_TERM);
+            trans = yices_or2(trans, get_elem_term(pstack, i+1));
+            if (init == NULL_TERM) {
+                PRINT_ERROR("bad trans term");
+                longjmp(pstack->env, BAD_TERM);
+            }
+            i += 2;
+            break;
+        case TOK_KW_INV:
+            // <inv-attr> <term>
+            check_elem_tag(pstack, i+1, TAG_TERM);
+            inv = yices_and2(inv, get_elem_term(pstack, i+1));
+            if (init == NULL_TERM) {
+                PRINT_ERROR("bad inv term");
+                longjmp(pstack->env, BAD_TERM);
+            }
+            i += 2;
+            break;
+        case TOK_KW_SUBSYS: 
+        {
+            // <subsys-attr> <symbol> <var>*
+            PRINT_ERROR(":subsys not yet implemented");
+            longjmp(pstack->env, BAD_ATTR);
+            break;
+        }
+        default:
+            PRINT_ERROR("bad attribute for define-system");
+            longjmp(pstack->env, BAD_ATTR);
+        }
+    }
+
+    str_vector_t *scope = moxi_get_scope(ctx);
+
+    moxi_define_system(ctx, symbol, 0, NULL, 0, NULL, 0, NULL, 
+                        init, trans, inv);
+    if (ctx->status) {
+        PRINT_ERROR("system %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
+    moxi_pop_scope(ctx);
+    pstack_pop_frame(pstack);
 }
 
 void eval_check_system(pstack_t *pstack, moxi_context_t *ctx) 
@@ -1123,9 +1213,15 @@ void eval_declare_const(pstack_t *pstack, moxi_context_t *ctx)
     check_elem_tag(pstack, 1, TAG_SYMBOL);
     check_elem_tag(pstack, 2, TAG_SORT);
 
-    char *str = get_elem_string(pstack, 1);
+    char *symbol = get_elem_symbol(pstack, 1);
     sort_t sort = get_elem_sort(pstack, 2);
-    moxi_declare_fun(ctx, str, 0, NULL, sort);
+
+    moxi_declare_fun(ctx, symbol, 0, NULL, sort);
+    if (ctx->status) {
+        PRINT_ERROR("symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     pstack_pop_frame(pstack);
 }
 
@@ -1144,7 +1240,7 @@ void eval_define_const(pstack_t *pstack, moxi_context_t *ctx)
     check_elem_tag(pstack, 2, TAG_SORT);
     check_elem_tag(pstack, 3, TAG_TERM);
 
-    char *str = get_elem_string(pstack, 1);
+    char *symbol = get_elem_symbol(pstack, 1);
     sort_t sort = get_elem_sort(pstack, 2);
     term_t term = get_elem_term(pstack, 3);
 
@@ -1153,7 +1249,12 @@ void eval_define_const(pstack_t *pstack, moxi_context_t *ctx)
         longjmp(pstack->env, BAD_SORT);
     }
 
-    moxi_define_fun(ctx, str, 0, NULL, sort, NULL_TERM);
+    moxi_define_fun(ctx, symbol, 0, NULL, sort, term);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     pstack_pop_frame(pstack);
 }
 
@@ -1179,7 +1280,7 @@ void eval_define_fun(pstack_t *pstack, moxi_context_t *ctx)
     nargs = (pstack_top_frame_size(pstack) - 4) / 2;
     sort_t *args, ret;
     term_t body;
-    char *str;
+    char *symbol;
 
     args = malloc(nargs * sizeof(sort_t));
 
@@ -1208,7 +1309,7 @@ void eval_define_fun(pstack_t *pstack, moxi_context_t *ctx)
     check_elem_tag(pstack, 2 + (nargs * 2), TAG_SORT);
     check_elem_tag(pstack, 3 + (nargs * 2), TAG_TERM);
 
-    str = get_elem_string(pstack, 1);
+    symbol = get_elem_symbol(pstack, 1);
     ret = get_elem_sort(pstack, 2 + (nargs * 2));
     body = get_elem_term(pstack, 3 + (nargs * 2));
 
@@ -1217,7 +1318,12 @@ void eval_define_fun(pstack_t *pstack, moxi_context_t *ctx)
         longjmp(pstack->env, BAD_SORT);
     }
 
-    moxi_define_fun(ctx, str, nargs, args, ret, body);
+    moxi_define_fun(ctx, symbol, nargs, args, ret, body);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     free(args);
     moxi_pop_scope(ctx);
     pstack_pop_frame(pstack);
@@ -1246,7 +1352,7 @@ void eval_declare_fun(pstack_t *pstack, moxi_context_t *ctx)
     uint32_t nargs, i;
     nargs = pstack_top_frame_size(pstack) - 3;
     sort_t *args, ret;
-    char *str;
+    char *symbol;
 
     args = malloc(nargs * sizeof(sort_t));
 
@@ -1264,10 +1370,15 @@ void eval_declare_fun(pstack_t *pstack, moxi_context_t *ctx)
     }
     check_elem_tag(pstack, nargs + 2, TAG_SORT);
 
-    str = get_elem_string(pstack, 1);
+    symbol = get_elem_symbol(pstack, 1);
     ret = get_elem_sort(pstack, nargs + 2);
 
-    moxi_declare_fun(ctx, str, nargs, args, ret);
+    moxi_declare_fun(ctx, symbol, nargs, args, ret);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     free(args);
     pstack_pop_frame(pstack);
 }
@@ -1293,15 +1404,20 @@ void eval_var_decl(pstack_t *pstack, moxi_context_t *ctx)
 
     loc_t loc = pstack_top_frame_loc(pstack);
 
-    char *str = get_elem_string(pstack, 1);
+    char *symbol = get_elem_symbol(pstack, 1);
     sort_t sort = get_elem_sort(pstack, 2);
     term_t var = yices_new_variable(sort);
     if (var == NULL_TERM) {
         yices_print_error(stderr);
         longjmp(pstack->env, BAD_TERM);
     }
-    fprintf(stderr, "var decl: %s (%d)\n", str, pstack->cur_var_kind);
-    moxi_add_var(ctx, str, pstack->cur_var_kind, var);
+
+    moxi_add_var(ctx, symbol, var, LOCAL_VAR);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
     pstack_pop_frame_keep(pstack);
 }
 
@@ -1331,8 +1447,8 @@ void eval_noop(pstack_t *pstack, moxi_context_t *ctx)
 
 void eval_bad_term(pstack_t *pstack, moxi_context_t *ctx) 
 {
-    char *str = get_elem_string(pstack, 1);
-    PRINT_ERROR("unsupported term %s", str);
+    char *symbol = get_elem_symbol(pstack, 1);
+    PRINT_ERROR("unsupported term %s", symbol);
     longjmp(pstack->env, BAD_TERM); 
 }
 
@@ -1355,49 +1471,43 @@ void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *) = {
     eval_define_sort,       // FRM_DEFINE_SORT,
     eval_define_const,      // FRM_DEFINE_CONST,
     eval_define_fun,        // FRM_DEFINE_FUN,
-    eval_noop_pop_frame,    // FRM_INPUT_ATTR,
-    eval_noop_pop_frame,    // FRM_OUTPUT_ATTR,
-    eval_noop_pop_frame,    // FRM_LOCAL_ATTR,
-    eval_noop_pop_frame,    // FRM_INIT_ATTR,
-    eval_noop_pop_frame,    // FRM_TRANS_ATTR,
-    eval_noop_pop_frame,    // FRM_INV_ATTR,
     eval_var_decl,          // FRM_VAR_DECL,
     eval_term_binder,       // FRM_TERM_BIND,
     eval_noop_pop_frame     // FRM_ERROR
 };
 
-void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, moxi_context_t *) = {
-    eval_bad_term,          // BOOL
-    eval_true_term,         // TRUE
-    eval_false_term,        // FALSE
-    eval_not_term,          // NOT
-    eval_bad_term,    // IMPLIES
-    eval_and_term,    // AND
-    eval_or_term,    // OR
-    eval_xor_term,    // XOR
-    eval_eq_term,           // EQ
-    eval_distinct_term,           // DISTINCT
-    eval_ite_term,          // ITE
-    eval_bad_term,          // ARRAY
-    eval_bad_term, // SELECT
-    eval_bad_term, // STORE
-    eval_bad_term,          // INT
-    eval_bad_term,          // REAL
-    eval_minus_term,  // MINUS
-    eval_add_term,    // PLUS
-    eval_bad_term,    // TIMES
-    eval_bad_term,    // DIVIDES
-    eval_bad_term,    // LE
-    eval_bad_term,    // LT
-    eval_bad_term,    // GE
-    eval_arith_gt_term,    // GT
-    eval_bad_term,    // DIV
-    eval_bad_term,          // MOD
-    eval_bad_term, // ABS
-    eval_bad_term, // TO_REAL
-    eval_bad_term, // TO_INT
-    eval_bad_term,          // BITVEC
-    eval_bad_term, // CONCAT
+void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *, moxi_context_t *) = {
+    eval_bad_term,       // BOOL
+    eval_true_term,      // TRUE
+    eval_false_term,     // FALSE
+    eval_not_term,       // NOT
+    eval_bad_term,       // IMPLIES
+    eval_and_term,       // AND
+    eval_or_term,        // OR
+    eval_xor_term,       // XOR
+    eval_eq_term,        // EQ
+    eval_distinct_term,  // DISTINCT
+    eval_ite_term,       // ITE
+    eval_bad_term,       // ARRAY
+    eval_bad_term,       // SELECT
+    eval_bad_term,       // STORE
+    eval_bad_term,       // INT
+    eval_bad_term,       // REAL
+    eval_minus_term,     // MINUS
+    eval_add_term,       // PLUS
+    eval_bad_term,       // TIMES
+    eval_bad_term,       // DIVIDES
+    eval_bad_term,       // LE
+    eval_bad_term,       // LT
+    eval_bad_term,       // GE
+    eval_arith_gt_term,  // GT
+    eval_bad_term,       // DIV
+    eval_bad_term,       // MOD
+    eval_bad_term,       // ABS
+    eval_bad_term,       // TO_REAL
+    eval_bad_term,       // TO_INT
+    eval_bad_term,       // BITVEC
+    eval_bad_term,       // CONCAT
     eval_bvextract_term, // EXTRACT
     eval_bad_term, // REPEAT
     eval_bad_term, // BVCOMP
@@ -1434,8 +1544,7 @@ void (*term_eval_table[NUM_SYMBOLS])(pstack_t *, moxi_context_t *) = {
     eval_bad_term, // BVSLE
     eval_bad_term, // BVSGT
     eval_bad_term, // BVSGE
-    eval_bad_term, // VAR
-    eval_apply_term, // UNKNOWN
+    eval_bad_term, // UNKNOWN
 };
 
 void pstack_eval_frame(pstack_t *pstack, moxi_context_t *ctx)
