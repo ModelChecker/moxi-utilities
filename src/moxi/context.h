@@ -42,6 +42,7 @@ typedef enum {
 typedef struct var_table_entry {
     var_kind_t kind;
     term_t var;
+    bool is_primed;
 } var_table_entry_t;
 
 static inline bool symbol_is_primed(const char *str, size_t len)

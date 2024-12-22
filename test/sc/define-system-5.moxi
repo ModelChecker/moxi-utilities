@@ -1,0 +1,5 @@
+(define-system S1)
+
+(define-system S2
+  :subsys (A (S1))
+)

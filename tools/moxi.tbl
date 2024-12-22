@@ -120,7 +120,7 @@ CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_st
 //            | )
 //
 CMD11       TOK_SYMBOL      DONE       consume     CMD11a   { pstack_push_string(pstack, str, loc); pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);  }
-CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INPUT, loc); pstack_set_vars_input(pstack); }
+CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   {  pstack_push_attr(pstack, TOK_KW_INPUT, loc); pstack_set_vars_input(pstack); }
 CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_OUTPUT, loc); pstack_set_vars_output(pstack); }
 CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_LOCAL, loc); pstack_set_vars_local(pstack); }
 CMD11a      TOK_KW_INIT     TRM0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INIT, loc); }
@@ -129,10 +129,11 @@ CMD11a      TOK_KW_INV      TRM0       consume     CMD11a   { pstack_push_attr(p
 CMD11a      TOK_KW_SUBSYS   CMD11b     consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_SUBSYS, loc); }
 CMD11a      TOK_RP          DONE       consume     _
 CMD11b      TOK_LP          CMD11c     consume     _
-CMD11c      TOK_SYMBOL      CMD11d     consume     _
+CMD11c      TOK_SYMBOL      CMD11d     consume     _        { pstack_push_string(pstack, str, loc); }
 CMD11d      TOK_LP          CMD11e     consume     _
-CMD11e      TOK_SYMBOL      CMD11e     consume     _
-CMD11e      TOK_RP          R0         consume     _
+CMD11e      TOK_SYMBOL      CMD11f     consume     _        { pstack_push_string(pstack, str, loc); }
+CMD11f      TOK_SYMBOL      CMD11f     consume     _        { pstack_push_string(pstack, str, loc); }
+CMD11f      TOK_RP          R0         consume     _
 
 //    <check-sys-attr> ::=
 //              :input  <sorted-var-list> <check-sys-attr>
@@ -263,8 +264,8 @@ TRM8a       *                   TRM1       pass        _
 //   - SVL0 accepts an empty list
 //   - SVL0a requires at least one element
 // Upon entry, should call some 'pstack_set_' command to set var kind (input, output, local, logic)
-SVL0        TOK_LP          SVL1        consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
-SVL0a       TOK_LP          SVL0b       consume     _       { pstack_push_frame(pstack, FRM_NOOP, loc); }
+SVL0        TOK_LP          SVL1        consume     _       { pstack_push_frame(pstack, FRM_NOOP_KEEP, loc); }
+SVL0a       TOK_LP          SVL0b       consume     _       { pstack_push_frame(pstack, FRM_NOOP_KEEP, loc); }
 SVL0b       TOK_LP          SVL2        consume     _
 SVL1        TOK_LP          SVL2        consume     _       { pstack_push_frame(pstack, FRM_VAR_DECL, loc); }
 SVL1        TOK_RP          DONE        consume     _

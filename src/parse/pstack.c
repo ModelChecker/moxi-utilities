@@ -30,6 +30,7 @@ const char *tag_str[NUM_TAGS] = {
 
 const char *frame_str[NUM_FRM_TYPES] = {
     "[no-op]",              // FRM_NOOP
+    "[no-op-keep]",         // FRM_NOOP_KEEP
     "[push-scope]",         // FRM_PUSH_SCOPE
     "[sort]",               // FRM_SORT
     "[term]",               // FRM_TERM
@@ -1113,9 +1114,12 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
     term_t init = yices_true();
     term_t trans = yices_true();
     term_t inv = yices_true();
+    sys_table_entry_t *subsys_type;
+    char *symbol, *subsys_symbol, *subsys_type_symbol;
+    uint32_t i, j;
 
-    char *symbol = get_elem_symbol(pstack, 1);
-    uint32_t i = 2, j;
+    symbol = get_elem_symbol(pstack, 1);
+    i = 2;
     while (i < pstack_top_frame_size(pstack)) {
         check_frame_size_geq(pstack, i+2);
         check_elem_tag(pstack, i, TAG_ATTR);
@@ -1125,13 +1129,14 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
         case TOK_KW_OUTPUT:
         case TOK_KW_LOCAL:
             i++;
-            while(get_elem_tag(pstack, i) != TAG_ATTR) { i++; }
+            while(get_elem_tag(pstack, i) == TAG_SYMBOL && get_elem_tag(pstack, i+1) == TAG_SORT) { i += 2; }
             break;
         case TOK_KW_INIT:
             // <init-attr> <term>
             check_elem_tag(pstack, i+1, TAG_TERM);
             init = yices_and2(init, get_elem_term(pstack, i+1));
             if (init == NULL_TERM) {
+                yices_print_error(stderr);
                 PRINT_ERROR("bad init term");
                 longjmp(pstack->env, BAD_TERM);
             }
@@ -1142,6 +1147,7 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
             check_elem_tag(pstack, i+1, TAG_TERM);
             trans = yices_or2(trans, get_elem_term(pstack, i+1));
             if (init == NULL_TERM) {
+                yices_print_error(stderr);
                 PRINT_ERROR("bad trans term");
                 longjmp(pstack->env, BAD_TERM);
             }
@@ -1152,6 +1158,7 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
             check_elem_tag(pstack, i+1, TAG_TERM);
             inv = yices_and2(inv, get_elem_term(pstack, i+1));
             if (init == NULL_TERM) {
+                yices_print_error(stderr);
                 PRINT_ERROR("bad inv term");
                 longjmp(pstack->env, BAD_TERM);
             }
@@ -1159,9 +1166,75 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
             break;
         case TOK_KW_SUBSYS: 
         {
-            // <subsys-attr> <symbol> <var>*
-            PRINT_ERROR(":subsys not yet implemented");
-            longjmp(pstack->env, BAD_ATTR);
+            // <subsys-attr> <subsys-symbol> <subsys-type-symbol> <var-symbol>*
+            // Check that:
+            // - subsystem is defined
+            // - number of vars match (ninput + noutput = nvars)
+            // - vars are of the correct sort
+            // - no input vars are mapped to subsystem's output vars
+            check_frame_size_geq(pstack, i+3);
+            subsys_symbol = get_elem_symbol(pstack, i+1);
+            // FIXME: For Cesare: Are subsystem symbols disjoint from terms and
+            // sorts? A subsystem is a variable in a sense, so it could 
+            // reasonably be disjoint from terms.
+            // Ex: :subsys (Bool (Sys a b c))
+            // Ex: :subsys (and (Sys a b c))
+            // FIXME: For Cesare: Are *defined* subsystem symbols disjoint from 
+            // terms and sorts? I think they should be, but I'm not sure
+            // Ex: (define-system Bool)
+            // Ex: (define-system and)
+            // Clearly these are both bad practice, but may be allowed by the standard
+            if (yices_get_term_by_name(subsys_symbol) != NULL_TERM) {
+                PRINT_ERROR("symbol %s already in use", subsys_symbol);
+                longjmp(pstack->env, BAD_SYMBOL_KIND);
+            }
+
+            subsys_type_symbol = get_elem_symbol(pstack, i+2);
+            subsys_type = moxi_find_system(ctx, subsys_type_symbol);
+            if (subsys_type == NULL) {
+                PRINT_ERROR("subsystem %s not defined", subsys_symbol);
+                longjmp(pstack->env, BAD_SYMBOL_KIND);
+            }
+
+            i += 3;
+            size_t nvars = 0;
+            while(get_elem_tag(pstack, i) == TAG_SYMBOL) { 
+                char *var = get_elem_symbol(pstack, i);
+                var_table_entry_t *entry = moxi_find_var(ctx, var);
+                if (entry == NULL) {
+                    PRINT_ERROR("subsys %s: variable %s not defined", subsys_symbol, var);
+                    longjmp(pstack->env, BAD_SYMBOL_KIND);
+                }
+                if (nvars >= subsys_type->ninput + subsys_type->noutput) {
+                    PRINT_ERROR("subsys %s: too many variables supplied", subsys_symbol);
+                    longjmp(pstack->env, BAD_SYMBOL_KIND);
+                }
+                sort_t sort = yices_type_of_term(entry->var);
+                if (nvars < subsys_type->ninput && sort != subsys_type->input[nvars]) {
+                    PRINT_ERROR("subsys %s: input variable %s has wrong sort", subsys_symbol, var);
+                    longjmp(pstack->env, BAD_SORT);
+                } else if (nvars >= subsys_type->ninput) {
+                    if (sort != subsys_type->output[nvars - subsys_type->ninput]) {
+                        PRINT_ERROR("subsys %s: output variable %s has wrong sort", subsys_symbol, var);
+                        longjmp(pstack->env, BAD_SORT);
+                    }
+                    if (entry->kind == INPUT_VAR) {
+                        PRINT_ERROR("subsys %s: input variable %s cannot be mapped to output", subsys_symbol, var);
+                        longjmp(pstack->env, BAD_SYMBOL_KIND);
+                    }
+                }
+                nvars++;
+                i++;
+            }
+
+            if (nvars != subsys_type->ninput + subsys_type->noutput) {
+                PRINT_ERROR("not enough variables for subsystem %s", subsys_symbol);
+                longjmp(pstack->env, BAD_SYMBOL_KIND);
+            }
+
+            // Add this as a dummy variable so that we don't repeat the symbol
+            moxi_add_var(ctx, subsys_symbol, yices_new_variable(NULL_TYPE), LOCAL_VAR);
+            
             break;
         }
         default:
@@ -1171,8 +1244,34 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
     }
 
     str_vector_t *scope = moxi_get_scope(ctx);
+    var_table_entry_t *var;
+    size_t ninput = 0, noutput = 0;
+    for (j = 0; j < scope->size; ++j) {
+        var = moxi_find_var(ctx, scope->data[j]);
+        if (var->is_primed) {
+            continue;
+        } else if (var->kind == INPUT_VAR) {
+            ninput++;
+        } else if (var->kind == OUTPUT_VAR) {
+            noutput++;
+        }
+    }
+    sort_t *input, *output;
+    input = malloc(ninput * sizeof(sort_t));
+    output = malloc(noutput * sizeof(sort_t));
+    size_t in = 0, out = 0;
+    for (j = 0; j < scope->size; ++j) {
+        var = moxi_find_var(ctx, scope->data[j]);
+        if (var->is_primed) {
+            continue;
+        } else if (var->kind == INPUT_VAR) {
+            input[in++] = yices_type_of_term(var->var);
+        } else if (var->kind == OUTPUT_VAR) {
+            output[out++] = yices_type_of_term(var->var);
+        }
+    }
 
-    moxi_define_system(ctx, symbol, 0, NULL, 0, NULL, 0, NULL, 
+    moxi_define_system(ctx, symbol, ninput, input, noutput, output, 0, NULL, 
                         init, trans, inv);
     if (ctx->status) {
         PRINT_ERROR("system %s already defined", symbol);
@@ -1412,7 +1511,7 @@ void eval_var_decl(pstack_t *pstack, moxi_context_t *ctx)
         longjmp(pstack->env, BAD_TERM);
     }
 
-    moxi_add_var(ctx, symbol, var, LOCAL_VAR);
+    moxi_add_var(ctx, symbol, var, pstack->cur_var_kind);
     if (ctx->status) {
         PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -1453,7 +1552,8 @@ void eval_bad_term(pstack_t *pstack, moxi_context_t *ctx)
 }
 
 void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *) = {
-    eval_noop,              // FRM_NOOP,
+    eval_noop_pop_frame,    // FRM_NOOP,
+    eval_noop,              // FRM_NOOP_KEEP,
     eval_push_scope,        // FRM_PUSH_SCOPE,
     eval_sort,              // FRM_SORT,
     eval_term,              // FRM_TERM,

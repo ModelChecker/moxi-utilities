@@ -277,6 +277,7 @@ void moxi_pop_scope(moxi_context_t *ctx)
     for (i = 0; i < vec->size; ++i) {
         str_map_remove(&ctx->var_table, vec->data[i]);
         yices_remove_term_name(vec->data[i]);
+        fprintf(stderr, "removing %s\n", vec->data[i]);
     }
     delete_str_vector(vec);
     free(vec);
@@ -302,6 +303,7 @@ void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind
     var_table_entry_t *new_var_entry = malloc(sizeof(var_table_entry_t));
     new_var_entry->kind = kind;
     new_var_entry->var = var;
+    new_var_entry->is_primed = false;
     str_map_add(&ctx->var_table, symbol, strlen(symbol), new_var_entry);
 
     str_vector_t *scope = stack_top(&ctx->scope_stack);
@@ -320,6 +322,7 @@ void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind
     var_table_entry_t *primed_var_entry = malloc(sizeof(var_table_entry_t));
     primed_var_entry->kind = kind;
     primed_var_entry->var = var;
+    primed_var_entry->is_primed = true;
     str_map_add(&ctx->var_table, primed, strlen(primed), primed_var_entry);
 
     str_vector_append(scope, primed);
@@ -329,13 +332,6 @@ void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind
 
 const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol)
 {
-    size_t len = strlen(symbol);
-    if (symbol_is_primed(symbol, len)) {
-        char *base_str = strndup(symbol, len - 1);
-        const var_table_entry_t *entry = str_map_find(&ctx->var_table, base_str);
-        free(base_str);
-        return entry;
-    }
     return str_map_find(&ctx->var_table, symbol);
 }
 

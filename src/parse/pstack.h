@@ -80,6 +80,7 @@ extern const char *tag_str[NUM_TAGS];
  */
 typedef enum frame_type {
     FRM_NOOP,
+    FRM_NOOP_KEEP,
     FRM_PUSH_SCOPE,
     FRM_SORT,
     FRM_TERM,

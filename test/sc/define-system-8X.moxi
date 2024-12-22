@@ -1,0 +1,6 @@
+(define-system S1)
+
+(define-system S1
+  :local ((l Bool))
+  :subsys (l (S1))
+)

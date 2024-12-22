@@ -1,0 +1,15 @@
+(define-system S1
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((l Bool))
+  :init o
+  :trans (= o' i)
+  :inv (= l true)
+)
+
+(define-system S2
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((l Bool))
+  :subsys (A (S1 i o))
+)
