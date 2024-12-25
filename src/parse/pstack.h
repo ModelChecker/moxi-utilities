@@ -118,6 +118,11 @@ typedef enum pstack_error_type {
     BAD_ATTR = -9
 } pstack_error_type_t;
 
+typedef struct bv64_lit {
+    uint32_t width;
+    uint64_t value;
+} bv64_lit_t;
+
 typedef struct pstack_elem {
     tag_t tag;
     union {
@@ -125,6 +130,7 @@ typedef struct pstack_elem {
         token_type_t attr;
         sort_t sort;
         int64_t numeral;
+        bv64_lit_t bitvec;
         char *str;
     } value;
     uint32_t frame; // Current stack frame ID
@@ -142,7 +148,9 @@ typedef struct pstack {
     uint32_t frame; // Index of top frame element
     int status;
     var_kind_t cur_var_kind; // Used for var declarations
-    bool next_vars_enabled;    // Allow next variables in current term
+    bool input_next_vars_enabled;  // Allow primed input vars in current term
+    bool output_next_vars_enabled; // Allow primed output vars in current term
+    bool local_next_vars_enabled; // Allow primed local vars in current term
     jmp_buf env;
 } pstack_t;
 
@@ -181,6 +189,7 @@ void pstack_push_sort(pstack_t *pstack, sort_t sort, loc_t loc);
 void pstack_push_string(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_numeral(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc);
+void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc);
 void pstack_push_error(pstack_t *pstack, loc_t loc);
 
 static inline void pstack_set_vars_input(pstack_t *pstack)
@@ -205,12 +214,23 @@ static inline void pstack_set_vars_logic(pstack_t *pstack)
 
 static inline void pstack_enable_next_vars(pstack_t *pstack)
 {
-    pstack->next_vars_enabled = true;
+    pstack->input_next_vars_enabled = true;
+    pstack->output_next_vars_enabled = true;
+    pstack->local_next_vars_enabled = true;
 }
 
 static inline void pstack_disable_next_vars(pstack_t *pstack)
 {
-    pstack->next_vars_enabled = false;
+    pstack->input_next_vars_enabled = false;
+    pstack->output_next_vars_enabled = false;
+    pstack->local_next_vars_enabled = false;
+}
+
+static inline void pstack_enable_input_next_vars(pstack_t *pstack)
+{
+    pstack->input_next_vars_enabled = true;
+    pstack->output_next_vars_enabled = false;
+    pstack->local_next_vars_enabled = false;
 }
 
 /**

@@ -29,6 +29,7 @@ void delete_parser(parser_t *parser)
     delete_lexer(&parser->lex);
     delete_int_stack(&parser->sstack);
     delete_pstack(&parser->pstack);
+    delete_context(&parser->ctx);
 }
 
 typedef enum parse_state {
@@ -46,13 +47,27 @@ typedef enum parse_state {
 	CMD12a,
 	CMD12b,
 	CMD12b0,
+	CMD12b1,
 	CMD12c,
 	CMD12c0,
 	CMD12c1,
-	CMD12c2,
-	CMD12c3,
 	CMD12d,
 	CMD12d0,
+	CMD12d1,
+	CMD12e,
+	CMD12e0,
+	CMD12e1,
+	CMD12e2,
+	CMD12e3,
+	CMD12e4,
+	CMD12f,
+	CMD12f0,
+	CMD12f1,
+	CMD12f2,
+	CMD12f3,
+	CMD12f4,
+	CMD12f5,
+	CMD12f6,
 	CMD2,
 	CMD3,
 	CMD4,
@@ -96,6 +111,7 @@ typedef enum parse_state {
 	SVL3,
 	TRM0,
 	TRM0next,
+	TRM0nextinput,
 	TRM1,
 	TRM2,
 	TRM3,
@@ -134,31 +150,46 @@ typedef enum parse_action {
 	CMD11b_LP_CMD11c,
 	CMD11c_SYMBOL_CMD11d,
 	CMD11d_LP_CMD11e,
-	CMD11e_SYMBOL_CMD11f,
-	CMD11f_RP_R0,
-	CMD11f_SYMBOL_CMD11f,
+	CMD11e_RP_CMD11f,
+	CMD11e_SYMBOL_CMD11e,
+	CMD11f_RP_CMD11a,
 	CMD12_SYMBOL_DONE,
-	CMD12a_KW_ASSUME_CMD12b,
-	CMD12a_KW_CURRENT_CMD12b,
-	CMD12a_KW_FAIR_CMD12b,
+	CMD12a_KW_ASSUMPTION_CMD12b,
+	CMD12a_KW_CURRENT_CMD12d,
+	CMD12a_KW_FAIRNESS_CMD12b,
 	CMD12a_KW_INPUT_SVL0,
 	CMD12a_KW_LOCAL_SVL0,
 	CMD12a_KW_OUTPUT_SVL0,
-	CMD12a_KW_QUERIES_CMD12d,
-	CMD12a_KW_QUERY_CMD12c,
-	CMD12a_KW_REACH_CMD12b,
+	CMD12a_KW_QUERIES_CMD12f,
+	CMD12a_KW_QUERY_CMD12e,
+	CMD12a_KW_REACHABLE_CMD12c,
 	CMD12a_RP_DONE,
-	CMD12b0_SYMBOL_TRM0,
+	CMD12b0_SYMBOL_TRM0nextinput,
+	CMD12b1_RP_CMD12a,
 	CMD12b_LP_CMD12b0,
-	CMD12c0_SYMBOL_CMD12c1,
-	CMD12c1_LP_CMD12c2,
-	CMD12c2_SYMBOL_CMD12c3,
-	CMD12c3_RP_R0,
-	CMD12c3_SYMBOL_CMD12c3,
+	CMD12c0_SYMBOL_TRM0next,
+	CMD12c1_RP_CMD12a,
 	CMD12c_LP_CMD12c0,
-	CMD12d0_LP_CMD12c,
-	CMD12d0_RP_DONE,
-	CMD12d_LP_CMD12c,
+	CMD12d0_SYMBOL_TRM0,
+	CMD12d1_RP_CMD12a,
+	CMD12d_LP_CMD12d0,
+	CMD12e0_SYMBOL_CMD12e1,
+	CMD12e1_LP_CMD12e2,
+	CMD12e2_SYMBOL_CMD12e3,
+	CMD12e3_RP_CMD12e4,
+	CMD12e3_SYMBOL_CMD12e3,
+	CMD12e4_RP_CMD12a,
+	CMD12e_LP_CMD12e0,
+	CMD12f0_LP_CMD12f1,
+	CMD12f1_SYMBOL_CMD12f2,
+	CMD12f2_LP_CMD12f3,
+	CMD12f3_SYMBOL_CMD12f4,
+	CMD12f4_RP_CMD12f5,
+	CMD12f4_SYMBOL_CMD12f4,
+	CMD12f5_RP_CMD12f6,
+	CMD12f6_LP_CMD12f0,
+	CMD12f6_RP_CMD12a,
+	CMD12f_LP_CMD12f0,
 	CMD1_RW_ASSERT_TRM0,
 	CMD1_RW_CHECK_SYS_CMD12,
 	CMD1_RW_DECLARE_CONST_CMD9,
@@ -232,6 +263,7 @@ typedef enum parse_action {
 	SVL3_RP_SVL1,
 	TRM0_WC_TRM1,
 	TRM0next_WC_TRM1,
+	TRM0nextinput_WC_TRM1,
 	TRM1_BINARY_DONE,
 	TRM1_DECIMAL_DONE,
 	TRM1_HEX_DONE,
@@ -272,9 +304,23 @@ typedef enum parse_action {
 	TRM8a_WC_TRM1,
 } parse_action_t;
 
-const int def[83] = {
+const int def[98] = {
 	CMD0_WC_ERR_LP_EOF,
 	CMD1_WC_ERR_CMD,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
@@ -337,6 +383,7 @@ const int def[83] = {
 	ERR_WC_ERR,
 	TRM0_WC_TRM1,
 	TRM0next_WC_TRM1,
+	TRM0nextinput_WC_TRM1,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	TRM3_WC_TRM1,
@@ -358,7 +405,7 @@ const int def[83] = {
 	TRM8a_WC_TRM1,
 };
 
-const int base[83] = {
+const int base[98] = {
 	0,
 	0,
 	0,
@@ -369,447 +416,492 @@ const int base[83] = {
 	3,
 	3,
 	4,
-	5,
-	38,
 	4,
+	38,
 	6,
+	5,
 	6,
-	7,
-	7,
 	8,
-	9,
+	6,
 	8,
-	11,
-	3,
 	10,
-	11,
+	7,
+	10,
 	12,
+	8,
 	13,
+	9,
 	13,
-	13,
-	15,
-	15,
 	14,
-	15,
 	16,
-	40,
 	17,
+	10,
 	40,
-	18,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
+	11,
+	40,
 	41,
 	43,
-	65,
-	43,
-	20,
-	43,
-	66,
-	23,
-	71,
-	73,
-	83,
-	83,
-	85,
-	87,
-	88,
-	90,
-	0,
-	91,
-	0,
-	0,
-	93,
-	101,
-	93,
-	54,
-	100,
-	102,
-	105,
-	95,
-	61,
-	106,
-	108,
-	113,
-	114,
-	73,
-	119,
-	121,
-	123,
-	113,
-	124,
-};
-
-const int check[181] = {
-	0,
-	0,
-	4,
-	5,
-	7,
-	12,
-	9,
-	14,
-	16,
-	19,
-	21,
-	18,
-	20,
-	20,
-	25,
-	26,
-	28,
-	29,
-	31,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	4,
-	4,
-	4,
-	4,
-	4,
-	4,
-	4,
-	11,
-	33,
-	35,
-	44,
-	45,
-	47,
-	49,
-	2,
-	3,
-	6,
-	8,
-	9,
-	10,
-	13,
-	15,
-	17,
-	18,
-	22,
-	23,
-	24,
-	27,
-	30,
-	29,
-	32,
-	34,
-	36,
-	46,
-	48,
-	50,
-	50,
-	51,
-	11,
-	11,
-	11,
-	52,
-	53,
-	53,
-	46,
-	11,
-	11,
-	11,
-	11,
-	11,
-	11,
-	54,
-	55,
-	56,
-	35,
-	57,
-	58,
-	45,
-	59,
-	59,
-	61,
-	64,
-	66,
-	64,
-	64,
-	64,
-	64,
-	64,
-	67,
-	65,
-	68,
-	69,
-	69,
-	70,
-	71,
-	72,
-	73,
-	74,
-	74,
-	46,
-	65,
-	75,
-	76,
-	65,
-	65,
-	65,
-	65,
-	77,
-	78,
-	79,
-	79,
-	80,
-	81,
-	82,
-	83,
-	81,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	64,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	65,
-	83,
-	83,
-	83,
-	70,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-	83,
-};
-
-const int value[181] = {
-	0,
-	1,
-	12,
-	13,
-	15,
-	31,
-	17,
-	37,
-	33,
-	40,
-	56,
-	35,
-	38,
 	39,
-	64,
-	65,
-	68,
-	69,
-	72,
-	50,
-	42,
-	46,
-	44,
-	43,
-	45,
-	49,
-	47,
-	48,
-	52,
-	54,
-	51,
-	53,
-	41,
-	6,
-	9,
-	8,
-	5,
-	11,
-	7,
-	10,
-	29,
-	74,
-	76,
-	85,
-	87,
-	92,
-	95,
-	3,
-	4,
+	12,
 	14,
-	16,
-	18,
-	19,
-	30,
-	32,
-	34,
-	36,
-	58,
-	60,
+	15,
 	62,
-	67,
-	71,
-	70,
-	73,
-	75,
-	78,
-	89,
-	94,
-	97,
-	96,
-	98,
-	23,
-	25,
-	24,
-	99,
-	101,
-	100,
-	90,
-	20,
-	28,
-	22,
+	62,
+	18,
+	65,
+	65,
 	21,
-	27,
-	26,
+	66,
+	23,
+	73,
+	28,
+	74,
+	30,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	82,
+	84,
+	85,
+	86,
+	42,
+	87,
+	89,
+	46,
+	91,
+	93,
+	97,
+	97,
+	99,
+	100,
+	101,
 	102,
+	0,
 	103,
-	105,
-	77,
-	106,
+	0,
+	0,
+	0,
+	110,
 	107,
-	88,
-	108,
+	104,
+	60,
+	106,
+	124,
 	109,
-	111,
-	117,
-	128,
-	118,
-	115,
-	114,
-	116,
-	119,
-	130,
-	121,
-	131,
-	133,
+	106,
+	73,
+	125,
+	127,
 	132,
+	133,
+	88,
 	134,
 	136,
-	137,
 	138,
-	140,
+	128,
 	139,
+};
+
+const int check[196] = {
+	0,
+	0,
+	4,
+	5,
+	7,
+	8,
+	9,
+	12,
+	14,
+	15,
+	17,
+	18,
+	20,
+	21,
+	23,
+	25,
+	26,
+	27,
+	28,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	4,
+	4,
+	4,
+	4,
+	4,
+	4,
+	4,
+	11,
+	30,
+	32,
+	33,
+	34,
+	34,
+	35,
+	2,
+	3,
+	6,
+	8,
+	10,
+	13,
+	16,
+	19,
+	22,
+	24,
+	29,
+	31,
+	36,
+	25,
+	37,
+	38,
+	39,
+	40,
+	41,
+	42,
+	43,
+	44,
+	45,
+	46,
+	11,
+	11,
+	11,
+	47,
+	48,
+	49,
+	50,
+	11,
+	11,
+	11,
+	11,
+	11,
+	11,
+	58,
+	59,
+	60,
+	32,
+	61,
+	62,
+	63,
+	64,
+	64,
+	65,
+	66,
+	67,
+	67,
+	60,
+	68,
+	69,
+	70,
+	71,
+	72,
+	73,
+	73,
+	75,
+	81,
+	82,
+	80,
+	83,
+	85,
+	79,
+	43,
+	79,
+	79,
+	79,
+	79,
+	79,
+	86,
+	80,
+	87,
+	49,
+	80,
+	80,
+	80,
+	80,
+	84,
+	84,
+	88,
+	89,
+	89,
+	59,
+	60,
+	90,
 	91,
-	126,
-	141,
-	142,
+	92,
+	93,
+	94,
+	94,
+	95,
+	96,
+	97,
+	98,
+	96,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	80,
+	98,
+	85,
+	79,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+	98,
+};
+
+const int value[196] = {
+	0,
+	1,
+	12,
+	13,
+	15,
+	16,
+	18,
+	32,
+	31,
+	35,
+	34,
+	38,
+	37,
+	45,
+	40,
+	42,
+	44,
+	55,
+	46,
+	65,
+	57,
+	61,
+	59,
+	58,
+	60,
+	64,
+	62,
+	63,
+	67,
+	69,
+	66,
+	68,
+	56,
+	6,
+	9,
+	8,
+	5,
+	11,
+	7,
+	10,
+	29,
+	48,
+	50,
+	52,
+	53,
+	54,
+	71,
+	3,
+	4,
+	14,
+	17,
+	19,
+	30,
+	33,
+	36,
+	39,
+	41,
+	47,
+	49,
+	73,
+	43,
+	75,
+	77,
+	79,
+	80,
+	82,
+	83,
+	84,
+	86,
+	87,
+	88,
+	23,
+	25,
+	24,
+	89,
+	90,
+	91,
+	93,
+	20,
+	28,
+	22,
+	21,
+	27,
+	26,
+	100,
+	102,
+	104,
+	51,
+	107,
+	109,
+	110,
+	112,
+	111,
+	113,
+	114,
+	116,
+	115,
+	105,
+	117,
+	118,
+	120,
+	121,
 	122,
-	125,
 	123,
 	124,
-	143,
+	126,
 	144,
-	145,
 	146,
+	137,
 	147,
-	149,
 	150,
-	38,
-	148,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	120,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	127,
-	38,
-	38,
-	38,
+	133,
+	85,
+	134,
+	131,
+	130,
+	132,
 	135,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
-	38,
+	152,
+	142,
+	153,
+	92,
+	138,
+	141,
+	139,
+	140,
+	149,
+	148,
+	154,
+	156,
+	155,
+	103,
+	106,
+	157,
+	158,
+	159,
+	160,
+	161,
+	162,
+	163,
+	165,
+	166,
+	52,
+	164,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	143,
+	52,
+	151,
+	136,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
+	52,
 };
 
 
@@ -1168,7 +1260,6 @@ skip:
 
  		case CMD11a_KW_SUBSYS_CMD11b:
 			pstack_push_attr(pstack, TOK_KW_SUBSYS, loc);
-			int_stack_push(sstack, CMD11a);
 			state = CMD11b;
 			goto consume;
 
@@ -1189,72 +1280,75 @@ skip:
 			state = CMD11e;
 			goto consume;
 
- 		case CMD11e_SYMBOL_CMD11f:
+ 		case CMD11e_SYMBOL_CMD11e:
 			pstack_push_string(pstack, str, loc);
+			state = CMD11e;
+			goto consume;
+
+ 		case CMD11e_RP_CMD11f:
 			state = CMD11f;
 			goto consume;
 
- 		case CMD11f_SYMBOL_CMD11f:
-			pstack_push_string(pstack, str, loc);
-			state = CMD11f;
-			goto consume;
-
- 		case CMD11f_RP_R0:
-			state = R0;
+ 		case CMD11f_RP_CMD11a:
+			state = CMD11a;
 			goto consume;
 
  		case CMD12_SYMBOL_DONE:
+			pstack_push_string(pstack, str, loc);
 			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
 			int_stack_push(sstack, CMD12a);
 			state = DONE;
 			goto consume;
 
  		case CMD12a_KW_INPUT_SVL0:
+			pstack_push_attr(pstack, TOK_KW_INPUT, loc);
 			pstack_set_vars_input(pstack);
 			int_stack_push(sstack, CMD12a);
 			state = SVL0;
 			goto consume;
 
  		case CMD12a_KW_OUTPUT_SVL0:
+			pstack_push_attr(pstack, TOK_KW_OUTPUT, loc);
 			pstack_set_vars_output(pstack);
 			int_stack_push(sstack, CMD12a);
 			state = SVL0;
 			goto consume;
 
  		case CMD12a_KW_LOCAL_SVL0:
+			pstack_push_attr(pstack, TOK_KW_LOCAL, loc);
 			pstack_set_vars_local(pstack);
 			int_stack_push(sstack, CMD12a);
 			state = SVL0;
 			goto consume;
 
- 		case CMD12a_KW_ASSUME_CMD12b:
-			int_stack_push(sstack, CMD12a);
+ 		case CMD12a_KW_ASSUMPTION_CMD12b:
+			pstack_push_attr(pstack, TOK_KW_ASSUMPTION, loc);
 			state = CMD12b;
 			goto consume;
 
- 		case CMD12a_KW_CURRENT_CMD12b:
-			int_stack_push(sstack, CMD12a);
+ 		case CMD12a_KW_FAIRNESS_CMD12b:
+			pstack_push_attr(pstack, TOK_KW_FAIRNESS, loc);
 			state = CMD12b;
 			goto consume;
 
- 		case CMD12a_KW_REACH_CMD12b:
-			int_stack_push(sstack, CMD12a);
-			state = CMD12b;
-			goto consume;
-
- 		case CMD12a_KW_FAIR_CMD12b:
-			int_stack_push(sstack, CMD12a);
-			state = CMD12b;
-			goto consume;
-
- 		case CMD12a_KW_QUERY_CMD12c:
-			int_stack_push(sstack, CMD12a);
+ 		case CMD12a_KW_REACHABLE_CMD12c:
+			pstack_push_attr(pstack, TOK_KW_REACHABLE, loc);
 			state = CMD12c;
 			goto consume;
 
- 		case CMD12a_KW_QUERIES_CMD12d:
-			int_stack_push(sstack, CMD12a);
+ 		case CMD12a_KW_CURRENT_CMD12d:
+			pstack_push_attr(pstack, TOK_KW_CURRENT, loc);
 			state = CMD12d;
+			goto consume;
+
+ 		case CMD12a_KW_QUERY_CMD12e:
+			pstack_push_attr(pstack, TOK_KW_QUERY, loc);
+			state = CMD12e;
+			goto consume;
+
+ 		case CMD12a_KW_QUERIES_CMD12f:
+			pstack_push_attr(pstack, TOK_KW_QUERIES, loc);
+			state = CMD12f;
 			goto consume;
 
  		case CMD12a_RP_DONE:
@@ -1265,48 +1359,123 @@ skip:
 			state = CMD12b0;
 			goto consume;
 
- 		case CMD12b0_SYMBOL_TRM0:
-			int_stack_push(sstack, R0);
-			state = TRM0;
+ 		case CMD12b0_SYMBOL_TRM0nextinput:
+			pstack_push_string(pstack, str, loc);
+			int_stack_push(sstack, CMD12b1);
+			state = TRM0nextinput;
+			goto consume;
+
+ 		case CMD12b1_RP_CMD12a:
+			state = CMD12a;
 			goto consume;
 
  		case CMD12c_LP_CMD12c0:
 			state = CMD12c0;
 			goto consume;
 
- 		case CMD12c0_SYMBOL_CMD12c1:
-			state = CMD12c1;
+ 		case CMD12c0_SYMBOL_TRM0next:
+			pstack_push_string(pstack, str, loc);
+			int_stack_push(sstack, CMD12c1);
+			state = TRM0next;
 			goto consume;
 
- 		case CMD12c1_LP_CMD12c2:
-			state = CMD12c2;
+ 		case CMD12c1_RP_CMD12a:
+			state = CMD12a;
 			goto consume;
 
- 		case CMD12c2_SYMBOL_CMD12c3:
-			state = CMD12c3;
+ 		case CMD12d_LP_CMD12d0:
+			state = CMD12d0;
 			goto consume;
 
- 		case CMD12c3_SYMBOL_CMD12c3:
-			state = CMD12c3;
+ 		case CMD12d0_SYMBOL_TRM0:
+			pstack_push_string(pstack, str, loc);
+			int_stack_push(sstack, CMD12d1);
+			state = TRM0;
 			goto consume;
 
- 		case CMD12c3_RP_R0:
-			state = R0;
+ 		case CMD12d1_RP_CMD12a:
+			state = CMD12a;
 			goto consume;
 
- 		case CMD12d_LP_CMD12c:
-			int_stack_push(sstack, CMD12d0);
-			state = CMD12c;
+ 		case CMD12e_LP_CMD12e0:
+			state = CMD12e0;
 			goto consume;
 
- 		case CMD12d0_LP_CMD12c:
-			int_stack_push(sstack, CMD12d0);
-			state = CMD12c;
+ 		case CMD12e0_SYMBOL_CMD12e1:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12e1;
+			goto consume;
+
+ 		case CMD12e1_LP_CMD12e2:
+			state = CMD12e2;
+			goto consume;
+
+ 		case CMD12e2_SYMBOL_CMD12e3:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12e3;
+			goto consume;
+
+ 		case CMD12e3_SYMBOL_CMD12e3:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12e3;
+			goto consume;
+
+ 		case CMD12e3_RP_CMD12e4:
+			state = CMD12e4;
+			goto consume;
+
+ 		case CMD12e4_RP_CMD12a:
+			state = CMD12a;
+			goto consume;
+
+ 		case CMD12f_LP_CMD12f0:
+			state = CMD12f0;
+			goto consume;
+
+ 		case CMD12f0_LP_CMD12f1:
+			pstack_push_attr(pstack, TOK_KW_QUERY, loc);
+			state = CMD12f1;
+			goto consume;
+
+ 		case CMD12f1_SYMBOL_CMD12f2:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12f2;
+			goto consume;
+
+ 		case CMD12f2_LP_CMD12f3:
+			state = CMD12f3;
+			goto consume;
+
+ 		case CMD12f3_SYMBOL_CMD12f4:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12f4;
+			goto consume;
+
+ 		case CMD12f4_SYMBOL_CMD12f4:
+			pstack_push_string(pstack, str, loc);
+			state = CMD12f4;
+			goto consume;
+
+ 		case CMD12f4_RP_CMD12f5:
+			state = CMD12f5;
+			goto consume;
+
+ 		case CMD12f5_RP_CMD12f6:
+			state = CMD12f6;
+			goto consume;
+
+ 		case CMD12f6_LP_CMD12f0:
+			state = CMD12f0;
 			goto skip;
 
- 		case CMD12d0_RP_DONE:
-			state = DONE;
+ 		case CMD12f6_RP_CMD12a:
+			state = CMD12a;
 			goto consume;
+
+ 		case TRM0nextinput_WC_TRM1:
+			pstack_enable_input_next_vars(pstack);
+			state = TRM1;
+			goto skip;
 
  		case TRM0next_WC_TRM1:
 			pstack_enable_next_vars(pstack);
@@ -1338,7 +1507,7 @@ skip:
 
  		case TRM1_BINARY_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
-			pstack_push_error(pstack, loc);
+			pstack_push_binary(pstack, str, loc);
 			state = DONE;
 			goto consume;
 

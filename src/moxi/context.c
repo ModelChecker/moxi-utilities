@@ -374,6 +374,10 @@ void moxi_define_system(moxi_context_t *ctx, char *str, size_t ninput,
     new->output = malloc(noutput * sizeof(sort_t));
     memcpy(new->output, output, noutput * sizeof(sort_t));
 
+    new->nlocal = nlocal;
+    new->local = malloc(nlocal * sizeof(sort_t));
+    memcpy(new->local, local, nlocal * sizeof(sort_t));
+
     str_map_add(&ctx->sys_table, str, strlen(str), new);
 }
 

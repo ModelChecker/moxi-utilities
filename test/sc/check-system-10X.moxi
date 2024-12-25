@@ -1,0 +1,20 @@
+(define-system S
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((l Bool))
+  :init o
+  :trans (= o' i)
+  :inv (= l true)
+)
+
+(check-system S
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((l Bool))
+  :assumption (a (= l true))
+  :fairness (f (= l true))
+  :reachable (r (= o true))
+  :current (c (= o false))
+  :query (q (a f r c))
+  :queries ((q (a f r)))
+)

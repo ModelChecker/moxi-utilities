@@ -88,6 +88,7 @@ void delete_parser(parser_t *parser)
     delete_lexer(&parser->lex);
     delete_int_stack(&parser->sstack);
     delete_pstack(&parser->pstack);
+    delete_context(&parser->ctx);
 }
 
 """

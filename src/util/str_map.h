@@ -34,7 +34,7 @@ typedef struct str_map {
     void (*delete_value)(void *);
 } str_map_t;
 
-#define DEFAULT_STR_MAP_SIZE 1024
+#define DEFAULT_STR_MAP_SIZE 128
 
 void init_str_map(str_map_t *map, uint32_t size, void (*delete_value)(void *));
 void delete_str_map(str_map_t *map);

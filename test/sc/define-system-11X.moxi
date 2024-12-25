@@ -1,0 +1,9 @@
+(define-system S1
+  :input ((i Bool))
+)
+
+(define-system S2
+  :input ((i Bool))
+  :subsys (A (S1 i))
+  :subsys (B (S0 i))
+)

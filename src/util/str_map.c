@@ -37,13 +37,12 @@ void str_map_reset(str_map_t *map)
         if (cur == NULL) {
             continue;
         }
-        next = cur->next;
         while (cur != NULL) {
+            next = cur->next;
             map->delete_value(cur->value);
             free(cur->str);
             free(cur);
             cur = next;
-            next = next->next;
         }
     }
 }

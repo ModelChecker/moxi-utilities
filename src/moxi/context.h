@@ -57,6 +57,8 @@ typedef struct sys_table_entry {
     sort_t *input;
     size_t noutput;
     sort_t *output;
+    size_t nlocal;
+    sort_t *local;
 } sys_table_entry_t;
 
 /**
@@ -144,12 +146,6 @@ void moxi_define_system_subsys(moxi_context_t *ctx, char *str,
                                size_t nsubsys, char **symbols, 
                                size_t *nsubsys_input, term_t **subsys_input, 
                                size_t *nsubsys_output, term_t **subsys_output);
-void moxi_check_system(moxi_context_t *ctx, char *str, size_t ninput,
-                       sort_t *input, size_t noutput, sort_t *output,
-                       size_t nlocal, size_t nassume, char **vassume, term_t *assume,
-                       size_t nfair, char **vfair, term_t *fair, char **vreach, size_t nreach,
-                       term_t *reach, size_t ncur, char **vcur, term_t *cur,
-                       size_t nquery, char **vquery, term_t **query);
 const sys_table_entry_t *moxi_find_system(moxi_context_t *ctx, char *str);
 
 #endif

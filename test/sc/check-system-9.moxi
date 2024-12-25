@@ -1,0 +1,2 @@
+(define-system S)
+(check-system S)
