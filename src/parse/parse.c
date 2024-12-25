@@ -1188,10 +1188,12 @@ skip:
 			goto consume;
 
  		case CMD8b_SYMBOL_CMD8c:
+			pstack_push_string(pstack, str, loc);
 			state = CMD8c;
 			goto consume;
 
  		case CMD8c_SYMBOL_CMD8c:
+			pstack_push_string(pstack, str, loc);
 			state = CMD8c;
 			goto consume;
 

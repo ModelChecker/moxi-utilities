@@ -1,0 +1,2 @@
+(declare-enum-sort S (A))
+(define-fun f ((i S)) Bool (= i A))

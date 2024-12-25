@@ -99,8 +99,8 @@ CMD7a       TOK_NUMERAL     R0          consume     _           { pstack_push_nu
 // declare-enum-sort
 CMD8        TOK_SYMBOL      CMD8a       consume     _           { pstack_push_string(pstack, str, loc); }
 CMD8a       TOK_LP          CMD8b       consume     _
-CMD8b       TOK_SYMBOL      CMD8c       consume     _
-CMD8c       TOK_SYMBOL      CMD8c       consume     _
+CMD8b       TOK_SYMBOL      CMD8c       consume     _           { pstack_push_string(pstack, str, loc); }
+CMD8c       TOK_SYMBOL      CMD8c       consume     _           { pstack_push_string(pstack, str, loc); }
 CMD8c       TOK_RP          R0          consume     _
 
 // declare-const

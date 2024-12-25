@@ -127,6 +127,7 @@ const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol);
  * - Find sorts in the context.
  ******************************************************************************/
 void moxi_declare_sort(moxi_context_t *ctx, char *str, size_t arity);
+void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values);
 void moxi_define_sort(moxi_context_t *ctx, char *str, size_t nargs,
                       sort_t *args, sort_t body);
 

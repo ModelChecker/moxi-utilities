@@ -607,7 +607,6 @@ void eval_var_term(pstack_t *pstack, moxi_context_t *ctx)
     // Primed variables must be:
     // - local or output variables
     // - in a :trans term (pstack->enable_next_vars will be set in parser)
-    size_t len = strlen(symbol);
     if (var->is_primed) {
         if (var->kind == INPUT_VAR && !pstack->input_next_vars_enabled) {
             PRINT_ERROR_LOC(pstack->filename, loc, "primed input variable %s not allowed", symbol);
@@ -913,7 +912,6 @@ void eval_add_term(pstack_t *pstack, moxi_context_t *ctx)
     term_t term = yices_sum(nargs, args);
     if (term == NULL_TERM) {
         yices_print_error(stderr);
-        PRINT_ERROR("yices error code: %d", yices_error_code());
         longjmp(pstack->env, BAD_SORT);
     }
     pstack_pop_frame(pstack);
@@ -1167,14 +1165,15 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
     term_t init = yices_true();
     term_t trans = yices_true();
     term_t inv = yices_true();
-    sys_table_entry_t *subsys_type;
+    const sys_table_entry_t *subsys_type;
     char *symbol, *subsys_symbol, *subsys_type_symbol;
-    uint32_t i, j;
+    uint32_t i, j, nelems;
 
+    nelems = pstack_top_frame_size(pstack);
     symbol = get_elem_symbol(pstack, 1);
 
     str_vector_t *scope = moxi_get_scope(ctx);
-    var_table_entry_t *var;
+    const var_table_entry_t *var;
     size_t ninput = 0, noutput = 0, nlocal = 0;
     for (j = 0; j < scope->size; ++j) {
         var = moxi_find_var(ctx, scope->data[j]);
@@ -1207,7 +1206,7 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
     }
 
     i = 2;
-    while (i < pstack_top_frame_size(pstack)) {
+    while (i < nelems) {
         check_frame_size_geq(pstack, i+2);
         check_elem_tag(pstack, i, TAG_ATTR);
         token_type_t attr = get_elem_attr(pstack, i);
@@ -1216,7 +1215,7 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
         case TOK_KW_OUTPUT:
         case TOK_KW_LOCAL:
             i++;
-            while(get_elem_tag(pstack, i) == TAG_SYMBOL && get_elem_tag(pstack, i+1) == TAG_SORT) { i += 2; }
+            while(i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL && get_elem_tag(pstack, i+1) == TAG_SORT) { i += 2; }
             break;
         case TOK_KW_INIT:
             // <init-attr> <term>
@@ -1275,9 +1274,9 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
 
             i += 3;
             size_t nvars = 0;
-            while(get_elem_tag(pstack, i) == TAG_SYMBOL) { 
+            while(i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) { 
                 char *var = get_elem_symbol(pstack, i);
-                var_table_entry_t *entry = moxi_find_var(ctx, var);
+                const var_table_entry_t *entry = moxi_find_var(ctx, var);
                 if (entry == NULL) {
                     PRINT_ERROR("subsys %s: variable %s not defined", subsys_symbol, var);
                     longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -1331,8 +1330,6 @@ void eval_define_system(pstack_t *pstack, moxi_context_t *ctx)
     pstack_pop_frame(pstack);
 }
 
-static void default_delete_entry_(void *entry) { }
-
 /**
  * Only :assumption, :fairness, :reachable, :current, :query, and :queries
  * attributes are handled here, :input, :output, and :local have all been dealt
@@ -1349,9 +1346,10 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
     check_elem_tag(pstack, 1, TAG_SYMBOL);
 
     char *symbol;
-    uint32_t i, j;
-    sys_table_entry_t *system;
+    uint32_t i, j, nelems;
+    const sys_table_entry_t *system;
 
+    nelems = pstack_top_frame_size(pstack);
     symbol = get_elem_symbol(pstack, 1);
     system = moxi_find_system(ctx, symbol);
     if (system == NULL) {
@@ -1360,7 +1358,7 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
     }
 
     str_vector_t *scope = moxi_get_scope(ctx);
-    var_table_entry_t *var;
+    const var_table_entry_t *var;
     size_t ninput = 0, noutput = 0, nlocal = 0;
     for (j = 0; j < scope->size; ++j) {
         var = moxi_find_var(ctx, scope->data[j]);
@@ -1387,10 +1385,9 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
     init_str_set(&query_names, 0);
 
     char *name;
-    term_t term;
 
     i = 2;
-    while (i < pstack_top_frame_size(pstack)) {
+    while (i < nelems) {
         check_frame_size_geq(pstack, i+2);
         check_elem_tag(pstack, i, TAG_ATTR);
         token_type_t attr = get_elem_attr(pstack, i);
@@ -1399,7 +1396,7 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
         case TOK_KW_OUTPUT:
         case TOK_KW_LOCAL:
             i++;
-            while(get_elem_tag(pstack, i) == TAG_SYMBOL && get_elem_tag(pstack, i+1) == TAG_SORT) { i += 2; }
+            while((i < nelems) && get_elem_tag(pstack, i) == TAG_SYMBOL && get_elem_tag(pstack, i+1) == TAG_SORT) { i += 2; }
             break;
         case TOK_KW_ASSUMPTION:
         case TOK_KW_FAIRNESS:
@@ -1409,7 +1406,6 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
             check_elem_tag(pstack, i+1, TAG_SYMBOL);
             check_elem_tag(pstack, i+2, TAG_TERM);
             name = get_elem_symbol(pstack, i+1);
-            term = get_elem_term(pstack, i+2);
             if (in_str_set(&formula_names, name)) {
                 PRINT_ERROR("formula %s already defined", name);
                 longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -1428,7 +1424,7 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
             }
             str_set_add(&query_names, name, strlen(name));
             i++;
-            while(get_elem_tag(pstack, i) == TAG_SYMBOL) { 
+            while(i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) { 
                 name = get_elem_symbol(pstack, i);
                 if (!in_str_set(&formula_names, name)) {
                     PRINT_ERROR("formula %s not defined", name);
@@ -1440,7 +1436,7 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
         case TOK_KW_QUERIES:
             // <queries-attr> (<query-attr> <symbol> <symbol>*)*
             i++;
-            while (get_elem_tag(pstack, i) == TAG_ATTR && get_elem_attr(pstack, i) == TOK_KW_QUERY) {
+            while (i < nelems && get_elem_tag(pstack, i) == TAG_ATTR && get_elem_attr(pstack, i) == TOK_KW_QUERY) {
                 i++;
                 check_elem_tag(pstack, i, TAG_SYMBOL);
                 name = get_elem_symbol(pstack, i);
@@ -1450,7 +1446,7 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
                 }
                 str_set_add(&query_names, name, strlen(name));
                 i++;
-                while(get_elem_tag(pstack, i) == TAG_SYMBOL) { 
+                while(i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) { 
                     name = get_elem_symbol(pstack, i);
                     if (!in_str_set(&formula_names, name)) {
                         PRINT_ERROR("formula %s not defined", name);
@@ -1473,13 +1469,35 @@ void eval_check_system(pstack_t *pstack, moxi_context_t *ctx)
     pstack_pop_frame(pstack);
 }
 
+/**
+ *  [ <declare-enum-sort-frame> <symbol> <symbol>+ ] 
+ */
 void eval_declare_enum_sort(pstack_t *pstack, moxi_context_t *ctx) 
 {
 #ifdef DEBUG_PSTACK
     fprintf(stderr, "pstack: evaluating declare-enum-sort\n");
 #endif
-    PRINT_ERROR("declare-enum-sort not implemented");
-    longjmp(pstack->env, BAD_COMMAND);
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_geq(pstack, 3);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+
+    char *sort_symbol = get_elem_symbol(pstack, 1);
+    size_t nvalues = pstack_top_frame_size(pstack) - 2;
+    char **enum_symbols = malloc(nvalues * sizeof(char *));
+
+    uint32_t i;
+    for (i = 2; i < pstack_top_frame_size(pstack); ++i) {
+        check_elem_tag(pstack, i, TAG_SYMBOL);
+        enum_symbols[i-2] = get_elem_symbol(pstack, i);
+    }
+
+    moxi_declare_enum_sort(ctx, sort_symbol, nvalues, enum_symbols);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol already defined");
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
+    pstack_pop_frame(pstack);
 }
 
 /**

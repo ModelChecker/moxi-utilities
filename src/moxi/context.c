@@ -351,6 +351,28 @@ void moxi_declare_sort(moxi_context_t *ctx, char *symbol, size_t arity)
 }
 
 
+void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values)
+{
+    if (is_active_sort(ctx, str)) {
+        ctx->status = 1;
+        return;
+    }
+    sort_t sort = yices_new_scalar_type(nvalues);
+    yices_set_type_name(sort, str);
+
+    size_t i;
+    term_t term;
+    for (i = 0; i < nvalues; ++i) {
+        if (is_active_term(ctx, values[i])) {
+            ctx->status = 1;
+            continue;
+        }
+        term = yices_constant(sort, i);
+        yices_set_term_name(term, values[i]);
+    }
+}
+
+
 void moxi_define_system(moxi_context_t *ctx, char *str, size_t ninput,
                         sort_t *input, size_t noutput, sort_t *output,
                         size_t nlocal, sort_t *local, term_t init,
