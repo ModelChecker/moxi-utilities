@@ -9,6 +9,11 @@ jobs:
       with:
         python-version: "3.9"
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y autoconf libgmp3-dev gperf
+
     - name: Checkout Yices2
       uses: actions/checkout@v4
       with:
