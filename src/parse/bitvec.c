@@ -18,10 +18,10 @@
  * If the string format is wrong, return -1 and leave *ans unchanged.
  * Otherwise, return 0 and store the result in *ans.
  */
-int bv64_from_bin_str(char *str, uint32_t n, bv64_t *ans)
+int bv64_from_bin_str(char *str, size_t n, bv64_t *ans)
 {
-    int64_t x;
-    uint32_t width;
+    uint64_t x;
+    size_t width;
     char *s;
     char c;
 
@@ -68,20 +68,20 @@ int bv64_from_bin_str(char *str, uint32_t n, bv64_t *ans)
  */
 static uint32_t hextoint(char c) {
     if ('0' <= c && c <= '9') {
-        return (uint32_t) (c - '0');
+        return c - '0';
     } else if ('a' <= c && c <= 'f') {
-        return (uint32_t) (10 + (c - 'a'));
+        return 10 + (c - 'a');
     } else {
         // assertio should hold, this would be caught in parser
         assert('A' <= c && c <= 'F');
-        return (uint32_t) (10 + (c - 'A'));
+        return 10 + (c - 'A');
     }
 }
 
-int bv64_from_hex_str(char *str, uint32_t n, bv64_t *ans)
+int bv64_from_hex_str(char *str, size_t n, bv64_t *ans)
 {
-    int64_t x;
-    uint32_t width;
+    uint64_t x;
+    size_t width;
     char *s;
     uint32_t hex;
     char c;

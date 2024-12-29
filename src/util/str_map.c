@@ -70,7 +70,7 @@ void *str_map_find(str_map_t *map, char *symbol)
 /**
  *
  */
-void str_map_add(str_map_t *map, char *symbol, uint32_t n, void *value)
+void str_map_add(str_map_t *map, char *symbol, size_t n, void *value)
 {
     str_map_entry_t *entry;
     uint32_t hash;

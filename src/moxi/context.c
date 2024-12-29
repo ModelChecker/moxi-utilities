@@ -130,7 +130,7 @@ static void delete_sys_table_entry(void *entry)
  */
 void reset_symbols(moxi_context_t *ctx)
 {
-    uint32_t i;
+    size_t i;
     for (i = 0; i < NUM_THEORY_SYMBOLS; ++i) {
         ctx->active_theory_symbols[i] = false;
     }
@@ -154,7 +154,7 @@ void delete_context(moxi_context_t *ctx)
     delete_stack(&ctx->scope_stack);
 }
 
-theory_symbol_type_t get_theory_symbol_type(const char *symbol)
+theory_symbol_type_t get_theory_symbol_type(const moxi_context_t *ctx, const char *symbol)
 {
     const theory_symbol_t *thy_sym = find_moxi_thy_sym(symbol, strlen(symbol));
     if (thy_sym != NULL) {
@@ -191,7 +191,7 @@ bool is_active_sort(const moxi_context_t *ctx, const char *symbol)
  */
 void moxi_set_logic(moxi_context_t *ctx, char *symbol)
 {
-    uint32_t len = (uint32_t) strlen(symbol);
+    size_t len = strlen(symbol);
     const logic_t *logic = find_moxi_logic(symbol, len);
     if (logic == NULL) {
         PRINT_ERROR("unknown logic '%s'", symbol);
@@ -228,7 +228,7 @@ void moxi_set_logic(moxi_context_t *ctx, char *symbol)
 }
 
 
-void moxi_declare_fun(moxi_context_t *ctx, char *symbol, uint32_t nargs,
+void moxi_declare_fun(moxi_context_t *ctx, char *symbol, size_t nargs,
                      sort_t *args, sort_t ret)
 {
     if (is_active_term(ctx, symbol)) {
@@ -252,7 +252,7 @@ void moxi_declare_fun(moxi_context_t *ctx, char *symbol, uint32_t nargs,
 }
 
 
-void moxi_define_fun(moxi_context_t *ctx, char *str, uint32_t nargs,
+void moxi_define_fun(moxi_context_t *ctx, char *str, size_t nargs,
                      sort_t *args, sort_t ret, term_t body)
 {
     // Since we are only doing sort checking, we can safely ignore the body of
@@ -272,7 +272,7 @@ void moxi_push_scope(moxi_context_t *ctx)
 void moxi_pop_scope(moxi_context_t *ctx)
 {
     str_vector_t *vec = stack_pop(&ctx->scope_stack);
-    uint32_t i;
+    size_t i;
     for (i = 0; i < vec->size; ++i) {
         str_map_remove(&ctx->var_table, vec->data[i]);
         yices_remove_term_name(vec->data[i]);
@@ -302,7 +302,7 @@ void moxi_add_named_term(moxi_context_t *ctx, char *symbol, term_t term, var_kin
     new_var_entry->kind = kind;
     new_var_entry->term = term;
     new_var_entry->is_primed = false;
-    str_map_add(&ctx->var_table, symbol, (uint32_t) strlen(symbol), new_var_entry);
+    str_map_add(&ctx->var_table, symbol, strlen(symbol), new_var_entry);
 
     str_vector_t *scope = stack_top(&ctx->scope_stack);
     str_vector_append(scope, symbol);
@@ -314,15 +314,14 @@ void moxi_add_named_term(moxi_context_t *ctx, char *symbol, term_t term, var_kin
     }
 
     // All other var types get a primed version as well
-    uint32_t len = (uint32_t) strlen(symbol);
-    char *primed = malloc((len + 2) * sizeof(char));
-    snprintf(primed, len, "%s'", symbol);
+    char *primed = malloc((strlen(symbol) + 2) * sizeof(char));
+    sprintf(primed, "%s'", symbol);
 
     var_table_entry_t *primed_var_entry = malloc(sizeof(var_table_entry_t));
     primed_var_entry->kind = kind;
     primed_var_entry->term = term;
     primed_var_entry->is_primed = true;
-    str_map_add(&ctx->var_table, primed, (uint32_t) strlen(primed), primed_var_entry);
+    str_map_add(&ctx->var_table, primed, strlen(primed), primed_var_entry);
 
     str_vector_append(scope, primed);
     yices_set_term_name(term, primed);
@@ -335,7 +334,7 @@ const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol)
 }
 
 
-void moxi_declare_sort(moxi_context_t *ctx, char *symbol, uint32_t arity)
+void moxi_declare_sort(moxi_context_t *ctx, char *symbol, size_t arity)
 {
     if (is_active_sort(ctx, symbol)) {
         ctx->status = 1;
@@ -350,7 +349,7 @@ void moxi_declare_sort(moxi_context_t *ctx, char *symbol, uint32_t arity)
 }
 
 
-void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, uint32_t nvalues, char **values)
+void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values)
 {
     if (is_active_sort(ctx, str)) {
         ctx->status = 1;
@@ -359,22 +358,23 @@ void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, uint32_t nvalues, ch
     sort_t sort = yices_new_scalar_type(nvalues);
     yices_set_type_name(sort, str);
 
-    uint32_t i;
+    size_t i;
     term_t term;
     for (i = 0; i < nvalues; ++i) {
         if (is_active_term(ctx, values[i])) {
             ctx->status = 1;
             continue;
         }
-        term = yices_constant(sort, (int32_t) i);
+        term = yices_constant(sort, i);
         yices_set_term_name(term, values[i]);
     }
 }
 
 
-void moxi_define_system(moxi_context_t *ctx, char *str, uint32_t ninput,
-                        sort_t *input, uint32_t noutput, sort_t *output,
-                        uint32_t nlocal, sort_t *local)
+void moxi_define_system(moxi_context_t *ctx, char *str, size_t ninput,
+                        sort_t *input, size_t noutput, sort_t *output,
+                        size_t nlocal, sort_t *local, term_t init,
+                        term_t trans, term_t inv)
 {
     const sys_table_entry_t *sys = moxi_find_system(ctx, str);
     if (sys != NULL) {
@@ -398,7 +398,7 @@ void moxi_define_system(moxi_context_t *ctx, char *str, uint32_t ninput,
     new->local = malloc(nlocal * sizeof(sort_t));
     memcpy(new->local, local, nlocal * sizeof(sort_t));
 
-    str_map_add(&ctx->sys_table, str, (uint32_t) strlen(str), new);
+    str_map_add(&ctx->sys_table, str, strlen(str), new);
 }
 
 

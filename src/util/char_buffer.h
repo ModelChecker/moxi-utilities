@@ -15,16 +15,45 @@
  */
 typedef struct char_buffer {
     char *data;
-    uint32_t size;
-    uint32_t len; // index denoting end of the buffer (`data[idx] = '\0'`)
+    size_t size;
+    size_t len; // index denoting end of the buffer (`data[idx] = '\0'`)
 } char_buffer_t;
 
-void init_char_buffer(char_buffer_t *str, uint32_t size);
+
+/**
+ *
+ */
+void init_char_buffer(char_buffer_t *str, size_t size);
+
+/**
+ *
+ */
 void delete_char_buffer(char_buffer_t *str);
-void char_buffer_extend(char_buffer_t *str, uint32_t size);
+
+/**
+ *
+ */
+void char_buffer_extend(char_buffer_t *str, size_t size);
+
+/**
+ *
+ */
 void char_buffer_reset(char_buffer_t *str);
+
+/**
+ *
+ */
 void char_buffer_append_char(char_buffer_t *str, char c);
-uint32_t char_buffer_get_length(char_buffer_t *str);
+
+/**
+ *
+ */
+void char_buffer_append_string(char_buffer_t *str, char *s);
+
+/**
+ *
+ */
+size_t char_buffer_get_length(char_buffer_t *str);
 
 
 #endif

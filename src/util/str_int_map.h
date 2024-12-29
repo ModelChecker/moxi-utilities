@@ -39,7 +39,7 @@ void init_str_int_map(str_int_map_t *map, uint32_t size);
 void delete_str_int_map(str_int_map_t *map);
 void str_int_map_reset(str_int_map_t *map);
 int str_int_map_find(str_int_map_t *map, char *string);
-void str_int_map_add(str_int_map_t *map, char *string, uint32_t n, int value);
+void str_int_map_add(str_int_map_t *map, char *string, size_t n, int value);
 int str_int_map_remove(str_int_map_t *map, char *string);
 
 #endif

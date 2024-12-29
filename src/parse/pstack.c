@@ -133,7 +133,7 @@ void pstack_reset(pstack_t *pstack)
 void pstack_extend(pstack_t *pstack, uint32_t size)
 {
     assert(pstack->capacity < PSTACK_MAX_SIZE);
-    uint32_t new_size = pstack->capacity + size;
+    size_t new_size = pstack->capacity + size;
     pstack->capacity = new_size;
     pstack->data = realloc(pstack->data, sizeof(pstack_elem_t) * new_size);
 }
@@ -209,7 +209,7 @@ void pstack_push_string(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     pstack_incr_top(pstack);
 
     elem->tag = TAG_SYMBOL;
-    uint32_t len = str->len;
+    size_t len = str->len;
     elem->value.str = malloc(len + 1 * sizeof(char));
     strncpy(elem->value.str, str->data, len + 1);
     elem->loc = loc;
@@ -222,9 +222,7 @@ void pstack_push_numeral(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     pstack_incr_top(pstack);
 
     elem->tag = TAG_NUMERAL;
-    // FIXME: maybe a little dangerous, we should write our own parser for
-    // fixed-width ints
-    elem->value.numeral = (uint32_t) strtoul(str->data, NULL, 10);
+    elem->value.numeral = atol(str->data);
     elem->loc = loc;
 }
 
@@ -235,7 +233,7 @@ void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     pstack_incr_top(pstack);
 
     elem->tag = TAG_DECIMAL;
-    uint32_t len = str->len;
+    size_t len = str->len;
     elem->value.str = malloc(len + 1 * sizeof(char));
     strncpy(elem->value.str, str->data, len + 1);
     elem->loc = loc;
@@ -243,7 +241,6 @@ void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc)
 
 void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc)
 {
-    fprintf(stderr, "pstack: pushing binary\n");
     pstack_elem_t *elem;
     elem = &pstack->data[pstack->size];
     pstack_incr_top(pstack);
@@ -254,7 +251,6 @@ void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     // When passing to `bv64_from_str_bin`, we skip the `#b` prefix
     elem->tag = TAG_BITVEC;
     status = bv64_from_bin_str(str->data + 2, str->len - 2, &elem->value.bitvec);
-    
     if (status != 0) {
         PRINT_ERROR_LOC(pstack->filename, loc, "invalid binary constant");
         longjmp(pstack->env, BAD_TERM);
@@ -383,7 +379,7 @@ token_type_t get_elem_tok(pstack_t *pstack, uint32_t n)
 
 // Returns the numeral of the `n`th element of the current frame. Does not check
 // the tag of the element.
-uint32_t get_elem_numeral(pstack_t *pstack, uint32_t n)
+uint64_t get_elem_numeral(pstack_t *pstack, uint32_t n)
 {
     return pstack->data[pstack->frame + n].value.numeral;
 }
@@ -504,7 +500,7 @@ void eval_bitvec_sort(pstack_t *pstack)
     loc_t loc = pstack_top_frame_loc(pstack);
     check_frame_size_eq(pstack, 3);
     check_elem_tag(pstack, 2, TAG_NUMERAL);
-    uint32_t width = get_elem_numeral(pstack, 2);
+    uint64_t width = get_elem_numeral(pstack, 2);
     sort_t sort = yices_bv_type(width);
     pstack_pop_frame(pstack);
     pstack_push_sort(pstack, sort, loc);
@@ -580,7 +576,7 @@ void eval_sort(pstack_t *pstack)
         longjmp(pstack->env, BAD_SYMBOL_KIND);
     }
 
-    theory_symbol_type_t thy_sym_type = get_theory_symbol_type(symbol);
+    theory_symbol_type_t thy_sym_type = get_theory_symbol_type(ctx, symbol);
     switch (thy_sym_type) {
     case THY_SYM_BOOL:
         eval_bool_sort(pstack);
@@ -656,8 +652,7 @@ void eval_apply_term(pstack_t *pstack)
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t term, args[nargs];
 
-    uint32_t i;
-    for (i = 2; i < pstack_top_frame_size(pstack); ++i) {
+    for (size_t i = 2; i < pstack_top_frame_size(pstack); ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         args[i-2] = get_elem_term(pstack, i);
     }
@@ -775,8 +770,7 @@ void eval_eq_term(pstack_t *pstack)
     check_elem_tag(pstack, 2, TAG_TERM);
     check_elem_tag(pstack, 3, TAG_TERM);
     term_t term = yices_eq(get_elem_term(pstack, 2), get_elem_term(pstack, 3));
-    uint32_t i;
-    for (i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         check_elem_tag(pstack, i + 1, TAG_TERM);
         term = yices_and2(term, yices_eq(get_elem_term(pstack, i),
@@ -802,7 +796,7 @@ void eval_distinct_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -856,7 +850,7 @@ void eval_and_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 3);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -881,7 +875,7 @@ void eval_or_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -906,7 +900,7 @@ void eval_xor_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -933,7 +927,7 @@ void eval_implies_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     check_elem_tag(pstack, 2, TAG_TERM);
     term_t term = get_elem_term(pstack, 2);
-    for (uint32_t i = 3; i < pstack_top_frame_size(pstack); ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack); ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         term = yices_implies(term, get_elem_term(pstack, i));
     }
@@ -958,7 +952,7 @@ void eval_add_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -983,7 +977,7 @@ void eval_mul_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 4);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -1156,7 +1150,7 @@ void eval_arith_gt_term(pstack_t *pstack)
     arg1 = get_elem_term(pstack, 2);
     arg2 = get_elem_term(pstack, 3);
     term = yices_arith_gt_atom(arg1, arg2);
-    for (uint32_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         check_elem_tag(pstack, i + 1, TAG_TERM);
         arg1 = get_elem_term(pstack, i);
@@ -1186,7 +1180,7 @@ void eval_arith_ge_term(pstack_t *pstack)
     arg1 = get_elem_term(pstack, 2);
     arg2 = get_elem_term(pstack, 3);
     term = yices_arith_geq_atom(arg1, arg2);
-    for (uint32_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         check_elem_tag(pstack, i + 1, TAG_TERM);
         arg1 = get_elem_term(pstack, i);
@@ -1216,7 +1210,7 @@ void eval_arith_lt_term(pstack_t *pstack)
     arg1 = get_elem_term(pstack, 2);
     arg2 = get_elem_term(pstack, 3);
     term = yices_arith_lt_atom(arg1, arg2);
-    for (uint32_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         check_elem_tag(pstack, i + 1, TAG_TERM);
         arg1 = get_elem_term(pstack, i);
@@ -1246,7 +1240,7 @@ void eval_arith_le_term(pstack_t *pstack)
     arg1 = get_elem_term(pstack, 2);
     arg2 = get_elem_term(pstack, 3);
     term = yices_arith_leq_atom(arg1, arg2);
-    for (uint32_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
+    for (size_t i = 3; i < pstack_top_frame_size(pstack) - 1; ++i) {
         check_elem_tag(pstack, i, TAG_TERM);
         check_elem_tag(pstack, i + 1, TAG_TERM);
         arg1 = get_elem_term(pstack, i);
@@ -1459,7 +1453,7 @@ void eval_bvand_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 3);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -1486,7 +1480,7 @@ void eval_bvor_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 3);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -1621,7 +1615,7 @@ void eval_bvadd_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 3);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -1669,7 +1663,7 @@ void eval_bvmul_term(pstack_t *pstack)
     check_frame_size_geq(pstack, 3);
     uint32_t nargs = pstack_top_frame_size(pstack) - 2;
     term_t args[nargs];
-    for (uint32_t i = 0; i < nargs; ++i) {
+    for (size_t i = 0; i < nargs; ++i) {
         check_elem_tag(pstack, i + 2, TAG_TERM);
         args[i] = get_elem_term(pstack, i + 2);
     }
@@ -2196,7 +2190,7 @@ void eval_term(pstack_t *pstack)
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 2);
-        uint32_t value = get_elem_numeral(pstack, 1);
+        uint64_t value = get_elem_numeral(pstack, 1);
         pstack_pop_frame(pstack);
         pstack_push_term(pstack, yices_int64(value), loc);
         break;
@@ -2265,7 +2259,7 @@ void eval_term(pstack_t *pstack)
         check_elem_tag(pstack, 1, TAG_SYMBOL);
         char *symbol = get_elem_symbol(pstack, 1);
         if (is_active_theory_term(ctx, symbol)) {
-            theory_symbol_type_t sym_type = get_theory_symbol_type(symbol);
+            theory_symbol_type_t sym_type = get_theory_symbol_type(ctx, symbol);
             term_eval_table[sym_type](pstack);
             break;
         }
@@ -2347,7 +2341,7 @@ void eval_declare_sort(pstack_t *pstack)
 
     moxi_context_t *ctx = &pstack->ctx;
     char *symbol = get_elem_symbol(pstack, 1);
-    uint32_t arity = get_elem_numeral(pstack, 2);
+    uint64_t arity = get_elem_numeral(pstack, 2);
 
     if (arity != 0) {
         // TODO: will require yices_extensions.c to implement
@@ -2392,7 +2386,7 @@ void eval_define_system(pstack_t *pstack)
 
     str_vector_t *scope = moxi_get_scope(ctx);
     const var_table_entry_t *var;
-    uint32_t ninput = 0, noutput = 0, nlocal = 0;
+    size_t ninput = 0, noutput = 0, nlocal = 0;
     for (j = 0; j < scope->size; ++j) {
         var = moxi_find_var(ctx, scope->data[j]);
         if (var->is_primed) {
@@ -2409,7 +2403,7 @@ void eval_define_system(pstack_t *pstack)
     input = malloc(ninput * sizeof(sort_t));
     output = malloc(noutput * sizeof(sort_t));
     local = malloc(nlocal * sizeof(sort_t));
-    uint32_t in = 0, out = 0, loc = 0;
+    size_t in = 0, out = 0, loc = 0;
     for (j = 0; j < scope->size; ++j) {
         var = moxi_find_var(ctx, scope->data[j]);
         if (var->is_primed) {
@@ -2494,7 +2488,7 @@ void eval_define_system(pstack_t *pstack)
             }
 
             i += 3;
-            uint32_t nvars = 0;
+            size_t nvars = 0;
             while (i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) {
                 char *var_sym = get_elem_symbol(pstack, i);
                 const var_table_entry_t *entry = moxi_find_var(ctx, var_sym);
@@ -2553,7 +2547,7 @@ void eval_define_system(pstack_t *pstack)
     }
 
     moxi_define_system(ctx, symbol, ninput, input, noutput, output, nlocal,
-                       local);
+                       local, init, trans, inv);
     if (ctx->status) {
         PRINT_ERROR("system %s already defined", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -2593,7 +2587,7 @@ void eval_check_system(pstack_t *pstack)
 
     str_vector_t *scope = moxi_get_scope(ctx);
     const var_table_entry_t *var;
-    uint32_t ninput = 0, noutput = 0, nlocal = 0;
+    size_t ninput = 0, noutput = 0, nlocal = 0;
     for (j = 0; j < scope->size; ++j) {
         var = moxi_find_var(ctx, scope->data[j]);
         if (var->is_primed) {
@@ -2648,7 +2642,7 @@ void eval_check_system(pstack_t *pstack)
                 PRINT_ERROR("formula %s already defined", name);
                 longjmp(pstack->env, BAD_SYMBOL_KIND);
             }
-            str_set_add(&formula_names, name, (uint32_t) strlen(name));
+            str_set_add(&formula_names, name, strlen(name));
             i += 3;
             break;
         case TOK_KW_QUERY:
@@ -2660,7 +2654,7 @@ void eval_check_system(pstack_t *pstack)
                 PRINT_ERROR("%s already defined", name);
                 longjmp(pstack->env, BAD_SYMBOL_KIND);
             }
-            str_set_add(&query_names, name, (uint32_t) strlen(name));
+            str_set_add(&query_names, name, strlen(name));
             i++;
             while (i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) {
                 name = get_elem_symbol(pstack, i);
@@ -2683,7 +2677,7 @@ void eval_check_system(pstack_t *pstack)
                     PRINT_ERROR("%s already defined", name);
                     longjmp(pstack->env, BAD_SYMBOL_KIND);
                 }
-                str_set_add(&query_names, name, (uint32_t) strlen(name));
+                str_set_add(&query_names, name, strlen(name));
                 i++;
                 while (i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) {
                     name = get_elem_symbol(pstack, i);
@@ -2722,7 +2716,7 @@ void eval_declare_enum_sort(pstack_t *pstack)
     check_elem_tag(pstack, 1, TAG_SYMBOL);
 
     char *sort_symbol = get_elem_symbol(pstack, 1);
-    uint32_t nvalues = pstack_top_frame_size(pstack) - 2;
+    size_t nvalues = pstack_top_frame_size(pstack) - 2;
     char **enum_symbols = malloc(nvalues * sizeof(char *));
 
     uint32_t i;
