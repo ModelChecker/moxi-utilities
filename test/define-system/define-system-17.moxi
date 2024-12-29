@@ -1,0 +1,11 @@
+(define-system S1
+  :input ((i0 Bool) (i1 Bool))
+  :output ((o0 Bool) (o1 Bool))
+  :local ((l Bool))
+)
+
+(define-system S2
+  :input ((i0 Bool) (i1 Bool))
+  :output ((o0 Bool) (o1 Bool))
+  :subsys (A (S1 i0 i1 o0 o1))
+)

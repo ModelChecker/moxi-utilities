@@ -56,6 +56,18 @@ const char *frame_str[NUM_FRM_TYPES] = {
     "[error]",              // FRM_ERROR
 };
 
+/**
+ * Frames that require pushing a new var scope onto the stack:
+ * - FRM_DECLARE_FUN
+ * - FRM_DEFINE_FUN
+ * - FRM_DEFINE_SYS
+ * - FRM_CHECK_SYS
+ */
+bool frame_pushes_var_scope(frame_type_t frame)
+{
+    return frame >= FRM_DECLARE_FUN && frame <= FRM_CHECK_SYS;
+}
+
 #ifdef DEBUG_PSTACK
 void pstack_print_top_frame(pstack_t *pstack)
 {
@@ -2169,8 +2181,13 @@ void eval_term(pstack_t *pstack)
     }
     case TAG_LET_BINDER:
     {
-        PRINT_ERROR("let binders not supported");
-        longjmp(pstack->env, BAD_COMMAND);
+        // [ <term-frame> "let" (<symbol> <term>)+ <term> ]
+        uint32_t last = pstack_top_frame_size(pstack) - 1;
+        term_t term = get_elem_term(pstack, last);
+        moxi_pop_scope(ctx);
+        pstack_pop_frame(pstack);
+        pstack_push_term(pstack, term, loc);  
+        break;
     }
     case TAG_SYMBOL:
     {
@@ -2453,7 +2470,7 @@ void eval_define_system(pstack_t *pstack)
             }
 
             // Add this as a dummy variable so that we don't repeat the symbol
-            moxi_add_var(ctx, subsys_symbol, yices_new_variable(NULL_TYPE),
+            moxi_add_named_term(ctx, subsys_symbol, yices_new_variable(NULL_TYPE),
                          LOCAL_VAR);
 
             break;
@@ -2869,7 +2886,7 @@ void eval_var_decl(pstack_t *pstack)
         longjmp(pstack->env, BAD_TERM);
     }
 
-    moxi_add_var(ctx, symbol, var, pstack->cur_var_kind);
+    moxi_add_named_term(ctx, symbol, var, pstack->cur_var_kind);
     if (ctx->status) {
         PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -2878,7 +2895,30 @@ void eval_var_decl(pstack_t *pstack)
     pstack_pop_frame_keep(pstack);
 }
 
-void eval_term_binder(pstack_t *pstack) { longjmp(pstack->env, BAD_TERM); }
+/**
+ * [ <term-binder-frame> <symbol> <term> ]
+ */
+void eval_term_binder(pstack_t *pstack) 
+{ 
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating term binder\n");
+#endif
+    check_frame_size_eq(pstack, 3);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+    check_elem_tag(pstack, 2, TAG_TERM);
+
+    moxi_context_t *ctx = &pstack->ctx;
+    char *symbol = get_elem_symbol(pstack, 1);
+    term_t term = get_elem_term(pstack, 2);
+
+    moxi_add_named_term(ctx, symbol, term, LOGIC_VAR);
+    if (ctx->status) {
+        PRINT_ERROR("symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
+    pstack_pop_frame_keep(pstack);
+}
 
 void eval_noop_pop_frame(pstack_t *pstack) 
 {

@@ -66,7 +66,6 @@ void *int_map_remove(int_map_t *map, uint32_t key)
     if (map->data[hash].value == NULL) {
         return NULL;
     }
-
     void *old = map->data[hash].value;
     map->data[hash].value = NULL;
     return old;

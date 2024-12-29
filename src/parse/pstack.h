@@ -108,18 +108,6 @@ typedef enum frame_type {
 #define NUM_FRM_TYPES (FRM_ERROR + 1)
 extern const char *frame_str[NUM_FRM_TYPES];
 
-/**
- * Frames that require pushing a new var scope onto the stack:
- * - FRM_DECLARE_FUN
- * - FRM_DEFINE_FUN
- * - FRM_DEFINE_SYS
- * - FRM_CHECK_SYS
- */
-static bool frame_pushes_var_scope(frame_type_t frame)
-{
-    return frame >= FRM_DECLARE_FUN && frame <= FRM_CHECK_SYS;
-}
-
 typedef enum pstack_error_type {
     BAD_FRAME_SIZE = -1,
     BAD_TAG = -2,

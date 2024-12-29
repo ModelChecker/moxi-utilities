@@ -291,7 +291,7 @@ str_vector_t *moxi_get_scope(moxi_context_t *ctx)
 /**
  * Adds `symbol` to the term table, variable table, and the current scope.
  */
-void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind)
+void moxi_add_named_term(moxi_context_t *ctx, char *symbol, term_t term, var_kind_t kind)
 {
     if (is_active_term(ctx, symbol)) {
         ctx->status = 1;
@@ -300,14 +300,14 @@ void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind
 
     var_table_entry_t *new_var_entry = malloc(sizeof(var_table_entry_t));
     new_var_entry->kind = kind;
-    new_var_entry->term = var;
+    new_var_entry->term = term;
     new_var_entry->is_primed = false;
     str_map_add(&ctx->var_table, symbol, strlen(symbol), new_var_entry);
 
     str_vector_t *scope = stack_top(&ctx->scope_stack);
     str_vector_append(scope, symbol);
 
-    yices_set_term_name(var, symbol);
+    yices_set_term_name(term, symbol);
 
     if (kind == LOGIC_VAR) {
         return;
@@ -319,12 +319,12 @@ void moxi_add_var(moxi_context_t *ctx, char *symbol, term_t var, var_kind_t kind
 
     var_table_entry_t *primed_var_entry = malloc(sizeof(var_table_entry_t));
     primed_var_entry->kind = kind;
-    primed_var_entry->term = var;
+    primed_var_entry->term = term;
     primed_var_entry->is_primed = true;
     str_map_add(&ctx->var_table, primed, strlen(primed), primed_var_entry);
 
     str_vector_append(scope, primed);
-    yices_set_term_name(var, primed);
+    yices_set_term_name(term, primed);
 }
 
 

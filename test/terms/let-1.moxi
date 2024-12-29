@@ -1,0 +1,1 @@
+(define-fun f ((x Bool)) Bool (let ((y false)) (and x y)))

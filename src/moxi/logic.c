@@ -99,14 +99,14 @@ const char *logic_str[NUM_LOGICS] = {
 
 bool logic_is_supported[NUM_LOGICS] = {
     false, // AX
-    false, // BV
+    true, // BV
     false, // IDL
     true, // LIA
-    false, // LRA
-    false, // LIRA
-    false, // NIA
-    false, // NRA
-    false, // NIRA
+    true, // LRA
+    true, // LIRA
+    true, // NIA
+    true, // NRA
+    true, // NIRA
     false, // RDL
     true, // UF
     false, // ABV
@@ -117,15 +117,15 @@ bool logic_is_supported[NUM_LOGICS] = {
     false, // ANRA
     false, // ANIRA
     false, // AUF
-    false, // UFBV
-    false, // UFBVLIA
+    true, // UFBV
+    true, // UFBVLIA
     false, // UFIDL
-    false, // UFLIA
-    false, // UFLRA
-    false, // UFLIRA
-    false, // UFNIA
-    false, // UFNRA
-    false, // UFNIRA
+    true, // UFLIA
+    true, // UFLRA
+    true, // UFLIRA
+    true, // UFNIA
+    true, // UFNRA
+    true, // UFNIRA
     false, // UFRDL
     false, // AUFBV
     false, // AUFBVLIA
@@ -142,11 +142,11 @@ bool logic_is_supported[NUM_LOGICS] = {
     true,  // QF_LIA
     true, // QF_LRA
     true, // QF_LIRA
-    false, // QF_NIA
-    false, // QF_NRA
-    false, // QF_NIRA
+    true, // QF_NIA
+    true, // QF_NRA
+    true, // QF_NIRA
     false, // QF_RDL
-    false, // QF_UF
+    true, // QF_UF
     false, // QF_ABV
     false, // QF_ALIA
     false, // QF_ALRA
@@ -155,16 +155,16 @@ bool logic_is_supported[NUM_LOGICS] = {
     false, // QF_ANRA
     false, // QF_ANIRA
     false, // QF_AUF
-    false, // QF_UFBV
-    false, // QF_UFBVLIA
+    true, // QF_UFBV
+    true, // QF_UFBVLIA
     false, // QF_UFIDL
-    false, // QF_UFLIA
-    false, // QF_UFLRA
-    false, // QF_UFLIRA
-    false, // QF_UFNIA
-    false, // QF_UFNRA
-    false, // QF_UFNIRA
-    false, // QF_UFRDL
+    true, // QF_UFLIA
+    true, // QF_UFLRA
+    true, // QF_UFLIRA
+    true, // QF_UFNIA
+    true, // QF_UFNRA
+    true, // QF_UFNIRA
+    true, // QF_UFRDL
     false, // QF_AUFBV
     false, // QF_AUFBVLIA
     false, // QF_AUFBVNIA

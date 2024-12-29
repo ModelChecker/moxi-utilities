@@ -21,12 +21,12 @@ struct str_map_entry {
 
 /**
  * A string map is a hash map of string map entries. Each bucket (uniquely
- * hashed entry) in the string map is a linked list, where the string map entry
- * stores the next entry in the list.
+ * hashed entry) in the string map is a null-terminated linked list, where the
+ * string map entry stores the next entry in the list.
  *
- * map[0]    = <"A",value> -> <"B",value> -> ...
+ * map[0]    = <"A",value> -> <"B",value> -> ... -> NULL
  * ...
- * map[size] = <"C",value> -> <"D",value> -> ...
+ * map[size] = <"C",value> -> <"D",value> -> ... -> NULL
  */
 typedef struct str_map {
     str_map_entry_t **data;

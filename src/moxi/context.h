@@ -117,7 +117,7 @@ void moxi_define_fun(moxi_context_t *ctx, char *symbol, size_t nargs,
 void moxi_push_scope(moxi_context_t *ctx);
 void moxi_pop_scope(moxi_context_t *ctx);
 str_vector_t *moxi_get_scope(moxi_context_t *ctx);
-void moxi_add_var(moxi_context_t *ctx, char *str, term_t var, var_kind_t kind);
+void moxi_add_named_term(moxi_context_t *ctx, char *str, term_t term, var_kind_t kind);
 const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol);
 
 /*******************************************************************************

@@ -107,36 +107,30 @@ void str_int_map_add(str_int_map_t *map, char *symbol, size_t n, int value)
 int str_int_map_remove(str_int_map_t *map, char *symbol)
 {
     uint32_t hash;
-
     hash = compute_str_int_map_entry_hash(map, symbol);
-
     if (map->data[hash] == NULL) {
         return -1;
     }
-
-    str_int_map_entry_t **cur, *prev;
+    
+    str_int_map_entry_t *cur, *prev;
     int value;
 
+    cur = map->data[hash];
     prev = NULL;
-
-    for (cur = &map->data[hash]; *cur != NULL;
-         prev = *cur, cur = &(*cur)->next) {
-        if (strcmp((*cur)->str, symbol)) {
-            continue;
+    value = -1;
+    while (cur != NULL) {
+        if (!strcmp(cur->str, symbol)) {
+            value = cur->value;
+            if (prev == NULL) {
+                map->data[hash] = cur->next;
+            } else {
+                prev->next = cur->next;
+            }
+            free(cur->str);
+            free(cur);
+            return value;
         }
-
-        value = (*cur)->value;
-
-        if (prev == NULL) {
-            *cur = NULL;
-        } else {
-            prev->next = (*cur)->next;
-            free((*cur)->str);
-            free(*cur);
-        }
-
         return value;
     }
-
     return -1;
 }

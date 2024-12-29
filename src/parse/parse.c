@@ -296,7 +296,7 @@ typedef enum parse_action {
 	TRM6_LP_TRM6a,
 	TRM6a_LP_TRM6b,
 	TRM6b_SYMBOL_TRM1,
-	TRM6c_RP_TRM6d,
+	TRM6c_RP_DONE,
 	TRM6d_LP_TRM6b,
 	TRM6d_RP_TRM1,
 	TRM6e_RP_DONE,
@@ -1635,7 +1635,6 @@ skip:
 			goto consume;
 
  		case TRM6_LP_TRM6a:
-			pstack_set_vars_logic(pstack);
 			state = TRM6a;
 			goto consume;
 
@@ -1644,12 +1643,15 @@ skip:
 			goto consume;
 
  		case TRM6b_SYMBOL_TRM1:
+			pstack_push_frame(pstack, FRM_TERM_BIND, loc);
+			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, TRM6c);
 			state = TRM1;
 			goto consume;
 
- 		case TRM6c_RP_TRM6d:
-			state = TRM6d;
+ 		case TRM6c_RP_DONE:
+			int_stack_push(sstack, TRM6d);
+			state = DONE;
 			goto consume;
 
  		case TRM6d_LP_TRM6b:

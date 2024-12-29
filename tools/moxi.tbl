@@ -263,10 +263,10 @@ TRM5d       TOK_RP              SRT0        consume     R0
 
 // After "( let"
 // Example: "(let ((t1 <term>) (<t2 term>)) <term>)"
-TRM6        TOK_LP          TRM6a       consume     _       { pstack_set_vars_logic(pstack); }
+TRM6        TOK_LP          TRM6a       consume     _   
 TRM6a       TOK_LP          TRM6b       consume     _
-TRM6b       TOK_SYMBOL      TRM1        consume     TRM6c
-TRM6c       TOK_RP          TRM6d       consume     _
+TRM6b       TOK_SYMBOL      TRM1        consume     TRM6c       { pstack_push_frame(pstack, FRM_TERM_BIND, loc); pstack_push_string(pstack, str, loc); }
+TRM6c       TOK_RP          DONE        consume     TRM6d
 TRM6d       TOK_LP          TRM6b       consume     _
 TRM6d       TOK_RP          TRM1        consume     TRM6e
 TRM6e       TOK_RP          DONE        consume     _

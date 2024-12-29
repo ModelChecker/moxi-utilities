@@ -82,12 +82,10 @@ void str_map_add(str_map_t *map, char *symbol, size_t n, void *value)
     entry->next = NULL;
 
     hash = compute_str_map_entry_hash(map, symbol);
-
     if (map->data[hash] == NULL) {
         map->data[hash] = entry;
         return;
     }
-
     str_map_entry_t *cur;
     for (cur = map->data[hash]; cur->next != NULL; cur = cur->next)
         ;
@@ -104,21 +102,24 @@ void *str_map_remove(str_map_t *map, char *symbol)
     if (map->data[hash] == NULL) {
         return NULL;
     }
-    str_map_entry_t **cur, *prev;
+    
+    str_map_entry_t *cur, *prev;
     void *value;
+
+    cur = map->data[hash];
     prev = NULL;
-    for (cur = &map->data[hash]; *cur != NULL;
-        prev = *cur, cur = &(*cur)->next) {
-        if (strcmp((*cur)->str, symbol)) {
-            continue;
-        }
-        value = (*cur)->value;
-        if (prev == NULL) {
-            *cur = NULL;
-        } else {
-            prev->next = (*cur)->next;
-            free((*cur)->str);
-            free(*cur);
+    value = NULL;
+    while (cur != NULL) {
+        if (!strcmp(cur->str, symbol)) {
+            value = cur->value;
+            if (prev == NULL) {
+                map->data[hash] = cur->next;
+            } else {
+                prev->next = cur->next;
+            }
+            free(cur->str);
+            free(cur);
+            return value;
         }
         return value;
     }
