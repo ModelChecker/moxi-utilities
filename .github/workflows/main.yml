@@ -1,0 +1,21 @@
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.9"
+
+    - name: Install Yices2
+      run: |
+        sudo add-apt-repository ppa:sri-csl/formal-methods
+        sudo apt-get update
+        sudo apt-get install yices2
+
+    - name: tests
+      run: |
+        cd test/
+        python3 test.py
