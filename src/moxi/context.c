@@ -231,7 +231,7 @@ void moxi_set_logic(moxi_context_t *ctx, char *symbol)
 void moxi_declare_fun(moxi_context_t *ctx, char *symbol, size_t nargs,
                      sort_t *args, sort_t ret)
 {
-    if (is_active_term(ctx, symbol)) {
+    if (is_active_theory_term(ctx, symbol)) {
         ctx->status = 1;
         return;
     }
@@ -293,7 +293,7 @@ str_vector_t *moxi_get_scope(moxi_context_t *ctx)
  */
 void moxi_add_named_term(moxi_context_t *ctx, char *symbol, term_t term, var_kind_t kind)
 {
-    if (is_active_term(ctx, symbol)) {
+    if (is_active_theory_term(ctx, symbol)) {
         ctx->status = 1;
         return;
     }
@@ -336,7 +336,7 @@ const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol)
 
 void moxi_declare_sort(moxi_context_t *ctx, char *symbol, size_t arity)
 {
-    if (is_active_sort(ctx, symbol)) {
+    if (is_active_theory_sort(ctx, symbol)) {
         ctx->status = 1;
         return;
     }
@@ -351,7 +351,7 @@ void moxi_declare_sort(moxi_context_t *ctx, char *symbol, size_t arity)
 
 void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values)
 {
-    if (is_active_sort(ctx, str)) {
+    if (is_active_theory_sort(ctx, str)) {
         ctx->status = 1;
         return;
     }
@@ -361,7 +361,7 @@ void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char
     size_t i;
     term_t term;
     for (i = 0; i < nvalues; ++i) {
-        if (is_active_term(ctx, values[i])) {
+        if (is_active_theory_term(ctx, values[i])) {
             ctx->status = 1;
             continue;
         }
@@ -376,29 +376,23 @@ void moxi_define_system(moxi_context_t *ctx, char *str, size_t ninput,
                         size_t nlocal, sort_t *local, term_t init,
                         term_t trans, term_t inv)
 {
-    const sys_table_entry_t *sys = moxi_find_system(ctx, str);
-    if (sys != NULL) {
-        ctx->status = 1;
-        return;
-    }
+    sys_table_entry_t *sys = malloc(sizeof(sys_table_entry_t));
+    sys->name = malloc((strlen(str) + 1) * sizeof(char));
+    strcpy(sys->name, str);
 
-    sys_table_entry_t *new = malloc(sizeof(sys_table_entry_t));
-    new->name = malloc((strlen(str) + 1) * sizeof(char));
-    strcpy(new->name, str);
+    sys->ninput = ninput;
+    sys->input = malloc(ninput * sizeof(sort_t));
+    memcpy(sys->input, input, ninput * sizeof(sort_t));
 
-    new->ninput = ninput;
-    new->input = malloc(ninput * sizeof(sort_t));
-    memcpy(new->input, input, ninput * sizeof(sort_t));
+    sys->noutput = noutput;
+    sys->output = malloc(noutput * sizeof(sort_t));
+    memcpy(sys->output, output, noutput * sizeof(sort_t));
 
-    new->noutput = noutput;
-    new->output = malloc(noutput * sizeof(sort_t));
-    memcpy(new->output, output, noutput * sizeof(sort_t));
+    sys->nlocal = nlocal;
+    sys->local = malloc(nlocal * sizeof(sort_t));
+    memcpy(sys->local, local, nlocal * sizeof(sort_t));
 
-    new->nlocal = nlocal;
-    new->local = malloc(nlocal * sizeof(sort_t));
-    memcpy(new->local, local, nlocal * sizeof(sort_t));
-
-    str_map_add(&ctx->sys_table, str, strlen(str), new);
+    str_map_add(&ctx->sys_table, str, strlen(str), sys);
 }
 
 

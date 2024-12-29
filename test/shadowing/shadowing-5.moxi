@@ -1,0 +1,18 @@
+(set-logic LIA)
+(define-fun f () Int 0)
+
+(define-system S
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((f Bool))
+  :init o
+  :trans (= o' i)
+  :inv (= f true)
+)
+
+(define-system S2
+  :input ((i Bool))
+  :output ((o Bool))
+  :local ((f Bool))
+  :subsys (A (S i f))
+)

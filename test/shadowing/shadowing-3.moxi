@@ -1,0 +1,4 @@
+(set-logic LIA)
+(define-fun f () Bool true)
+(define-fun f () Int 0)
+(define-fun g ((f Bool)) Bool (and f f))
