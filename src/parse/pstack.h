@@ -188,6 +188,7 @@ void pstack_push_string(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_numeral(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_decimal(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_binary(pstack_t *, char_buffer_t *, loc_t);
+void pstack_push_hex(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_quantifier(pstack_t *, token_type_t, loc_t);
 void pstack_push_let(pstack_t *, loc_t);
 void pstack_push_error(pstack_t *, loc_t);

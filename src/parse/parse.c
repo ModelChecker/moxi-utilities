@@ -1515,7 +1515,7 @@ skip:
 
  		case TRM1_HEX_DONE:
 			pstack_push_frame(pstack, FRM_TERM, loc);
-			pstack_push_error(pstack, loc);
+			pstack_push_hex(pstack, str, loc);
 			state = DONE;
 			goto consume;
 
@@ -1756,7 +1756,6 @@ skip:
 			goto consume;
 
  		case SRT1_SYMBOL_SRT0:
-			pstack_push_frame(pstack, FRM_SORT, loc);
 			pstack_push_string(pstack, str, loc);
 			int_stack_push(sstack, SRT2);
 			state = SRT0;
@@ -1767,7 +1766,6 @@ skip:
 			goto consume;
 
  		case SRT1_LP_SRT4:
-			pstack_push_frame(pstack, FRM_SORT, loc);
 			state = SRT4;
 			goto consume;
 

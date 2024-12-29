@@ -10,6 +10,10 @@ typedef struct bv64 {
     uint64_t value;
 } bv64_t;
 
-int bv64_from_str(char *str, size_t n, bv64_t *ans);
+// Convert a string of '0's and '1's to a constant
+int bv64_from_bin_str(char *str, size_t n, bv64_t *ans);
+
+// Convert a string of hex digits to a constant
+int bv64_from_hex_str(char *str, size_t n, bv64_t *ans);
 
 #endif

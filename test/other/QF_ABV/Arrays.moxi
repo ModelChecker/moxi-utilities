@@ -4,7 +4,7 @@
     :input ((A (Array (_ BitVec 8) (_ BitVec 8))))
     :output ((out (_ BitVec 8)))
     :init (= out #x00)
-    :trans (= out' (select A #b00000000))
+    :trans (= out' (select (store A #b00000000 #b00000001) #b00000000))
 )
 
 (check-system ArrayExample

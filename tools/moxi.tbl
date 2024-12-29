@@ -227,7 +227,7 @@ TRM0            *                TRM1        pass        _        { pstack_disab
 
 TRM1       TOK_NUMERAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_numeral(pstack, str, loc); }
 TRM1       TOK_DECIMAL     DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_decimal(pstack, str, loc); }
-TRM1       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
+TRM1       TOK_HEX         DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_hex(pstack, str, loc); }
 TRM1       TOK_BINARY      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_binary(pstack, str, loc); }
 TRM1       TOK_STRING      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_error(pstack, loc); }
 TRM1       TOK_SYMBOL      DONE        consume     _        { pstack_push_frame(pstack, FRM_TERM, loc); pstack_push_string(pstack, str, loc); }
@@ -319,9 +319,9 @@ SRT0        TOK_SYMBOL          DONE        consume     _       { pstack_push_fr
 SRT0        TOK_LP              SRT1        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); }
 
 // After "("
-SRT1        TOK_SYMBOL          SRT0        consume     SRT2    { pstack_push_frame(pstack, FRM_SORT, loc); pstack_push_string(pstack, str, loc); }
+SRT1        TOK_SYMBOL          SRT0        consume     SRT2    { pstack_push_string(pstack, str, loc); }
 SRT1        TOK_RW_UNDERSCORE   SRT3        consume     _
-SRT1        TOK_LP              SRT4        consume     _       { pstack_push_frame(pstack, FRM_SORT, loc); }
+SRT1        TOK_LP              SRT4        consume     _
 
 // After "( <symbol> <sort>"
 SRT2        TOK_RP              DONE        consume     _

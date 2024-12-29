@@ -248,14 +248,32 @@ void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     int status;
 
     // Binary constants are of the form `#b[01]+`
-    // When passing to `bv64_from_str`, we skip the `#b` prefix
+    // When passing to `bv64_from_str_bin`, we skip the `#b` prefix
     elem->tag = TAG_BITVEC;
-    status = bv64_from_str(str->data + 2, str->len - 2, &elem->value.bitvec);
+    status = bv64_from_bin_str(str->data + 2, str->len - 2, &elem->value.bitvec);
     if (status != 0) {
         PRINT_ERROR_LOC(pstack->filename, loc, "invalid binary constant");
         longjmp(pstack->env, BAD_TERM);
     }
-    elem->value.bitvec.width = str->len - 2;
+    elem->loc = loc;
+}
+
+void pstack_push_hex(pstack_t *pstack, char_buffer_t *str, loc_t loc)
+{
+    pstack_elem_t *elem;
+    elem = &pstack->data[pstack->size];
+    pstack_incr_top(pstack);
+
+    int status;
+
+    // Hexadecimal constants are of the form `#x[0-9a-fA-F]+`
+    // When passing to `bv64_from_str_hex`, we skip the `#x` prefix
+    elem->tag = TAG_BITVEC;
+    status = bv64_from_hex_str(str->data + 2, str->len - 2, &elem->value.bitvec);
+    if (status != 0) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "invalid hex constant");
+        longjmp(pstack->env, BAD_TERM);
+    }
     elem->loc = loc;
 }
 
@@ -502,7 +520,7 @@ void eval_array_sort(pstack_t *pstack)
     check_elem_tag(pstack, 3, TAG_SORT);
     sort_t index = get_elem_sort(pstack, 2);
     sort_t elem = get_elem_sort(pstack, 3);
-    sort_t sort = yices_tuple_type2(index, elem);
+    sort_t sort = yices_function_type1(index, elem);
     pstack_pop_frame(pstack);
     pstack_push_sort(pstack, sort, loc);
 }
@@ -2086,6 +2104,53 @@ void eval_bvsge_term(pstack_t *pstack)
     pstack_push_term(pstack, term, loc);
 }
 
+/**
+ * [ <term-frame> "select" <array-term> <index-term> ]
+ */
+void eval_select_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating select term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t array = get_elem_term(pstack, 2);
+    term_t index = get_elem_term(pstack, 3);
+    term_t term = yices_application1(array, index);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_TERM);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "store" <array-term> <index-term> <elem-term> ]
+ */
+void eval_store_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating store term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 5);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    check_elem_tag(pstack, 4, TAG_TERM);
+    term_t array = get_elem_term(pstack, 2);
+    term_t index = get_elem_term(pstack, 3);
+    term_t elem = get_elem_term(pstack, 4);
+    term_t term = yices_update1(array, index, elem);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_TERM);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
 
 /**
  * [ <term-frame> <bitvec> ]
@@ -2967,8 +3032,8 @@ void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *) = {
     eval_distinct_term,  // DISTINCT
     eval_ite_term,       // ITE
     eval_bad_term,       // ARRAY
-    eval_bad_term,       // SELECT
-    eval_bad_term,       // STORE
+    eval_select_term,    // SELECT
+    eval_store_term,     // STORE
     eval_bad_term,       // INT
     eval_bad_term,       // REAL
     eval_minus_term,     // MINUS

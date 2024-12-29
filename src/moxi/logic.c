@@ -147,7 +147,7 @@ bool logic_is_supported[NUM_LOGICS] = {
     true, // QF_NIRA
     false, // QF_RDL
     true, // QF_UF
-    false, // QF_ABV
+    true, // QF_ABV
     false, // QF_ALIA
     false, // QF_ALRA
     false, // QF_ALIRA
@@ -393,7 +393,7 @@ bool logic_has_bitvectors[NUM_LOGICS] = {
     false, // QF_NIRA
     false, // QF_RDL
     false, // QF_UF
-    false, // QF_ABV
+    true,  // QF_ABV
     false, // QF_ALIA
     false, // QF_ALRA
     false, // QF_ALIRA
