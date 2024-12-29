@@ -76,8 +76,9 @@ CMD3        TOK_SYMBOL      R0          consume     _               { pstack_pus
 CMD3        *               ERR_SYM     pass        _
 
 // define-fun
-CMD4        TOK_SYMBOL      DONE        consume     R0,TRM0,SRT0,SVL0    { pstack_set_vars_logic(pstack); pstack_push_string(pstack, str, loc); pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
+CMD4        TOK_SYMBOL      SVL0       consume      CMD4a,TRM0,SRT0    { pstack_set_vars_logic(pstack); pstack_push_string(pstack, str, loc); }
 CMD4        *               ERR_SYM     pass        _
+CMD4a       TOK_RP          DONE        consume     _
 
 // declare-fun
 CMD5        TOK_SYMBOL      CMD5a       consume     _       { pstack_push_string(pstack, str, loc); }
@@ -119,7 +120,7 @@ CMD10       TOK_SYMBOL      SRT0       consume     R0,TRM0      { pstack_push_st
 //            | :subsys ( <symbol> ( <symbol>* ) ) <define-sys-attr>
 //            | )
 //
-CMD11       TOK_SYMBOL      DONE       consume     CMD11a   { pstack_push_string(pstack, str, loc); pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);  }
+CMD11       TOK_SYMBOL      CMD11a     consume     _        { pstack_push_string(pstack, str, loc); }
 CMD11a      TOK_KW_INPUT    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_INPUT, loc); pstack_set_vars_input(pstack); }
 CMD11a      TOK_KW_OUTPUT   SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_OUTPUT, loc); pstack_set_vars_output(pstack); }
 CMD11a      TOK_KW_LOCAL    SVL0       consume     CMD11a   { pstack_push_attr(pstack, TOK_KW_LOCAL, loc); pstack_set_vars_local(pstack); }
@@ -147,7 +148,7 @@ CMD11f      TOK_RP          CMD11a     consume     _
 //            | :queries ( ( <symbol> ( <symbol>+ ) )+ ) <check-sys-attr>
 //            | )
 //
-CMD12       TOK_SYMBOL          DONE        consume     CMD12a  { pstack_push_string(pstack, str, loc);  pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc); }
+CMD12       TOK_SYMBOL          CMD12a      consume     _       { pstack_push_string(pstack, str, loc); }
 CMD12a      TOK_KW_INPUT        SVL0        consume     CMD12a  { pstack_push_attr(pstack, TOK_KW_INPUT, loc); pstack_set_vars_input(pstack); }
 CMD12a      TOK_KW_OUTPUT       SVL0        consume     CMD12a  { pstack_push_attr(pstack, TOK_KW_OUTPUT, loc); pstack_set_vars_output(pstack); }
 CMD12a      TOK_KW_LOCAL        SVL0        consume     CMD12a  { pstack_push_attr(pstack, TOK_KW_LOCAL, loc); pstack_set_vars_local(pstack); }
@@ -236,9 +237,9 @@ TRM1       TOK_LP          TRM2        consume     _        { pstack_push_frame(
 TRM2       TOK_SYMBOL           TRM1       consume     TRM3     { pstack_push_string(pstack, str, loc); }
 TRM2       TOK_RW_UNDERSCORE    TRM4       consume     _
 TRM2       TOK_RW_AS            TRM5       consume     _
-TRM2       TOK_RW_LET           TRM6       consume     _
-TRM2       TOK_RW_FORALL        TRM7       consume     _
-TRM2       TOK_RW_EXISTS        TRM7       consume     _
+TRM2       TOK_RW_LET           TRM6       consume     _        { pstack_push_let(pstack, loc); }
+TRM2       TOK_RW_FORALL        TRM7       consume     _        { pstack_push_quantifier(pstack, TOK_RW_FORALL, loc); }
+TRM2       TOK_RW_EXISTS        TRM7       consume     _        { pstack_push_quantifier(pstack, TOK_RW_EXISTS, loc); }
 TRM2       TOK_LP               TRM8       consume     _
 
 // Term arguments
@@ -262,16 +263,18 @@ TRM5d       TOK_RP              SRT0        consume     R0
 
 // After "( let"
 // Example: "(let ((t1 <term>) (<t2 term>)) <term>)"
-TRM6        TOK_LP          TRM6a       consume     _
+TRM6        TOK_LP          TRM6a       consume     _       { pstack_set_vars_logic(pstack); }
 TRM6a       TOK_LP          TRM6b       consume     _
 TRM6b       TOK_SYMBOL      TRM1        consume     TRM6c
 TRM6c       TOK_RP          TRM6d       consume     _
 TRM6d       TOK_LP          TRM6b       consume     _
-TRM6d       TOK_RP          TRM1        consume     R0
+TRM6d       TOK_RP          TRM1        consume     TRM6e
+TRM6e       TOK_RP          DONE        consume     _
 
 // After "( forall" or "( exists"
 // Example: "(exists ((x Int) (y Int)) (> x y))"
-TRM7        TOK_LP      SVL0a       pass        R0,TRM1     { pstack_set_vars_logic(pstack); }
+TRM7        TOK_LP      SVL0a       pass        TRM7a,TRM1     { pstack_set_vars_logic(pstack); }
+TRM7a       TOK_RP      DONE        consume     _
 
 // After "(("   
 TRM8        TOK_RW_UNDERSCORE   TRM4       consume     _
@@ -288,11 +291,11 @@ TRM8a       *                   TRM1       pass        _
 // Upon entry, should call some "pstack_set_" command to set var kind (input, output, local, logic)
 SVL0        TOK_LP          SVL1        consume     _       { pstack_push_frame(pstack, FRM_NOOP_KEEP, loc); }
 SVL0a       TOK_LP          SVL0b       consume     _       { pstack_push_frame(pstack, FRM_NOOP_KEEP, loc); }
-SVL0b       TOK_LP          SVL2        consume     _
+SVL0b       TOK_LP          SVL2        consume     _       { pstack_push_frame(pstack, FRM_VAR_DECL, loc); }
 SVL1        TOK_LP          SVL2        consume     _       { pstack_push_frame(pstack, FRM_VAR_DECL, loc); }
 SVL1        TOK_RP          DONE        consume     _
 SVL2        *               SRT0        consume     SVL3    { pstack_push_string(pstack, str, loc); }
-SVL3        TOK_RP          SVL1        consume     _       { pstack_eval_frame(pstack, ctx); }
+SVL3        TOK_RP          DONE        consume     SVL1
 
 
 // Sort lists

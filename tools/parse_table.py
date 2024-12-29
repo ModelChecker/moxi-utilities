@@ -78,7 +78,6 @@ int init_parser(parser_t *parser, const char *filename)
 
     init_int_stack(&parser->sstack);
     init_pstack(&parser->pstack, filename);
-    init_context(&parser->ctx);
 	parser->filename = filename;
 	return 0;
 }
@@ -88,7 +87,6 @@ void delete_parser(parser_t *parser)
     delete_lexer(&parser->lex);
     delete_int_stack(&parser->sstack);
     delete_pstack(&parser->pstack);
-    delete_context(&parser->ctx);
 }
 
 """
@@ -97,7 +95,7 @@ C_PARSE_FN = (
     """
 parse_action_t get_action(parse_state_t state, token_type_t token) 
 {
-    int i;
+    unsigned int i;
     i = base[state] + token;
     if (check[i] == state) {
         return value[i];
@@ -117,7 +115,6 @@ int parse_moxi(parser_t *parser)
     parse_action_t action;
     loc_t loc;
     pstack_t *pstack; // parse stack
-    moxi_context_t *ctx;
     int exception;
 
     lex = &parser->lex;
@@ -128,13 +125,12 @@ int parse_moxi(parser_t *parser)
     + str(INIT_STATE)
     + """;
     pstack = &parser->pstack;
-    ctx = &parser->ctx;
 
 consume:
     if (state == """
     + str(DONE_STATE)
     + """ && sstack->size == 0) {
-		pstack_eval_frame(pstack, ctx);
+		pstack_eval_frame(pstack);
 		return token == TOK_EOF ? 1 : 0;
 	}
 
@@ -157,11 +153,11 @@ skip:
     if (state == """
     + str(DONE_STATE)
     + """) {
-		pstack_eval_frame(pstack, ctx);
+		pstack_eval_frame(pstack);
 		if (sstack->size == 0) {
             return token == TOK_EOF ? 1 : 0;
 		}
-        state = int_stack_pop(sstack);
+        state = (unsigned int) int_stack_pop(sstack);
     }
 
     action = get_action(state, token);
@@ -305,7 +301,7 @@ def gen_base(states: list[State], base: dict[State, int]) -> str:
         print(base_array, file=sys.stderr)
 
     return (
-        "const int base["
+        "const unsigned int base["
         + str(len(base_array))
         + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in base_array])
@@ -319,7 +315,7 @@ def gen_default(states: list[State], default: dict[State, Action]) -> str:
         default_array[i] = default[states[i]]
 
     return (
-        "const int def["
+        "const unsigned int def["
         + str(len(default_array))
         + "] = {\n\t"
         + "\n\t".join([str(d) + "," for d in default_array])
@@ -345,7 +341,7 @@ def gen_check(
             check_array[b + offset] = states.index(state)
 
     return (
-        "const int check["
+        "const unsigned int check["
         + str(len(check_array))
         + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in check_array])
@@ -376,7 +372,7 @@ def gen_value(
             value_array[b + offset] = actions.index(get_action(state, token, next))
 
     return (
-        "const int value["
+        "const unsigned int value["
         + str(len(value_array))
         + "] = {\n\t"
         + "\n\t".join([str(b) + "," for b in value_array])
