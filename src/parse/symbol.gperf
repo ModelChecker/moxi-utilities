@@ -23,7 +23,8 @@ Real,          THY_SYM_REAL,            SORT
 -,             THY_SYM_MINUS,           TERM
 +,             THY_SYM_PLUS,            TERM
 *,             THY_SYM_TIMES,           TERM
-div,           THY_SYM_DIVIDE,          TERM
+div,           THY_SYM_IDIV,            TERM
+/,             THY_SYM_RDIV,            TERM
 <=,            THY_SYM_LE,              TERM
 <,             THY_SYM_LT,              TERM
 >=,            THY_SYM_GE,              TERM

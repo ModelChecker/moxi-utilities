@@ -19,7 +19,6 @@ int init_parser(parser_t *parser, const char *filename)
 
     init_int_stack(&parser->sstack);
     init_pstack(&parser->pstack, filename);
-    init_context(&parser->ctx);
 	parser->filename = filename;
 	return 0;
 }
@@ -29,7 +28,6 @@ void delete_parser(parser_t *parser)
     delete_lexer(&parser->lex);
     delete_int_stack(&parser->sstack);
     delete_pstack(&parser->pstack);
-    delete_context(&parser->ctx);
 }
 
 typedef enum parse_state {
@@ -71,6 +69,7 @@ typedef enum parse_state {
 	CMD2,
 	CMD3,
 	CMD4,
+	CMD4a,
 	CMD5,
 	CMD5a,
 	CMD5b,
@@ -128,7 +127,9 @@ typedef enum parse_state {
 	TRM6b,
 	TRM6c,
 	TRM6d,
+	TRM6e,
 	TRM7,
+	TRM7a,
 	TRM8,
 	TRM8a,
 } parse_state_t;
@@ -138,7 +139,7 @@ typedef enum parse_action {
 	CMD0_LP_CMD1,
 	CMD0_WC_ERR_LP_EOF,
 	CMD10_SYMBOL_SRT0,
-	CMD11_SYMBOL_DONE,
+	CMD11_SYMBOL_CMD11a,
 	CMD11a_KW_INIT_TRM0,
 	CMD11a_KW_INPUT_SVL0,
 	CMD11a_KW_INV_TRM0,
@@ -153,7 +154,7 @@ typedef enum parse_action {
 	CMD11e_RP_CMD11f,
 	CMD11e_SYMBOL_CMD11e,
 	CMD11f_RP_CMD11a,
-	CMD12_SYMBOL_DONE,
+	CMD12_SYMBOL_CMD12a,
 	CMD12a_KW_ASSUMPTION_CMD12b,
 	CMD12a_KW_CURRENT_CMD12d,
 	CMD12a_KW_FAIRNESS_CMD12b,
@@ -209,8 +210,9 @@ typedef enum parse_action {
 	CMD2_WC_ERR_STR,
 	CMD3_SYMBOL_R0,
 	CMD3_WC_ERR_SYM,
-	CMD4_SYMBOL_DONE,
+	CMD4_SYMBOL_SVL0,
 	CMD4_WC_ERR_SYM,
+	CMD4a_RP_DONE,
 	CMD5_SYMBOL_CMD5a,
 	CMD5_WC_ERR_SYM,
 	CMD5a_LP_CMD5b,
@@ -260,7 +262,7 @@ typedef enum parse_action {
 	SVL1_LP_SVL2,
 	SVL1_RP_DONE,
 	SVL2_WC_SRT0,
-	SVL3_RP_SVL1,
+	SVL3_RP_DONE,
 	TRM0_WC_TRM1,
 	TRM0next_WC_TRM1,
 	TRM0nextinput_WC_TRM1,
@@ -297,14 +299,16 @@ typedef enum parse_action {
 	TRM6c_RP_TRM6d,
 	TRM6d_LP_TRM6b,
 	TRM6d_RP_TRM1,
+	TRM6e_RP_DONE,
 	TRM7_LP_SVL0a,
+	TRM7a_RP_DONE,
 	TRM8_RW_AS_TRM5,
 	TRM8_RW_UNDERSCORE_TRM4,
 	TRM8a_RP_DONE,
 	TRM8a_WC_TRM1,
 } parse_action_t;
 
-const int def[98] = {
+const unsigned int def[101] = {
 	CMD0_WC_ERR_LP_EOF,
 	CMD1_WC_ERR_CMD,
 	ERR_WC_ERR,
@@ -343,6 +347,7 @@ const int def[98] = {
 	CMD2_WC_ERR_STR,
 	CMD3_WC_ERR_SYM,
 	CMD4_WC_ERR_SYM,
+	ERR_WC_ERR,
 	CMD5_WC_ERR_SYM,
 	ERR_WC_ERR,
 	CMD5b_WC_SRT0,
@@ -402,10 +407,12 @@ const int def[98] = {
 	ERR_WC_ERR,
 	ERR_WC_ERR,
 	ERR_WC_ERR,
+	ERR_WC_ERR,
+	ERR_WC_ERR,
 	TRM8a_WC_TRM1,
 };
 
-const int base[98] = {
+const unsigned int base[101] = {
 	0,
 	0,
 	0,
@@ -444,19 +451,20 @@ const int base[98] = {
 	39,
 	12,
 	14,
-	15,
-	62,
-	62,
-	18,
-	65,
-	65,
-	21,
+	60,
+	16,
+	63,
+	63,
+	19,
 	66,
-	23,
-	73,
-	28,
+	66,
+	22,
+	67,
+	27,
 	74,
-	30,
+	29,
+	75,
+	37,
 	0,
 	0,
 	0,
@@ -464,49 +472,51 @@ const int base[98] = {
 	0,
 	0,
 	0,
-	82,
-	84,
+	83,
 	85,
-	86,
-	42,
 	87,
-	89,
-	46,
-	91,
-	93,
+	87,
+	43,
+	88,
+	90,
+	47,
+	92,
+	94,
 	97,
-	97,
-	99,
+	98,
 	100,
 	101,
 	102,
-	0,
 	103,
 	0,
+	104,
 	0,
 	0,
+	0,
+	111,
+	108,
+	105,
+	61,
+	107,
+	125,
 	110,
 	107,
-	104,
-	60,
-	106,
-	124,
-	109,
-	106,
-	73,
-	125,
-	127,
-	132,
-	133,
-	88,
-	134,
-	136,
-	138,
+	74,
+	126,
 	128,
-	139,
+	132,
+	134,
+	89,
+	135,
+	137,
+	138,
+	140,
+	140,
+	131,
+	142,
 };
 
-const int check[196] = {
+const unsigned int check[199] = {
 	0,
 	0,
 	4,
@@ -591,7 +601,7 @@ const int check[196] = {
 	11,
 	11,
 	11,
-	58,
+	51,
 	59,
 	60,
 	32,
@@ -599,113 +609,116 @@ const int check[196] = {
 	62,
 	63,
 	64,
-	64,
+	65,
 	65,
 	66,
 	67,
-	67,
-	60,
+	68,
 	68,
 	69,
+	61,
 	70,
 	71,
 	72,
 	73,
-	73,
-	75,
-	81,
+	74,
+	74,
+	76,
 	82,
-	80,
 	83,
-	85,
-	79,
-	43,
-	79,
-	79,
-	79,
-	79,
-	79,
+	81,
+	84,
 	86,
 	80,
+	44,
+	80,
+	80,
+	80,
+	80,
+	80,
 	87,
-	49,
-	80,
-	80,
-	80,
-	80,
-	84,
-	84,
+	81,
 	88,
+	50,
+	81,
+	81,
+	81,
+	81,
+	85,
+	85,
 	89,
-	89,
-	59,
-	60,
 	90,
+	90,
+	60,
 	91,
+	61,
 	92,
 	93,
 	94,
-	94,
+	95,
 	95,
 	96,
 	97,
 	98,
-	96,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
+	99,
+	100,
+	101,
+	99,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	81,
+	101,
+	86,
 	80,
-	98,
-	85,
-	79,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
-	98,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
+	101,
 };
 
-const int value[196] = {
+const unsigned int value[199] = {
 	0,
 	1,
 	12,
@@ -769,12 +782,12 @@ const int value[196] = {
 	43,
 	75,
 	77,
-	79,
+	78,
 	80,
-	82,
+	81,
 	83,
 	84,
-	86,
+	85,
 	87,
 	88,
 	23,
@@ -783,131 +796,134 @@ const int value[196] = {
 	89,
 	90,
 	91,
-	93,
+	92,
 	20,
 	28,
 	22,
 	21,
 	27,
 	26,
-	100,
-	102,
-	104,
+	94,
+	101,
+	103,
 	51,
-	107,
-	109,
+	105,
+	108,
 	110,
-	112,
 	111,
 	113,
+	112,
 	114,
-	116,
 	115,
-	105,
 	117,
+	116,
 	118,
-	120,
+	106,
+	119,
 	121,
 	122,
 	123,
 	124,
-	126,
-	144,
-	146,
-	137,
+	125,
+	127,
+	145,
 	147,
-	150,
-	133,
-	85,
-	134,
-	131,
-	130,
-	132,
-	135,
-	152,
-	142,
-	153,
-	92,
 	138,
-	141,
-	139,
-	140,
-	149,
 	148,
+	151,
+	134,
+	86,
+	135,
+	132,
+	131,
+	133,
+	136,
+	153,
+	143,
 	154,
-	156,
+	93,
+	139,
+	142,
+	140,
+	141,
+	150,
+	149,
 	155,
-	103,
-	106,
 	157,
+	156,
+	104,
 	158,
+	107,
 	159,
 	160,
 	161,
 	162,
 	163,
+	164,
 	165,
 	166,
-	52,
-	164,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	143,
-	52,
-	151,
-	136,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
-	52,
+	168,
+	169,
+	53,
+	167,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	144,
+	53,
+	152,
+	137,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
+	53,
 };
 
 
 parse_action_t get_action(parse_state_t state, token_type_t token) 
 {
-    int i;
+    unsigned int i;
     i = base[state] + token;
     if (check[i] == state) {
         return value[i];
@@ -927,7 +943,6 @@ int parse_moxi(parser_t *parser)
     parse_action_t action;
     loc_t loc;
     pstack_t *pstack; // parse stack
-    moxi_context_t *ctx;
     int exception;
 
     lex = &parser->lex;
@@ -936,11 +951,10 @@ int parse_moxi(parser_t *parser)
     sstack = &parser->sstack;
     state = CMD0;
     pstack = &parser->pstack;
-    ctx = &parser->ctx;
 
 consume:
     if (state == DONE && sstack->size == 0) {
-		pstack_eval_frame(pstack, ctx);
+		pstack_eval_frame(pstack);
 		return token == TOK_EOF ? 1 : 0;
 	}
 
@@ -959,11 +973,11 @@ skip:
     } 
     
     if (state == DONE) {
-		pstack_eval_frame(pstack, ctx);
+		pstack_eval_frame(pstack);
 		if (sstack->size == 0) {
             return token == TOK_EOF ? 1 : 0;
 		}
-        state = int_stack_pop(sstack);
+        state = (unsigned int) int_stack_pop(sstack);
     }
 
     action = get_action(state, token);
@@ -1111,20 +1125,22 @@ skip:
 			state = ERR_SYM;
 			goto skip;
 
- 		case CMD4_SYMBOL_DONE:
+ 		case CMD4_SYMBOL_SVL0:
 			pstack_set_vars_logic(pstack);
 			pstack_push_string(pstack, str, loc);
-			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
-			int_stack_push(sstack, R0);
+			int_stack_push(sstack, CMD4a);
 			int_stack_push(sstack, TRM0);
 			int_stack_push(sstack, SRT0);
-			int_stack_push(sstack, SVL0);
-			state = DONE;
+			state = SVL0;
 			goto consume;
 
  		case CMD4_WC_ERR_SYM:
 			state = ERR_SYM;
 			goto skip;
+
+ 		case CMD4a_RP_DONE:
+			state = DONE;
+			goto consume;
 
  		case CMD5_SYMBOL_CMD5a:
 			pstack_push_string(pstack, str, loc);
@@ -1214,11 +1230,9 @@ skip:
 			state = SRT0;
 			goto consume;
 
- 		case CMD11_SYMBOL_DONE:
+ 		case CMD11_SYMBOL_CMD11a:
 			pstack_push_string(pstack, str, loc);
-			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
-			int_stack_push(sstack, CMD11a);
-			state = DONE;
+			state = CMD11a;
 			goto consume;
 
  		case CMD11a_KW_INPUT_SVL0:
@@ -1295,11 +1309,9 @@ skip:
 			state = CMD11a;
 			goto consume;
 
- 		case CMD12_SYMBOL_DONE:
+ 		case CMD12_SYMBOL_CMD12a:
 			pstack_push_string(pstack, str, loc);
-			pstack_push_frame(pstack, FRM_PUSH_SCOPE, loc);
-			int_stack_push(sstack, CMD12a);
-			state = DONE;
+			state = CMD12a;
 			goto consume;
 
  		case CMD12a_KW_INPUT_SVL0:
@@ -1545,14 +1557,17 @@ skip:
 			goto consume;
 
  		case TRM2_RW_LET_TRM6:
+			pstack_push_let(pstack, loc);
 			state = TRM6;
 			goto consume;
 
  		case TRM2_RW_FORALL_TRM7:
+			pstack_push_quantifier(pstack, TOK_RW_FORALL, loc);
 			state = TRM7;
 			goto consume;
 
  		case TRM2_RW_EXISTS_TRM7:
+			pstack_push_quantifier(pstack, TOK_RW_EXISTS, loc);
 			state = TRM7;
 			goto consume;
 
@@ -1620,6 +1635,7 @@ skip:
 			goto consume;
 
  		case TRM6_LP_TRM6a:
+			pstack_set_vars_logic(pstack);
 			state = TRM6a;
 			goto consume;
 
@@ -1641,16 +1657,24 @@ skip:
 			goto consume;
 
  		case TRM6d_RP_TRM1:
-			int_stack_push(sstack, R0);
+			int_stack_push(sstack, TRM6e);
 			state = TRM1;
+			goto consume;
+
+ 		case TRM6e_RP_DONE:
+			state = DONE;
 			goto consume;
 
  		case TRM7_LP_SVL0a:
 			pstack_set_vars_logic(pstack);
-			int_stack_push(sstack, R0);
+			int_stack_push(sstack, TRM7a);
 			int_stack_push(sstack, TRM1);
 			state = SVL0a;
 			goto skip;
+
+ 		case TRM7a_RP_DONE:
+			state = DONE;
+			goto consume;
 
  		case TRM8_RW_UNDERSCORE_TRM4:
 			state = TRM4;
@@ -1681,6 +1705,7 @@ skip:
 			goto consume;
 
  		case SVL0b_LP_SVL2:
+			pstack_push_frame(pstack, FRM_VAR_DECL, loc);
 			state = SVL2;
 			goto consume;
 
@@ -1699,9 +1724,9 @@ skip:
 			state = SRT0;
 			goto consume;
 
- 		case SVL3_RP_SVL1:
-			pstack_eval_frame(pstack, ctx);
-			state = SVL1;
+ 		case SVL3_RP_DONE:
+			int_stack_push(sstack, SVL1);
+			state = DONE;
 			goto consume;
 
  		case SRTL0_LP_SRTL1:

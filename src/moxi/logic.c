@@ -101,7 +101,7 @@ bool logic_is_supported[NUM_LOGICS] = {
     false, // AX
     false, // BV
     false, // IDL
-    false, // LIA
+    true, // LIA
     false, // LRA
     false, // LIRA
     false, // NIA
@@ -141,7 +141,7 @@ bool logic_is_supported[NUM_LOGICS] = {
     false, // QF_IDL
     true,  // QF_LIA
     true, // QF_LRA
-    false, // QF_LIRA
+    true, // QF_LIRA
     false, // QF_NIA
     false, // QF_NRA
     false, // QF_NIRA

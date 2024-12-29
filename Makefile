@@ -7,7 +7,7 @@ SRC_DIR := src
 OBJ_DIR := obj
 BIN := moxisc
 
-DBGFLAGS := -g -O0 -DDEBUG -DDEBUG_PARSER -DDEBUG_PSTACK -fsanitize=undefined -fsanitize=address -Waggregate-return -Wbad-function-cast -Wcast-align -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat=2 -Wimplicit -Wlong-long -Wmisleading-indentation  -Wmissing-include-dirs -Wpacked -Wpedantic -Wshadow -Wsign-conversion  -Wswitch-default -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic  -Wpointer-arith -Wcast-qual  -Wno-deprecated-non-prototype
+DBGFLAGS := -g -O0 -DDEBUG -DDEBUG_PARSER -DDEBUG_PSTACK -fsanitize=undefined -fsanitize=address -Waggregate-return -Wbad-function-cast -Wcast-align -Wconversion -Wdisabled-optimization -Wdouble-promotion -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat=2 -Wimplicit -Wlong-long -Wmisleading-indentation  -Wmissing-include-dirs -Wpacked -Wpedantic -Wshadow -Wsign-conversion  -Wswitch-default -Wundef -Wunreachable-code -Wunused -Wvariadic-macros -Wwrite-strings -Wall -Wextra -pedantic  -Wpointer-arith -Wcast-qual  -Wno-deprecated-non-prototype -Wno-missing-field-initializers -Wno-gnu-zero-variadic-macro-arguments
 
 CFLAGS := -Wall -I$(SRC_DIR) -I/usr/local/include -std=c99 
 

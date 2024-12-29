@@ -68,6 +68,8 @@ typedef enum {
     TAG_BITVEC,  // bit-vector constant
     TAG_DECIMAL, // decimal constant
     TAG_TERM,
+    TAG_QUANTIFIER,
+    TAG_LET_BINDER,
     TAG_ERROR,
 } tag_t;
 
@@ -81,30 +83,41 @@ extern const char *tag_str[NUM_TAGS];
 typedef enum frame_type {
     FRM_NOOP,
     FRM_NOOP_KEEP,
-    FRM_PUSH_SCOPE,
     FRM_SORT,
     FRM_TERM,
+    FRM_VAR_DECL,
+    FRM_TERM_BIND,
     FRM_EXIT,
     FRM_RESET,
     FRM_ASSERT,
     FRM_ECHO,
     FRM_SET_LOGIC,
+    FRM_DECLARE_ENUM_SORT,
+    FRM_DECLARE_SORT,
+    FRM_DEFINE_SORT,
+    FRM_DECLARE_CONST,
+    FRM_DEFINE_CONST,
+    FRM_DECLARE_FUN,
+    FRM_DEFINE_FUN,
     FRM_DEFINE_SYS,
     FRM_CHECK_SYS,
-    FRM_DECLARE_SORT,
-    FRM_DECLARE_ENUM_SORT,
-    FRM_DECLARE_CONST,
-    FRM_DECLARE_FUN,
-    FRM_DEFINE_SORT,
-    FRM_DEFINE_CONST,
-    FRM_DEFINE_FUN,
-    FRM_VAR_DECL,
-    FRM_TERM_BIND,
     FRM_ERROR
 } frame_type_t;
 
 #define NUM_FRM_TYPES (FRM_ERROR + 1)
 extern const char *frame_str[NUM_FRM_TYPES];
+
+/**
+ * Frames that require pushing a new var scope onto the stack:
+ * - FRM_DECLARE_FUN
+ * - FRM_DEFINE_FUN
+ * - FRM_DEFINE_SYS
+ * - FRM_CHECK_SYS
+ */
+static bool frame_pushes_var_scope(frame_type_t frame)
+{
+    return frame >= FRM_DECLARE_FUN && frame <= FRM_CHECK_SYS;
+}
 
 typedef enum pstack_error_type {
     BAD_FRAME_SIZE = -1,
@@ -127,7 +140,7 @@ typedef struct pstack_elem {
     tag_t tag;
     union {
         frame_type_t frame_type;
-        token_type_t attr;
+        token_type_t tok;
         sort_t sort;
         int64_t numeral;
         bv64_lit_t bitvec;
@@ -152,6 +165,7 @@ typedef struct pstack {
     bool output_next_vars_enabled; // Allow primed output vars in current term
     bool local_next_vars_enabled; // Allow primed local vars in current term
     jmp_buf env;
+    moxi_context_t ctx;
 } pstack_t;
 
 #define PSTACK_MIN_SIZE 256
@@ -182,15 +196,17 @@ static inline loc_t pstack_top_frame_loc(pstack_t *pstack)
     return pstack->data[pstack->frame].loc;
 }
 
-void pstack_push_frame(pstack_t *pstack, frame_type_t ftype, loc_t loc);
-void pstack_push_attr(pstack_t *pstack, token_type_t tok_type, loc_t loc);
-void pstack_push_term(pstack_t *pstack, term_t term, loc_t loc);
-void pstack_push_sort(pstack_t *pstack, sort_t sort, loc_t loc);
-void pstack_push_string(pstack_t *pstack, char_buffer_t *str, loc_t loc);
-void pstack_push_numeral(pstack_t *pstack, char_buffer_t *str, loc_t loc);
-void pstack_push_decimal(pstack_t *pstack, char_buffer_t *str, loc_t loc);
-void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc);
-void pstack_push_error(pstack_t *pstack, loc_t loc);
+void pstack_push_frame(pstack_t *, frame_type_t, loc_t);
+void pstack_push_attr(pstack_t *, token_type_t, loc_t);
+void pstack_push_term(pstack_t *, term_t, loc_t);
+void pstack_push_sort(pstack_t *, sort_t , loc_t);
+void pstack_push_string(pstack_t *, char_buffer_t *, loc_t);
+void pstack_push_numeral(pstack_t *, char_buffer_t *, loc_t);
+void pstack_push_decimal(pstack_t *, char_buffer_t *, loc_t);
+void pstack_push_binary(pstack_t *, char_buffer_t *, loc_t);
+void pstack_push_quantifier(pstack_t *, token_type_t, loc_t);
+void pstack_push_let(pstack_t *, loc_t);
+void pstack_push_error(pstack_t *, loc_t);
 
 static inline void pstack_set_vars_input(pstack_t *pstack)
 {
@@ -233,26 +249,15 @@ static inline void pstack_enable_input_next_vars(pstack_t *pstack)
     pstack->local_next_vars_enabled = false;
 }
 
-/**
- * Pops `n` elements from `pstack`.
- */
-// void pstack_pop(pstack_t *pstack, uint32_t n);
-
-/**
- * Pops the top frame off `pstack`.
- */
-// void pstack_pop_frame(pstack_t *pstack);
-
 // Function tables for parse table management
-extern void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *);
-extern void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *, moxi_context_t *);
+// extern void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *, moxi_context_t *);
+// extern void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *, moxi_context_t *);
 
 /**
  * Executes top frame of `pstack` according to the function defined in
  * `frame_eval_table`.
  */
-void pstack_eval_frame(pstack_t *pstack, moxi_context_t *ctx);
-
+void pstack_eval_frame(pstack_t *pstack);
 void pstack_print_frame(pstack_t *pstack);
 
 #endif

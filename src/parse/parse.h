@@ -18,7 +18,6 @@ typedef struct parser {
     
     pstack_t pstack;
     int_stack_t sstack;
-    moxi_context_t ctx;
 } parser_t;
 
 

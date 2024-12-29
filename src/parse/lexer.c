@@ -13,7 +13,7 @@
 /**
  * Returns `true` if `c` is a tab (`\t`), space (` `), line break (`\n`), or carriage return (`\r`).
 */
-bool is_whitespace(char c) 
+bool is_whitespace(int c) 
 {
     switch (c)
     {
@@ -32,7 +32,7 @@ bool is_whitespace(char c)
 /**
  * Returns `true` if `c` is a valid symbol character in the SMT-LIB2 lexicon.
 */
-bool is_simple_char(char c)
+bool is_simple_char(int c)
 {
     if (isalnum(c)) {
         return true;
@@ -115,7 +115,7 @@ token_type_t read_decimal(lexer_t *lex)
 {
     char_buffer_t *buffer;
     file_reader_t *reader;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
@@ -123,7 +123,7 @@ token_type_t read_decimal(lexer_t *lex)
 
     assert(ch == '.');
 
-    char_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, (char) ch);
     ch = file_reader_next_char(&lex->reader);
 
     // Cannot allow the token `123.`
@@ -132,7 +132,7 @@ token_type_t read_decimal(lexer_t *lex)
     }
 
     do {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     } while(isdigit(ch));
 
@@ -149,7 +149,7 @@ token_type_t read_numeral(lexer_t *lex)
 {
     char_buffer_t *buffer;
     file_reader_t *reader;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
@@ -161,14 +161,14 @@ token_type_t read_numeral(lexer_t *lex)
     //   - only `0` or 
     //   - `0.<numeral>`
     if (ch == '0') {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
 
         // Any numeral that starts with `0` and followed by another digit is an error.
         // We consume all the digits for better error messaging.
         if (isdigit(ch)) {
             do {
-                char_buffer_append_char(buffer, ch);
+                char_buffer_append_char(buffer, (char) ch);
                 ch = file_reader_next_char(&lex->reader);
             } while(isdigit(ch));
 
@@ -183,7 +183,7 @@ token_type_t read_numeral(lexer_t *lex)
     }
 
     do {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     } while(isdigit(ch));
 
@@ -204,7 +204,7 @@ token_type_t read_constant(lexer_t *lex)
 {
     char_buffer_t *buffer;
     file_reader_t *reader;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
@@ -212,27 +212,27 @@ token_type_t read_constant(lexer_t *lex)
 
     assert(ch == '#');
 
-    char_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, (char) ch);
     ch = file_reader_next_char(&lex->reader);
 
     switch (ch)
     {
     case 'b':
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
 
         while(ch == '0' || ch == '1') {
-            char_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, (char) ch);
             ch = file_reader_next_char(&lex->reader);
         }
 
         return TOK_BINARY;
     case 'x':
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
 
         while(isxdigit(ch)) {
-            char_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, (char) ch);
             ch = file_reader_next_char(&lex->reader);
         }
 
@@ -255,30 +255,30 @@ token_type_t read_string(lexer_t *lex)
 {
     char_buffer_t *buffer;
     file_reader_t *reader;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
     ch = reader->cur;
 
     assert(ch == '"');
-    char_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, (char) ch);
     ch = file_reader_next_char(&lex->reader);
 
 keep_going:
     while(ch != '"' && isprint(ch) && ch != '\\') {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
     if (ch == '"') {
         // Then this is a valid symbol, consume `"`
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
 
         if (ch == '"') {
             // Then we have an escaped quote `""`
-            char_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, (char) ch);
             ch = file_reader_next_char(&lex->reader);
             goto keep_going;
         }
@@ -288,7 +288,7 @@ keep_going:
 
     // In error state, so consume until we find another `"` or EOF
     while(ch != '"' && ch != EOF) {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
@@ -311,29 +311,29 @@ token_type_t read_quoted_symbol(lexer_t *lex)
 {
     char_buffer_t *buffer;
     file_reader_t *reader;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
     ch = reader->cur;
 
     assert(ch == '|');
-    char_buffer_append_char(buffer, ch);
+    char_buffer_append_char(buffer, (char) ch);
     ch = file_reader_next_char(&lex->reader);
 
     while(ch != '|' && isprint(ch) && ch != '\\') {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
     if (ch == '|') {
         // Then this is a valid symbol, consume `|`
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
 
         // Could also be primed symbol
         if (ch == '\'') {
-            char_buffer_append_char(buffer, ch);
+            char_buffer_append_char(buffer, (char) ch);
             file_reader_next_char(&lex->reader);
         }
 
@@ -342,7 +342,7 @@ token_type_t read_quoted_symbol(lexer_t *lex)
 
     // In error state, so consume until we find another `|` or EOF
     while(ch != '|' && ch != EOF) {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     }
 
@@ -368,14 +368,14 @@ token_type_t read_symbol(lexer_t *lex)
     char_buffer_t *buffer;
     file_reader_t *reader;
     const token_t *tok;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
     ch = reader->cur;
 
     do {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     } while(is_simple_char(ch));
 
@@ -392,7 +392,7 @@ token_type_t read_symbol(lexer_t *lex)
 
     // Prime symbol (') allowed at the end of a non-zero length symbol
     if (ch == '\'') {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         file_reader_next_char(&lex->reader);
     }
 
@@ -416,7 +416,7 @@ token_type_t read_keyword(lexer_t *lex)
     char_buffer_t *buffer;
     file_reader_t *reader;
     const token_t *tok;
-    char ch;
+    int ch;
 
     buffer = &lex->buffer;
     reader = &lex->reader;
@@ -426,7 +426,7 @@ token_type_t read_keyword(lexer_t *lex)
     ch = file_reader_next_char(&lex->reader);
 
     do {
-        char_buffer_append_char(buffer, ch);
+        char_buffer_append_char(buffer, (char) ch);
         ch = file_reader_next_char(&lex->reader);
     } while(is_simple_char(ch));
 

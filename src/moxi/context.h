@@ -41,7 +41,7 @@ typedef enum {
 // Stores a variable's kind and sort
 typedef struct var_table_entry {
     var_kind_t kind;
-    term_t var;
+    term_t term;
     bool is_primed;
 } var_table_entry_t;
 
