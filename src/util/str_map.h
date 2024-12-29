@@ -40,7 +40,7 @@ void init_str_map(str_map_t *map, uint32_t size, void (*delete_value)(void *));
 void delete_str_map(str_map_t *map);
 void str_map_reset(str_map_t *map);
 void *str_map_find(str_map_t *map, char *string);
-void str_map_add(str_map_t *map, char *string, size_t n, void *value);
+void str_map_add(str_map_t *map, char *string, uint32_t n, void *value);
 void *str_map_remove(str_map_t *map, char *string);
 
 #endif

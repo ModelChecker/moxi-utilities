@@ -32,7 +32,7 @@ int int_stack_top(int_stack_t *stack)
 void int_stack_extend(int_stack_t *stack, uint32_t size)
 {
     assert(stack->capacity < INT_STACK_MAX_SIZE);
-    size_t new_size = stack->capacity + size;
+    uint32_t new_size = stack->capacity + size;
     stack->capacity = new_size;
     stack->data = realloc(stack->data, sizeof(uint32_t) * new_size);
 }

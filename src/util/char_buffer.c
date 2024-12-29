@@ -14,7 +14,7 @@
 /**
  *
  */
-void init_char_buffer(char_buffer_t *str, size_t size)
+void init_char_buffer(char_buffer_t *str, uint32_t size)
 {
     assert(size <= MAX_CHAR_BUFFER_SIZE);
     str->size = size;
@@ -39,10 +39,10 @@ void delete_char_buffer(char_buffer_t *str)
  * In practice, this function should be called sparingly. Otherwise, the initial
  * size of `str` is likely too low.
  */
-void char_buffer_extend(char_buffer_t *str, size_t size)
+void char_buffer_extend(char_buffer_t *str, uint32_t size)
 {
     assert(str->size < MAX_CHAR_BUFFER_SIZE);
-    size_t new_size = str->size + size;
+    uint32_t new_size = str->size + size;
     str->size = new_size;
     str->data = realloc(str->data, sizeof(char) * new_size);
 }
@@ -76,16 +76,7 @@ void char_buffer_append_char(char_buffer_t *str, char c)
 /**
  *
  */
-void char_buffer_append_string(char_buffer_t *str, char *s)
-{
-    assert(0);
-}
-
-
-/**
- *
- */
-size_t char_buffer_get_length(char_buffer_t *str)
+uint32_t char_buffer_get_length(char_buffer_t *str)
 {
     return str->len;
 }

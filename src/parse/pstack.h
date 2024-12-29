@@ -126,7 +126,7 @@ typedef struct pstack_elem {
         frame_type_t frame_type;
         token_type_t tok;
         sort_t sort;
-        int64_t numeral;
+        uint32_t numeral;
         bv64_t bitvec;
         char *str;
     } value;

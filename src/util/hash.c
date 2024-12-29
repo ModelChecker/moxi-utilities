@@ -41,7 +41,7 @@ uint32_t djb2_hash_string(const char *str)
     int c;
 
     while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        hash = ((hash << 5) + hash) + (uint32_t) c; /* hash * 33 + c */
     }
 
     return hash;

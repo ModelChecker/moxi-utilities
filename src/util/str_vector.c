@@ -38,7 +38,7 @@ void str_vector_reset(str_vector_t *vec)
 
 void str_vector_extend(str_vector_t *vec, uint32_t size)
 {
-    size_t new_size = vec->capacity + size;
+    uint32_t new_size = vec->capacity + size;
     vec->capacity = new_size;
     vec->data = realloc(vec->data, sizeof(char *) * new_size);
 }
