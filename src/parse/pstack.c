@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 #include <yices.h>
 
 #include "io/print.h"
@@ -232,9 +233,16 @@ void pstack_push_binary(pstack_t *pstack, char_buffer_t *str, loc_t loc)
     elem = &pstack->data[pstack->size];
     pstack_incr_top(pstack);
 
+    int status;
+
     // Binary constants are of the form `#b[01]+`
+    // When passing to `bv64_from_str`, we skip the `#b` prefix
     elem->tag = TAG_BITVEC;
-    elem->value.bitvec.value = strtol(str->data, NULL, 2);
+    status = bv64_from_str(str->data + 2, str->len - 2, &elem->value.bitvec);
+    if (status != 0) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "invalid binary constant");
+        longjmp(pstack->env, BAD_TERM);
+    }
     elem->value.bitvec.width = str->len - 2;
     elem->loc = loc;
 }
@@ -367,9 +375,7 @@ sort_t get_elem_sort(pstack_t *pstack, uint32_t n)
     return pstack->data[pstack->frame + n].value.sort;
 }
 
-// Returns the sort of the `n`th element of the current frame. Does not check
-// the tag of the element.
-bv64_lit_t get_elem_bv64_lit(pstack_t *pstack, uint32_t n)
+bv64_t get_elem_bv64(pstack_t *pstack, uint32_t n)
 {
     return pstack->data[pstack->frame + n].value.bitvec;
 }
@@ -904,39 +910,6 @@ void eval_implies_term(pstack_t *pstack)
 }
 
 /**
- * [ <term-frame> "extract" <numeral> <numeral> <bitvec-term> ]
- * 
- * ((_ extract i j) (_ BitVec m) (_ BitVec n))
- * subject to:
- * - m > i ≥ j ≥ 0
- * - n = i - j + 1
- */
-void eval_bvextract_term(pstack_t *pstack)
-{
-#ifdef DEBUG_PSTACK
-    fprintf(stderr, "pstack: evaluating bvextract term\n");
-#endif
-    loc_t loc = pstack_top_frame_loc(pstack);
-    check_frame_size_eq(pstack, 5);
-    check_elem_tag(pstack, 1, TAG_SYMBOL);
-    check_elem_tag(pstack, 2, TAG_NUMERAL);
-    check_elem_tag(pstack, 3, TAG_NUMERAL);
-    check_elem_tag(pstack, 4, TAG_TERM);
-    uint32_t i, j;
-    term_t arg;
-    i = get_elem_numeral(pstack, 2);
-    j = get_elem_numeral(pstack, 3);
-    arg = get_elem_term(pstack, 4);
-    term_t term = yices_bvextract(arg, j, i);
-    if (term == NULL_TERM) {
-        yices_print_error(stderr);
-        longjmp(pstack->env, BAD_SORT);
-    }
-    pstack_pop_frame(pstack);
-    pstack_push_term(pstack, term, loc);
-}
-
-/**
  * [ <term-frame> "+" <int-term> <int-term>+ ] 
  * [ <term-frame> "+" <real-term> <real-term>+ ]
  */
@@ -1276,6 +1249,833 @@ void eval_divisible_term(pstack_t *pstack)
 }
 
 /**
+ * [ <term-frame> "concat" <bitvec-term> <bitvec-term> ]
+ */
+void eval_concat_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating concat term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvconcat2(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "extract" <numeral> <numeral> <bitvec-term> ]
+ * 
+ * ((_ extract i j) (_ BitVec m) (_ BitVec n))
+ * subject to:
+ * - m > i ≥ j ≥ 0
+ * - n = i - j + 1
+ */
+void eval_bvextract_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvextract term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 5);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_NUMERAL);
+    check_elem_tag(pstack, 4, TAG_TERM);
+    uint32_t i, j;
+    term_t arg;
+    i = get_elem_numeral(pstack, 2);
+    j = get_elem_numeral(pstack, 3);
+    arg = get_elem_term(pstack, 4);
+    term_t term = yices_bvextract(arg, j, i);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "repeat" <numeral> <bitvec-term> ]
+ */
+void eval_repeat_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating repeat term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    uint32_t n = get_elem_numeral(pstack, 2);
+    term_t arg = get_elem_term(pstack, 3);
+    term_t term = yices_bvrepeat(arg, n);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "bvcomp" <bitvec-term> <bitvec-term> ]
+ */
+void eval_bvcomp_term(pstack_t *pstack)
+{   
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvcomp term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bveq_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvredand_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvredand term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 3);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    term_t arg = get_elem_term(pstack, 2);
+    term_t term = yices_redand(arg);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvredor_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvredor term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 3);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    term_t arg = get_elem_term(pstack, 2);
+    term_t term = yices_redor(arg);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "bvnot" <bitvec-term> ]
+ */
+void eval_bvnot_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvnot term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 3);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    term_t arg = get_elem_term(pstack, 2);
+    term_t term = yices_bvnot(arg);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * bvand is left-associative
+ * 
+ * [ <term-frame> "bvand" <bitvec-term> <bitvec-term>+ ]
+ */
+void eval_bvand_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvand term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_geq(pstack, 3);
+    uint32_t nargs = pstack_top_frame_size(pstack) - 2;
+    term_t args[nargs];
+    for (size_t i = 0; i < nargs; ++i) {
+        check_elem_tag(pstack, i + 2, TAG_TERM);
+        args[i] = get_elem_term(pstack, i + 2);
+    }
+    term_t term = yices_bvand(nargs, args);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * bvor is left-associative
+ * 
+ * [ <term-frame> "bvor" <bitvec-term> <bitvec-term>+ ]
+ */
+void eval_bvor_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvor term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_geq(pstack, 3);
+    uint32_t nargs = pstack_top_frame_size(pstack) - 2;
+    term_t args[nargs];
+    for (size_t i = 0; i < nargs; ++i) {
+        check_elem_tag(pstack, i + 2, TAG_TERM);
+        args[i] = get_elem_term(pstack, i + 2);
+    }
+    term_t term = yices_bvor(nargs, args);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "bvnand" <bitvec-term> <bitvec-term> ]
+ */
+void eval_bvnand_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvnand term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvnand(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "bvnor" <bitvec-term> <bitvec-term> ]
+ */
+void eval_bvnor_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvnor term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvnor(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvxor_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvxor term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvxor2(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvxnor_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvxnor term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvxnor(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvneg_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvneg term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 3);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    term_t arg = get_elem_term(pstack, 2);
+    term_t term = yices_bvneg(arg);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * bvadd is left-associative
+ * 
+ * [ <term-frame> "bvadd" <bitvec-term> <bitvec-term>+ ]
+ */
+void eval_bvadd_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvadd term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_geq(pstack, 3);
+    uint32_t nargs = pstack_top_frame_size(pstack) - 2;
+    term_t args[nargs];
+    for (size_t i = 0; i < nargs; ++i) {
+        check_elem_tag(pstack, i + 2, TAG_TERM);
+        args[i] = get_elem_term(pstack, i + 2);
+    }
+    term_t term = yices_bvsum(nargs, args);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsub_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsub term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsub(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * bvmul is left-associative
+ * 
+ * [ <term-frame> "bvmul" <bitvec-term> <bitvec-term>+ ]
+ */
+void eval_bvmul_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvmul term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_geq(pstack, 3);
+    uint32_t nargs = pstack_top_frame_size(pstack) - 2;
+    term_t args[nargs];
+    for (size_t i = 0; i < nargs; ++i) {
+        check_elem_tag(pstack, i + 2, TAG_TERM);
+        args[i] = get_elem_term(pstack, i + 2);
+    }
+    term_t term = yices_bvproduct(nargs, args);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvudiv_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvudiv term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvdiv(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvurem_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvurem term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvrem(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsdiv_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsdiv term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsdiv(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsrem_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsrem term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsrem(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsmod_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsmod term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsmod(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvshl_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvshl term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvshl(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvlshr_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvlshr term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvlshr(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvashr_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvashr term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvashr(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "zero_extend" <numeral> <bitvec-term> ]
+ */
+void eval_zero_extend_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating zero_extend term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    uint32_t n = get_elem_numeral(pstack, 2);
+    term_t arg = get_elem_term(pstack, 3);
+    term_t term = yices_zero_extend(arg, n);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "sign_extend" <numeral> <bitvec-term> ]
+ */
+void eval_sign_extend_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating sign_extend term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    uint32_t n = get_elem_numeral(pstack, 2);
+    term_t arg = get_elem_term(pstack, 3);
+    term_t term = yices_sign_extend(arg, n);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "rotate_left" <numeral> <bitvec-term> ]
+ */
+void eval_rotate_left_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating rotate_left term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    uint32_t n = get_elem_numeral(pstack, 2);
+    term_t arg = get_elem_term(pstack, 3);
+    term_t term = yices_rotate_left(arg, n);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+/**
+ * [ <term-frame> "rotate_right" <numeral> <bitvec-term> ]
+ */
+void eval_rotate_right_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating rotate_right term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_NUMERAL);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    uint32_t n = get_elem_numeral(pstack, 2);
+    term_t arg = get_elem_term(pstack, 3);
+    term_t term = yices_rotate_right(arg, n);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvult_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvult term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvlt_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvule_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvule term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvle_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvugt_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvugt term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvgt_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvuge_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvuge term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvge_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvslt_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvslt term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvslt_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsle_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsle term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsle_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsgt_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsgt term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsgt_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+void eval_bvsge_term(pstack_t *pstack)
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating bvsge term\n");
+#endif
+    loc_t loc = pstack_top_frame_loc(pstack);
+    check_frame_size_eq(pstack, 4);
+    check_elem_tag(pstack, 2, TAG_TERM);
+    check_elem_tag(pstack, 3, TAG_TERM);
+    term_t lhs, rhs;
+    lhs = get_elem_term(pstack, 2);
+    rhs = get_elem_term(pstack, 3);
+    term_t term = yices_bvsge_atom(lhs, rhs);
+    if (term == NULL_TERM) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+    pstack_pop_frame(pstack);
+    pstack_push_term(pstack, term, loc);
+}
+
+
+/**
  * [ <term-frame> <bitvec> ]
  * [ <term-frame> <int> ]
  * [ <term-frame> <real> ]
@@ -1301,15 +2101,15 @@ void eval_term(pstack_t *pstack)
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 2);
-        bv64_lit_t bitvec = get_elem_bv64_lit(pstack, 1);
+        bv64_t bitvec = get_elem_bv64(pstack, 1);
         pstack_pop_frame(pstack);
         pstack_push_term(pstack, yices_bvconst_int64(bitvec.width, bitvec.value), loc);
         break;
     }
     case TAG_NUMERAL:
     {
-        if (!logic_has_ints[logic]) {
-            PRINT_ERROR("Int literals require Int logic");
+        if (!logic_has_ints[logic] && !logic_has_reals[logic]) {
+            PRINT_ERROR("integer literals require valid logic");
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 2);
@@ -1324,7 +2124,7 @@ void eval_term(pstack_t *pstack)
         // their provided parse function to convert decimal strings to yices
         // rationals.
         if (!logic_has_reals[logic]) {
-            PRINT_ERROR("Real literals require Real logic");
+            PRINT_ERROR("decimal literals require valid logic");
             longjmp(pstack->env, BAD_LOGIC);
         }
         check_frame_size_eq(pstack, 2);
@@ -1397,6 +2197,13 @@ void eval_term(pstack_t *pstack)
         PRINT_ERROR("bad tag");
         longjmp(pstack->env, BAD_TAG);
     }
+}
+
+void eval_bad_term(pstack_t *pstack) 
+{
+    char *symbol = get_elem_symbol(pstack, 1);
+    PRINT_ERROR("unsupported term %s", symbol);
+    longjmp(pstack->env, BAD_TERM); 
 }
 
 /*****************************************
@@ -1601,11 +2408,11 @@ void eval_define_system(pstack_t *pstack)
             i += 3;
             size_t nvars = 0;
             while (i < nelems && get_elem_tag(pstack, i) == TAG_SYMBOL) {
-                char *var = get_elem_symbol(pstack, i);
-                const var_table_entry_t *entry = moxi_find_var(ctx, var);
+                char *var_sym = get_elem_symbol(pstack, i);
+                const var_table_entry_t *entry = moxi_find_var(ctx, var_sym);
                 if (entry == NULL) {
                     PRINT_ERROR("subsys %s: variable %s not defined",
-                                subsys_symbol, var);
+                                subsys_symbol, var_sym);
                     longjmp(pstack->env, BAD_SYMBOL_KIND);
                 }
                 if (nvars >= subsys_type->ninput + subsys_type->noutput) {
@@ -1617,7 +2424,7 @@ void eval_define_system(pstack_t *pstack)
                 if (nvars < subsys_type->ninput &&
                     !yices_compatible_types(sort, subsys_type->input[nvars])) {
                     PRINT_ERROR("subsys %s: input variable %s has wrong sort",
-                                subsys_symbol, var);
+                                subsys_symbol, var_sym);
                     longjmp(pstack->env, BAD_SORT);
                 } else if (nvars >= subsys_type->ninput) {
                     if (!yices_compatible_types(
@@ -1625,13 +2432,13 @@ void eval_define_system(pstack_t *pstack)
                             subsys_type->output[nvars - subsys_type->ninput])) {
                         PRINT_ERROR(
                             "subsys %s: output variable %s has wrong sort",
-                            subsys_symbol, var);
+                            subsys_symbol, var_sym);
                         longjmp(pstack->env, BAD_SORT);
                     }
                     if (entry->kind == INPUT_VAR) {
                         PRINT_ERROR("subsys %s: input variable %s cannot be "
                                     "mapped to output",
-                                    subsys_symbol, var);
+                                    subsys_symbol, var_sym);
                         longjmp(pstack->env, BAD_SYMBOL_KIND);
                     }
                 }
@@ -2083,13 +2890,6 @@ void eval_noop(pstack_t *pstack)
     pstack_pop_frame_keep(pstack);
 }
 
-void eval_bad_term(pstack_t *pstack) 
-{
-    char *symbol = get_elem_symbol(pstack, 1);
-    PRINT_ERROR("unsupported term %s", symbol);
-    longjmp(pstack->env, BAD_TERM); 
-}
-
 void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *) = {
     eval_noop_pop_frame,    // FRM_NOOP,
     eval_noop,              // FRM_NOOP_KEEP,
@@ -2146,44 +2946,44 @@ void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *) = {
     eval_bad_term,       // TO_REAL
     eval_bad_term,       // TO_INT
     eval_bad_term,       // BITVEC
-    eval_bad_term,       // CONCAT
+    eval_concat_term,    // CONCAT
     eval_bvextract_term, // EXTRACT
-    eval_bad_term, // REPEAT
-    eval_bad_term, // BVCOMP
-    eval_bad_term, // BVREDAND
-    eval_bad_term, // BVREDOR
-    eval_bad_term, // BVNOT
-    eval_bad_term, // BVAND
-    eval_bad_term, // BVOR
-    eval_bad_term, // BVNAND
-    eval_bad_term, // BVNOR
-    eval_bad_term, // BVXOR
-    eval_bad_term, // BVXNOR
-    eval_bad_term, // BVNEG
-    eval_bad_term, // BVADD
-    eval_bad_term, // BVSUB
-    eval_bad_term, // BVMUL
-    eval_bad_term, // BVUDIV
-    eval_bad_term, // BVUREM
-    eval_bad_term, // BVSDIV
-    eval_bad_term, // BVSREM
-    eval_bad_term, // BVSMOD
-    eval_bad_term, // BVSHL
-    eval_bad_term, // BVLSHR
-    eval_bad_term, // BVASHR
-    eval_bad_term, // ZERO_EXTEND
-    eval_bad_term, // SIGN_EXTEND
-    eval_bad_term, // ROTATE_LEFT
-    eval_bad_term, // ROTATE_RIGHT
-    eval_bad_term, // BVULT
-    eval_bad_term, // BVULE
-    eval_bad_term, // BVUGT
-    eval_bad_term, // BVUGE
-    eval_bad_term, // BVSLT
-    eval_bad_term, // BVSLE
-    eval_bad_term, // BVSGT
-    eval_bad_term, // BVSGE
-    eval_bad_term, // UNKNOWN
+    eval_repeat_term,    // REPEAT
+    eval_bvcomp_term,    // BVCOMP
+    eval_bvredand_term,  // BVREDAND
+    eval_bvredor_term,   // BVREDOR
+    eval_bvnot_term,     // BVNOT
+    eval_bvand_term,     // BVAND
+    eval_bvor_term,      // BVOR
+    eval_bvnand_term,    // BVNAND
+    eval_bvnor_term,     // BVNOR
+    eval_bvxor_term,     // BVXOR
+    eval_bvxnor_term,    // BVXNOR
+    eval_bvneg_term,     // BVNEG
+    eval_bvadd_term,     // BVADD
+    eval_bvsub_term,     // BVSUB
+    eval_bvmul_term,     // BVMUL
+    eval_bvudiv_term,    // BVUDIV
+    eval_bvurem_term,    // BVUREM
+    eval_bvsdiv_term,    // BVSDIV
+    eval_bvsrem_term,    // BVSREM
+    eval_bvsmod_term,    // BVSMOD
+    eval_bvshl_term,     // BVSHL
+    eval_bvlshr_term,    // BVLSHR
+    eval_bvashr_term,    // BVASHR
+    eval_zero_extend_term,  // ZERO_EXTEND
+    eval_sign_extend_term,  // SIGN_EXTEND
+    eval_rotate_left_term,  // ROTATE_LEFT
+    eval_rotate_right_term, // ROTATE_RIGHT
+    eval_bvult_term, // BVULT
+    eval_bvule_term, // BVULE
+    eval_bvugt_term, // BVUGT
+    eval_bvuge_term, // BVUGE
+    eval_bvslt_term, // BVSLT
+    eval_bvsle_term, // BVSLE
+    eval_bvsgt_term, // BVSGT
+    eval_bvsge_term, // BVSGE
+    eval_bad_term,   // UNKNOWN
 };
 
 void pstack_eval_frame(pstack_t *pstack)

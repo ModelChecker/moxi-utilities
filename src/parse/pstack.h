@@ -9,6 +9,7 @@
 
 #include "io/file_reader.h"
 #include "moxi/context.h"
+#include "bitvec.h"
 #include "util/char_buffer.h"
 
 /**
@@ -131,11 +132,6 @@ typedef enum pstack_error_type {
     BAD_ATTR = -9
 } pstack_error_type_t;
 
-typedef struct bv64_lit {
-    uint32_t width;
-    uint64_t value;
-} bv64_lit_t;
-
 typedef struct pstack_elem {
     tag_t tag;
     union {
@@ -143,7 +139,7 @@ typedef struct pstack_elem {
         token_type_t tok;
         sort_t sort;
         int64_t numeral;
-        bv64_lit_t bitvec;
+        bv64_t bitvec;
         char *str;
     } value;
     uint32_t frame; // Current stack frame ID
