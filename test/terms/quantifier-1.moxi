@@ -1,0 +1,2 @@
+(set-logic LIA)
+(define-fun f0 () Bool (forall ((x Int)) (>= x 0)))

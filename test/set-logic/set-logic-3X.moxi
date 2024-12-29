@@ -1,2 +1,1 @@
-; (set-logic QF_LIA)
 (define-fun f ((x Int) (y Int)) Int (+ x 0))
