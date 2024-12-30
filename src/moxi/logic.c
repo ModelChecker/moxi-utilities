@@ -98,25 +98,25 @@ const char *logic_str[NUM_LOGICS] = {
 };
 
 bool logic_is_supported[NUM_LOGICS] = {
-    false, // AX
-    true, // BV
+    true,  // AX
+    true,  // BV
     false, // IDL
-    true, // LIA
-    true, // LRA
-    true, // LIRA
-    true, // NIA
-    true, // NRA
-    true, // NIRA
+    true,  // LIA
+    true,  // LRA
+    true,  // LIRA
+    true,  // NIA
+    true,  // NRA
+    true,  // NIRA
     false, // RDL
-    true, // UF
-    false, // ABV
+    true,  // UF
+    true,  // ABV
     false, // ALIA
     false, // ALRA
     false, // ALIRA
     false, // ANIA
     false, // ANRA
     false, // ANIRA
-    false, // AUF
+    true, // AUF
     true, // UFBV
     true, // UFBVLIA
     false, // UFIDL

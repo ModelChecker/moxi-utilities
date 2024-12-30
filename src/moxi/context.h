@@ -69,6 +69,7 @@ typedef struct sys_table_entry {
  */
 typedef struct moxi_context {
     int status;
+    uint32_t type_var_id;
     const logic_t *logic;
     bool active_theory_symbols[NUM_THEORY_SYMBOLS];
 
@@ -83,6 +84,9 @@ typedef struct moxi_context {
     // exited, the top string vector is popped off the stack and all variables
     // in the top vector are removed from the context.
     vstack_t scope_stack;
+
+    // Stores the symbols of all type variables
+    str_vector_t type_var_symbols;
 } moxi_context_t;
 
 void init_context(moxi_context_t *ctx);
@@ -119,6 +123,8 @@ void moxi_pop_scope(moxi_context_t *ctx);
 str_vector_t *moxi_get_scope(moxi_context_t *ctx);
 void moxi_add_named_term(moxi_context_t *ctx, char *str, term_t term, var_kind_t kind);
 const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol);
+void moxi_add_named_sort(moxi_context_t *ctx, char *str, sort_t sort);
+void moxi_clear_type_vars(moxi_context_t *ctx);
 
 /*******************************************************************************
  * Sort Management
@@ -126,9 +132,9 @@ const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol);
  * - Add sorts to the context.
  * - Find sorts in the context.
  ******************************************************************************/
-void moxi_declare_sort(moxi_context_t *ctx, char *str, size_t arity);
+void moxi_declare_sort(moxi_context_t *ctx, char *str, uint32_t arity);
 void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values);
-void moxi_define_sort(moxi_context_t *ctx, char *str, size_t nargs,
+void moxi_define_sort(moxi_context_t *ctx, char *str, uint32_t nargs,
                       sort_t *args, sort_t body);
 
 /*******************************************************************************

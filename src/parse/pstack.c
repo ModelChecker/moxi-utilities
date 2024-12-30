@@ -38,6 +38,7 @@ const char *frame_str[NUM_FRM_TYPES] = {
     "[sort]",               // FRM_SORT
     "[term]",               // FRM_TERM
     "[var-decl]",           // FRM_VAR_DECL
+    "[type-var-decl]",      // FRM_TYPE_VAR_DECL
     "[term-bind]",          // FRM_TERM_BIND
     "[exit]",               // FRM_EXIT
     "[reset]",              // FRM_RESET
@@ -199,6 +200,17 @@ void pstack_push_sort(pstack_t *pstack, sort_t sort, loc_t loc)
 
     elem->tag = TAG_SORT;
     elem->value.sort = sort;
+    elem->loc = loc;
+}
+
+void pstack_push_sort_constructor(pstack_t *pstack, int32_t constr, loc_t loc)
+{
+    pstack_elem_t *elem;
+    elem = &pstack->data[pstack->size];
+    pstack_incr_top(pstack);
+
+    elem->tag = TAG_SORT_CONSTRUCTOR;
+    elem->value.sort_constr = constr;
     elem->loc = loc;
 }
 
@@ -476,7 +488,7 @@ term_t (*yices_bin_constructor[NUM_THEORY_SYMBOLS])(term_t, term_t);
  ****************************************/
 
 /**
- * ["Bool"]
+ * [ <sort-frame> "Bool" ]
  */
 void eval_bool_sort(pstack_t *pstack)
 {
@@ -490,7 +502,7 @@ void eval_bool_sort(pstack_t *pstack)
 }
 
 /**
- * [ "BitVec" <numeral> ]
+ * [ <sort-frame> "BitVec" <numeral> ]
  */
 void eval_bitvec_sort(pstack_t *pstack)
 {
@@ -507,7 +519,7 @@ void eval_bitvec_sort(pstack_t *pstack)
 }
 
 /**
- * [ "Array" <index-sort> <elem-sort> ]
+ * [ <sort-frame> "Array" <index-sort> <elem-sort> ]
  */
 void eval_array_sort(pstack_t *pstack)
 {
@@ -526,7 +538,7 @@ void eval_array_sort(pstack_t *pstack)
 }
 
 /**
- * [ "Int" ]
+ * [ <sort-frame> "Int" ]
  */
 void eval_int_sort(pstack_t *pstack)
 {
@@ -540,7 +552,7 @@ void eval_int_sort(pstack_t *pstack)
 }
 
 /**
- * [ "Real" ]
+ * [ <sort-frame> "Real" ]
  */
 void eval_real_sort(pstack_t *pstack)
 {
@@ -561,7 +573,7 @@ void eval_real_sort(pstack_t *pstack)
  *   - checks that num params match
  *   - constructs sort accordingly and replaces top frame
  *
- * [ <sort-symbol> <sort>* ]
+ * [ <sort-frame> <sort-symbol> <sort>* ]
  */
 void eval_sort(pstack_t *pstack)
 {
@@ -571,42 +583,38 @@ void eval_sort(pstack_t *pstack)
     moxi_context_t *ctx = &pstack->ctx;
     loc_t loc = pstack_top_frame_loc(pstack);
     char *symbol = get_elem_symbol(pstack, 1);
-    if (!is_active_sort(ctx, symbol)) {
-        PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort %s", symbol);
-        longjmp(pstack->env, BAD_SYMBOL_KIND);
+
+    // Check if theory sort
+    if (is_active_theory_sort(ctx, symbol)) {
+        theory_symbol_type_t sym_type = get_theory_symbol_type(ctx, symbol);
+        term_eval_table[sym_type](pstack);
+        return;
     }
 
-    theory_symbol_type_t thy_sym_type = get_theory_symbol_type(ctx, symbol);
-    switch (thy_sym_type) {
-    case THY_SYM_BOOL:
-        eval_bool_sort(pstack);
-        break;
-    case THY_SYM_INT:
-        eval_int_sort(pstack);
-        break;
-    case THY_SYM_REAL:
-        eval_real_sort(pstack);
-        break;
-    case THY_SYM_BITVEC:
-        eval_bitvec_sort(pstack);
-        break;
-    case THY_SYM_ARRAY:
-        eval_array_sort(pstack);
-        break;
-    default:
-    {
-        // All we support currently are uninterpreted sorts with arity 0 and
-        // enums
-        sort_t sort = yices_get_type_by_name(symbol);
-        if (sort == NULL_TYPE) {
-            PRINT_ERROR_LOC(pstack->filename, loc, "unknown sort %s", symbol);
-            longjmp(pstack->env, BAD_SYMBOL_KIND);
-        }
+    // Check if simple sort alias
+    sort_t sort = yices_get_type_by_name(symbol);
+    if (sort != NULL_TYPE) {
+        check_frame_size_eq(pstack, 2);
         pstack_pop_frame(pstack);
         pstack_push_sort(pstack, sort, loc);
-        break;
+        return;
     }
+
+    // Check if sort constructor
+    int32_t macro = yices_get_macro_by_name(symbol);
+    if (macro == -1) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "unsupported sort %s", symbol);
+        longjmp(pstack->env, BAD_SORT);
     }
+    uint32_t nargs = pstack_top_frame_size(pstack) - 2;
+    sort_t args[nargs];
+    for (size_t i = 2; i < pstack_top_frame_size(pstack); ++i) {
+        check_elem_tag(pstack, i, TAG_SORT);
+        args[i-2] = get_elem_sort(pstack, i);
+    }
+    sort = yices_instance_type(macro, nargs, args);
+    pstack_pop_frame(pstack);
+    pstack_push_sort(pstack, sort, loc);
 }
 
 /*****************************************
@@ -964,6 +972,7 @@ void eval_add_term(pstack_t *pstack)
     pstack_pop_frame(pstack);
     pstack_push_term(pstack, term, loc);
 }
+
 /**
  * [ <term-frame> "*" <int-term> <int-term>+ ]
  * [ <term-frame> "*" <real-term> <real-term>+ ]
@@ -2314,17 +2323,36 @@ void eval_set_logic(pstack_t *pstack)
 }
 
 /**
- * [ <define-sort-frame> <symbol> <symbol>* <sort> ]
+ * [ <define-sort-frame> <symbol> <sort>* <sort> ]
  */
 void eval_define_sort(pstack_t *pstack) 
 { 
 #ifdef DEBUG_PSTACK
     fprintf(stderr, "pstack: evaluating define-sort\n");
 #endif
-    // TODO: will require yices_extensions.c to implement
-    // (not supported by Yices' standard API, see 'yices_type_macro')
-    PRINT_ERROR("define-sort not implemented");
-    longjmp(pstack->env, BAD_COMMAND);
+    loc_t loc = pstack_top_frame_loc(pstack);
+    moxi_context_t *ctx = &pstack->ctx;
+    char *symbol;
+    uint32_t nargs = pstack_top_frame_size(pstack) - 3;
+    type_t args[nargs], body;
+
+    check_frame_size_geq(pstack, 3);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+    symbol = get_elem_symbol(pstack, 1);
+    for (uint32_t i = 2; i < nargs + 2; ++i) {
+        check_elem_tag(pstack, i, TAG_SORT);
+        args[i-2] = get_elem_sort(pstack, i);
+    }
+    check_elem_tag(pstack, nargs + 2, TAG_SORT);
+    body = get_elem_sort(pstack, nargs + 2);
+
+    moxi_define_sort(ctx, symbol, nargs, args, body);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined",
+                        symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+    moxi_clear_type_vars(ctx);
 }
 
 /**
@@ -2343,14 +2371,7 @@ void eval_declare_sort(pstack_t *pstack)
     char *symbol = get_elem_symbol(pstack, 1);
     uint64_t arity = get_elem_numeral(pstack, 2);
 
-    if (arity != 0) {
-        // TODO: will require yices_extensions.c to implement
-        // (not supported by Yices' standard API, see 'yices_type_constructor')
-        PRINT_ERROR("uninterpreted sorts with arity >0 are not supported");
-        longjmp(pstack->env, BAD_SORT);
-    }
-
-    moxi_declare_sort(ctx, symbol, 0);
+    moxi_declare_sort(ctx, symbol, arity);
     if (ctx->status) {
         PRINT_ERROR("symbol %s already defined", symbol);
         longjmp(pstack->env, BAD_SYMBOL_KIND);
@@ -2961,6 +2982,39 @@ void eval_var_decl(pstack_t *pstack)
 }
 
 /**
+ * Only used for declaring type vars in
+ *  (define-sort <symbol> <type-var>* <sort>)
+ *
+ * [ <type-var-decl-frame> <symbol> ]
+ */
+void eval_type_var_decl(pstack_t *pstack) 
+{
+#ifdef DEBUG_PSTACK
+    fprintf(stderr, "pstack: evaluating type var decl\n");
+#endif
+    check_frame_size_eq(pstack, 2);
+    check_elem_tag(pstack, 1, TAG_SYMBOL);
+
+    moxi_context_t *ctx = &pstack->ctx;
+    loc_t loc = pstack_top_frame_loc(pstack);
+    char *symbol = get_elem_symbol(pstack, 1);
+    sort_t sort = yices_type_variable(ctx->type_var_id++);
+    if (sort == NULL_TYPE) {
+        yices_print_error(stderr);
+        longjmp(pstack->env, BAD_SORT);
+    }
+
+    moxi_add_named_sort(ctx, symbol, sort);
+    if (ctx->status) {
+        PRINT_ERROR_LOC(pstack->filename, loc, "symbol %s already defined", symbol);
+        longjmp(pstack->env, BAD_SYMBOL_KIND);
+    }
+
+    pstack_pop_frame(pstack);
+    pstack_push_sort(pstack, sort, loc);
+}
+
+/**
  * [ <term-binder-frame> <symbol> <term> ]
  */
 void eval_term_binder(pstack_t *pstack) 
@@ -3001,6 +3055,7 @@ void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *) = {
     eval_sort,              // FRM_SORT,
     eval_term,              // FRM_TERM,
     eval_var_decl,          // FRM_VAR_DECL,
+    eval_type_var_decl,     // FRM_TYPE_VAR_DECL,
     eval_term_binder,       // FRM_TERM_BIND,
     eval_noop_pop_frame,    // FRM_EXIT,
     eval_noop_pop_frame,    // FRM_RESET,
@@ -3020,7 +3075,7 @@ void (*frame_eval_table[NUM_FRM_TYPES])(pstack_t *) = {
 };
 
 void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *) = {
-    eval_bad_term,       // BOOL
+    eval_bool_sort,      // BOOL
     eval_true_term,      // TRUE
     eval_false_term,     // FALSE
     eval_not_term,       // NOT
@@ -3031,11 +3086,11 @@ void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *) = {
     eval_eq_term,        // EQ
     eval_distinct_term,  // DISTINCT
     eval_ite_term,       // ITE
-    eval_bad_term,       // ARRAY
+    eval_array_sort,     // ARRAY
     eval_select_term,    // SELECT
     eval_store_term,     // STORE
-    eval_bad_term,       // INT
-    eval_bad_term,       // REAL
+    eval_int_sort,       // INT
+    eval_real_sort,      // REAL
     eval_minus_term,     // MINUS
     eval_add_term,       // PLUS
     eval_mul_term,       // TIMES
@@ -3050,7 +3105,7 @@ void (*term_eval_table[NUM_THEORY_SYMBOLS])(pstack_t *) = {
     eval_abs_term,       // ABS
     eval_bad_term,       // TO_REAL
     eval_bad_term,       // TO_INT
-    eval_bad_term,       // BITVEC
+    eval_bitvec_sort,    // BITVEC
     eval_concat_term,    // CONCAT
     eval_bvextract_term, // EXTRACT
     eval_repeat_term,    // REPEAT

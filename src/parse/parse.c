@@ -221,7 +221,7 @@ typedef enum parse_action {
 	CMD6_SYMBOL_CMD6a,
 	CMD6a_LP_CMD6b,
 	CMD6b_RP_SRT0,
-	CMD6b_SYMBOL_CMD6b,
+	CMD6b_SYMBOL_DONE,
 	CMD7_SYMBOL_CMD7a,
 	CMD7a_NUMERAL_R0,
 	CMD8_SYMBOL_CMD8a,
@@ -1174,9 +1174,11 @@ skip:
 			state = CMD6b;
 			goto consume;
 
- 		case CMD6b_SYMBOL_CMD6b:
+ 		case CMD6b_SYMBOL_DONE:
+			pstack_push_frame(pstack, FRM_TYPE_VAR_DECL, loc);
 			pstack_push_string(pstack, str, loc);
-			state = CMD6b;
+			int_stack_push(sstack, CMD6b);
+			state = DONE;
 			goto consume;
 
  		case CMD6b_RP_SRT0:

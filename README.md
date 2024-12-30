@@ -1,5 +1,13 @@
 # MoXI Sort Checker
 
+***NOTE***: This version requires a modified version of Yices with the following functions in `yices_extensions.h` moved to `yices.h`:
+
+- yices_type_variable
+- yices_type_constructor
+- yices_type_macro
+- yices_instance_type
+- yices_get_macro_by_name
+
 A reference sort checker for MoXI. The following programs are required:
 
 - C compiler

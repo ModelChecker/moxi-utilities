@@ -90,7 +90,7 @@ CMD5        *               ERR_SYM     pass        _
 // define-sort
 CMD6        TOK_SYMBOL      CMD6a       consume     _       { pstack_push_string(pstack, str, loc); }
 CMD6a       TOK_LP          CMD6b       consume     _       
-CMD6b       TOK_SYMBOL      CMD6b       consume     _       { pstack_push_string(pstack, str, loc); }
+CMD6b       TOK_SYMBOL      DONE        consume     CMD6b       { pstack_push_frame(pstack, FRM_TYPE_VAR_DECL, loc); pstack_push_string(pstack, str, loc); }
 CMD6b       TOK_RP          SRT0        consume     R0
 
 // declare-sort

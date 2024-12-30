@@ -140,9 +140,11 @@ void reset_symbols(moxi_context_t *ctx)
 void init_context(moxi_context_t *ctx)
 {
     ctx->status = 0;
+    ctx->type_var_id = 0;
     init_str_map(&ctx->var_table, 0, default_delete_entry);
     init_str_map(&ctx->sys_table, 0, delete_sys_table_entry);
     init_stack(&ctx->scope_stack, delete_var_stack_entry);
+    init_str_vector(&ctx->type_var_symbols, 16);
     ctx->logic = &no_logic;
     activate_core_symbols(ctx);
 }
@@ -251,7 +253,6 @@ void moxi_declare_fun(moxi_context_t *ctx, char *symbol, size_t nargs,
     yices_set_term_name(term, symbol);
 }
 
-
 void moxi_define_fun(moxi_context_t *ctx, char *str, size_t nargs,
                      sort_t *args, sort_t ret, term_t body)
 {
@@ -260,14 +261,12 @@ void moxi_define_fun(moxi_context_t *ctx, char *str, size_t nargs,
     moxi_declare_fun(ctx, str, nargs, args, ret);
 }
 
-
 void moxi_push_scope(moxi_context_t *ctx)
 {
     str_vector_t *vec = malloc(sizeof(str_vector_t));
     init_str_vector(vec, 16);
     stack_push(&ctx->scope_stack, vec);
 }
-
 
 void moxi_pop_scope(moxi_context_t *ctx)
 {
@@ -281,12 +280,21 @@ void moxi_pop_scope(moxi_context_t *ctx)
     free(vec);
 }
 
-
 str_vector_t *moxi_get_scope(moxi_context_t *ctx)
 {
     return stack_top(&ctx->scope_stack);
 }
 
+void moxi_clear_type_vars(moxi_context_t *ctx)
+{
+    uint32_t i;
+    str_vector_t *type_var_symbols = &ctx->type_var_symbols;
+    for (i = 0; i < type_var_symbols->size; ++i) {
+        yices_remove_type_name(type_var_symbols->data[i]);
+    }
+    str_vector_reset(type_var_symbols);
+    ctx->type_var_id = 0; // FIXME: double check this
+}
 
 /**
  * Adds `symbol` to the term table, variable table, and the current scope.
@@ -327,27 +335,35 @@ void moxi_add_named_term(moxi_context_t *ctx, char *symbol, term_t term, var_kin
     yices_set_term_name(term, primed);
 }
 
+void moxi_add_named_sort(moxi_context_t *ctx, char *str, sort_t sort)
+{
+    if (is_active_theory_sort(ctx, str)) {
+        ctx->status = 1;
+        return;
+    }
+    yices_set_type_name(sort, str);
+}
 
 const var_table_entry_t *moxi_find_var(moxi_context_t *ctx, char *symbol)
 {
     return str_map_find(&ctx->var_table, symbol);
 }
 
-
-void moxi_declare_sort(moxi_context_t *ctx, char *symbol, size_t arity)
+void moxi_declare_sort(moxi_context_t *ctx, char *symbol, uint32_t arity)
 {
     if (is_active_theory_sort(ctx, symbol)) {
         ctx->status = 1;
         return;
     }
-    if (arity != 0) {
-        ctx->status = 1;
+    if (arity == 0) {
+        sort_t sort = yices_new_uninterpreted_type();
+        yices_set_type_name(sort, symbol);
         return;
     }
-    sort_t sort = yices_new_uninterpreted_type();
-    yices_set_type_name(sort, symbol);
+    // not supported by Yices' standard API, see yices_extensions.c 
+    // macro name is set internally
+    yices_type_constructor(symbol, arity);
 }
-
 
 void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char **values)
 {
@@ -370,6 +386,21 @@ void moxi_declare_enum_sort(moxi_context_t *ctx, char *str, size_t nvalues, char
     }
 }
 
+void moxi_define_sort(moxi_context_t *ctx, char *str, uint32_t nargs,
+                      sort_t *args, sort_t body)
+{
+    if (is_active_theory_sort(ctx, str)) {
+        ctx->status = 1;
+        return;
+    }
+    if (nargs == 0) {
+        yices_set_type_name(body, str);
+        return;
+    }
+    // not supported by Yices' standard API, see yices_extensions.c 
+    // macro name is set internally
+    yices_type_macro(str, nargs, args, body);
+}
 
 void moxi_define_system(moxi_context_t *ctx, char *str, size_t ninput,
                         sort_t *input, size_t noutput, sort_t *output,

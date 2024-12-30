@@ -87,6 +87,7 @@ typedef enum frame_type {
     FRM_SORT,
     FRM_TERM,
     FRM_VAR_DECL,
+    FRM_TYPE_VAR_DECL,
     FRM_TERM_BIND,
     FRM_EXIT,
     FRM_RESET,
@@ -126,6 +127,7 @@ typedef struct pstack_elem {
         frame_type_t frame_type;
         token_type_t tok;
         sort_t sort;
+        int32_t sort_constr;
         int64_t numeral;
         bv64_t bitvec;
         char *str;
