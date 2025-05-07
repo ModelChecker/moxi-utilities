@@ -70,7 +70,7 @@ $(OBJ_DIR)/%.d: $(SRC_DIR)/%.c | $(OBJ_DIR)
 		sed 's, \($*\).h, $(SRC_DIR)/\1.h,g' < $@.$$$$ > $@ ; \
 		rm -f $@.$$$$
 
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(MAKECMDGOALS),clean)
 include $(DEP_FILES)
 endif
 

@@ -231,7 +231,7 @@ void moxi_set_logic(moxi_context_t *ctx, char *symbol)
 void moxi_declare_fun(moxi_context_t *ctx, char *symbol, size_t nargs,
                      sort_t *args, sort_t ret)
 {
-    if (is_active_theory_term(ctx, symbol)) {
+    if (is_active_term(ctx, symbol)) {
         ctx->status = 1;
         return;
     }
