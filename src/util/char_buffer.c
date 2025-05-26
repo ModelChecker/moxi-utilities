@@ -11,9 +11,6 @@
 #include "util/char_buffer.h"
 
 
-/**
- *
- */
 void init_char_buffer(char_buffer_t *str, size_t size)
 {
     assert(size <= MAX_CHAR_BUFFER_SIZE);
@@ -24,9 +21,6 @@ void init_char_buffer(char_buffer_t *str, size_t size)
 }
 
 
-/**
- *
- */
 void delete_char_buffer(char_buffer_t *str)
 {
     free(str->data);
@@ -48,9 +42,6 @@ void char_buffer_extend(char_buffer_t *str, size_t size)
 }
 
 
-/**
- *
- */
 void char_buffer_reset(char_buffer_t *str)
 {
     str->len = 0;
@@ -58,33 +49,19 @@ void char_buffer_reset(char_buffer_t *str)
 }
 
 
-/**
- *
- */
 void char_buffer_append_char(char_buffer_t *str, char c)
 {
+    str->data[str->len] = c;
+    str->len++;
+    str->data[str->len] = '\0';
+    
     // by default, extend the string by 50% if needed
     if (str->len == str->size - 1) {
         char_buffer_extend(str, str->size / 2);
     }
-    str->data[str->len] = c;
-    str->len++;
-    str->data[str->len] = '\0';
 }
 
 
-/**
- *
- */
-void char_buffer_append_string(char_buffer_t *str, char *s)
-{
-    assert(0);
-}
-
-
-/**
- *
- */
 size_t char_buffer_get_length(char_buffer_t *str)
 {
     return str->len;

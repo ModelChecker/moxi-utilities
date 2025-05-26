@@ -45,10 +45,10 @@ void str_vector_extend(str_vector_t *vec, uint32_t size)
 
 void str_vector_append(str_vector_t *vec, char *str)
 {
+    vec->data[vec->size] = str;
+    vec->size++;
     if (vec->size == vec->capacity) {
         str_vector_extend(vec, vec->capacity);
     }
-    vec->data[vec->size] = str;
-    vec->size++;
 }
 

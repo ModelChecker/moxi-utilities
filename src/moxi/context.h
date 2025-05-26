@@ -9,7 +9,7 @@
 
 #include "moxi/logic.h"
 #include "parse/token.h"
-#include "util/stack.h"
+#include "util/ptr_stack.h"
 #include "util/str_int_map.h"
 #include "util/str_map.h"
 #include "util/str_vector.h"
@@ -82,7 +82,7 @@ typedef struct moxi_context {
     // entered, a new string vector is pushed onto the stack. When a scope is
     // exited, the top string vector is popped off the stack and all variables
     // in the top vector are removed from the context.
-    vstack_t scope_stack;
+    ptr_stack_t scope_stack;
 } moxi_context_t;
 
 void init_context(moxi_context_t *ctx);

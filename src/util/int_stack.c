@@ -40,11 +40,11 @@ void int_stack_extend(int_stack_t *stack, uint32_t size)
 
 void int_stack_push(int_stack_t *stack, int i)
 {
+    stack->data[stack->size] = i;
+    stack->size++;
     if (stack->size == stack->capacity) {
         int_stack_extend(stack, stack->capacity / 2);
     }
-    stack->data[stack->size] = i;
-    stack->size++;
 }
 
 

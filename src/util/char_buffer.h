@@ -21,37 +21,32 @@ typedef struct char_buffer {
 
 
 /**
- *
+ * Initialize a char buffer with a given size.
  */
 void init_char_buffer(char_buffer_t *str, size_t size);
 
 /**
- *
+ * Delete a char buffer.
  */
 void delete_char_buffer(char_buffer_t *str);
 
 /**
- *
+ * Extend the size of a char buffer.
  */
 void char_buffer_extend(char_buffer_t *str, size_t size);
 
 /**
- *
+ * Reset a char buffer.
  */
 void char_buffer_reset(char_buffer_t *str);
 
 /**
- *
+ * Append a char to a char buffer.
  */
 void char_buffer_append_char(char_buffer_t *str, char c);
 
 /**
- *
- */
-void char_buffer_append_string(char_buffer_t *str, char *s);
-
-/**
- *
+ * Return the length of a char buffer.
  */
 size_t char_buffer_get_length(char_buffer_t *str);
 

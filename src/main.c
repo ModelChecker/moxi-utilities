@@ -5,11 +5,9 @@
 #include <yices.h>
 
 #include "io/print.h"
-#include "parse/token.h"
-#include "parse/lexer.h"
 #include "parse/parse.h"
 
-const char *usage = "Usage: moxi filename\n";
+const char *usage = "Usage: moxisc <filename>\n";
 
 int main(int argc, char *argv[])
 {

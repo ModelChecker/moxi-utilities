@@ -71,6 +71,7 @@ typedef enum {
     TAG_TERM,
     TAG_QUANTIFIER,
     TAG_LET_BINDER,
+    TAG_AS,
     TAG_ERROR,
 } tag_t;
 
@@ -141,13 +142,13 @@ typedef struct pstack {
     const char *filename; // Filename of the input file for error messages
     pstack_elem_t *data;
     uint32_t capacity;
-    uint32_t size;   // Number of elements in pstack
+    uint32_t size;  // Number of elements in pstack
     uint32_t frame; // Index of top frame element
     int status;
     var_kind_t cur_var_kind; // Used for var declarations
     bool input_next_vars_enabled;  // Allow primed input vars in current term
     bool output_next_vars_enabled; // Allow primed output vars in current term
-    bool local_next_vars_enabled; // Allow primed local vars in current term
+    bool local_next_vars_enabled;  // Allow primed local vars in current term
     jmp_buf env;
     moxi_context_t ctx;
 } pstack_t;
@@ -191,6 +192,7 @@ void pstack_push_binary(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_hex(pstack_t *, char_buffer_t *, loc_t);
 void pstack_push_quantifier(pstack_t *, token_type_t, loc_t);
 void pstack_push_let(pstack_t *, loc_t);
+void pstack_push_as(pstack_t *, loc_t);
 void pstack_push_error(pstack_t *, loc_t);
 
 static inline void pstack_set_vars_input(pstack_t *pstack)
